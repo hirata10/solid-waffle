@@ -199,6 +199,7 @@ svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,22]*1e6, 2.)
 im = S.imshow(full_info[:,:,22]*1e6, cmap=use_cmap, aspect='equal', interpolation='nearest', origin='lower',
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
+F.set_tight_layout(True)
 F.savefig(outstem+'_multi.eps')
 plt.close(F)
 
