@@ -686,6 +686,6 @@ def hotpix(darkfiles, formatpars, tslices, pars, verbose):
 # Generates min and max range for a color bar
 # based on inter-quartile range
 def get_vmin_vmax(mydata, qext):
-  Q1 = numpy.percentile(mydata,25)
-  Q2 = numpy.percentile(mydata,75)
+  Q1 = numpy.nanpercentile(mydata,25)
+  Q2 = numpy.nanpercentile(mydata,75)
   return Q1-(Q2-Q1)*qext, Q2+(Q2-Q1)*qext
