@@ -11,20 +11,21 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 1
+  return 2
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
 # run this script on H1/H2RG data.)
 #
 def get_nside(formatpars):
-  return 4096
+  if formatpars==1: return 4096
+  if formatpars==2: return 2048
 
 # Get number of time slices
 def get_num_slices(formatpars, filename):
 
   # Switch based on input format
-  if formatpars==1:
+  if formatpars==1 or formatpars==2:
     hdus = fits.open(filename)
     ntslice = int(hdus[0].header['NAXIS3'])
     hdus.close()
@@ -57,7 +58,7 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
   output_cube = numpy.zeros((ntslice_use, nyuse, nxuse))
 
   # Switch based on input format
-  if formatpars==1:
+  if formatpars==1 or formatpars==2:
     if use_fitsio:
       fileh = fitsio.FITS(filename)
       N = get_nside(formatpars)
