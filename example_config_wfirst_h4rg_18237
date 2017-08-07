@@ -1,0 +1,11 @@
+DETECTOR: H4RG-18237
+LIGHT:
+  ../SCA18237/Set_002_Light_0001.fits
+  ../SCA18237/Set_002_Light_0002.fits
+DARK:
+  ../SCA18237/Set_001_Dark_0001.fits
+  ../SCA18237/Set_001_Dark_0004.fits
+FORMAT: 1
+
+TIME:    3 11 13 21
+OUTPUT:		out/this_det12
