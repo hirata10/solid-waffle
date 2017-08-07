@@ -11,7 +11,7 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 2
+  return 3
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to

@@ -94,6 +94,7 @@ if len(lightfiles)!=len(darkfiles) or len(lightfiles)<2:
 # Additional parameters
 # Size of a block
 N = pyirc.get_nside(formatpars)
+nx = ny = pyirc.get_nside(formatpars)//128
 # Side lengths
 dx = N//nx
 dy = N//ny
@@ -128,8 +129,11 @@ for iy in range(ny):
                   [sensitivity_spread_cut, False], False)
     #print len(numpy.where(region_cube[len(lightfiles),0,:,:]>0)[0])
     info = pyirc.basic(region_cube, dark_cube, tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
-    bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, 2, blsub], False)
-    info += bfeCoefs[0:5,0:5].flatten().tolist()
+    if len(info)>0:
+      bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, 2, blsub], False)
+      info += bfeCoefs[0:5,0:5].flatten().tolist()
+    else:
+      info = numpy.zeros((35)).tolist()
 
     if len(info)==my_dim:
       full_info[iy,ix,:] = numpy.array(info)
