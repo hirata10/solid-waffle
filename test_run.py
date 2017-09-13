@@ -24,7 +24,7 @@ sensitivity_spread_cut = .1
 critfrac = 0.75
 
 # Parameters for basic characterization
-basicpar = [.01, True, True, 1]
+basicpar = [.01, True, True, 1, True]
 
 # Parameters for BFE
 blsub = True
@@ -60,6 +60,12 @@ for line in content:
   m = re.search(r'^FORMAT:\s*(\d+)', line)
   if m: formatpars = int(m.group(1))
 
+  # Bin sizes
+  m = re.search(r'^NBIN:\s*(\d+)\s+(\d+)', line)
+  if m:
+    nx = int(m.group(1))
+    ny = int(m.group(2))
+
   # Time slices
   m = re.search(r'^TIME:\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
   if m: tslices = [ int(m.group(x)) for x in range(1,5)]
@@ -94,7 +100,6 @@ if len(lightfiles)!=len(darkfiles) or len(lightfiles)<2:
 # Additional parameters
 # Size of a block
 N = pyirc.get_nside(formatpars)
-nx = ny = pyirc.get_nside(formatpars)//128
 # Side lengths
 dx = N//nx
 dy = N//ny
@@ -137,8 +142,10 @@ for iy in range(ny):
 
     if len(info)==my_dim:
       full_info[iy,ix,:] = numpy.array(info)
-    if info[0]>=nx*ny*critfrac:
+    if info[0]>=npix*critfrac:
       is_good[iy,ix] = 1
+    else:
+      full_info[iy,ix,1:] = 0 # wipe out this super-pixel
 
 print '|'
 
@@ -149,54 +156,55 @@ print 'Mean info from good regions =', mean_full_info
 print ''
 
 # Multi-panel figure showing basic characterization
+ar = nx/(ny+0.0)
+spr = 2.2
 matplotlib.rcParams.update({'font.size': 8})
 F = plt.figure(figsize=(7,9))
 S = F.add_subplot(3,2,1)
 S.set_title(r'Good pixel map (%)')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
-svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,0]*100/(dx*dy), 2.)
-im = S.imshow(full_info[:,:,0]*100/(dx*dy), cmap=use_cmap, aspect='equal', interpolation='nearest', origin='lower',
-  vmin=svmin, vmax=svmax)
+im = S.imshow(full_info[:,:,0]*100/(dx*dy), cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
+  vmin=100*critfrac, vmax=100)
 F.colorbar(im, orientation='vertical')
 S = F.add_subplot(3,2,2)
 S.set_title(r'Gain map $g$ (e/DN)')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
-svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,3], 2.)
-im = S.imshow(full_info[:,:,3], cmap=use_cmap, aspect='equal', interpolation='nearest', origin='lower',
+svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,3], spr)
+im = S.imshow(full_info[:,:,3], cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
 S = F.add_subplot(3,2,3)
 S.set_title(r'IPC map $\alpha$ (%)')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
-svmin, svmax = pyirc.get_vmin_vmax((full_info[:,:,4]+full_info[:,:,5])/2.*100., 2.)
-im = S.imshow((full_info[:,:,4]+full_info[:,:,5])/2.*100., cmap=use_cmap, aspect='equal', interpolation='nearest', origin='lower',
+svmin, svmax = pyirc.get_vmin_vmax((full_info[:,:,4]+full_info[:,:,5])/2.*100., spr)
+im = S.imshow((full_info[:,:,4]+full_info[:,:,5])/2.*100., cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
 S = F.add_subplot(3,2,4)
 S.set_title(r'Non-linearity map $\beta$ (ppm/e)')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
-svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,6]*1e6, 2.)
-im = S.imshow(full_info[:,:,6]*1e6, cmap=use_cmap, aspect='equal', interpolation='nearest', origin='lower',
+svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,6]*1e6, spr)
+im = S.imshow(full_info[:,:,6]*1e6, cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
 S = F.add_subplot(3,2,5)
 S.set_title(r'Charge $It_{n,n+1}$ (e):')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
-svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,7], 2.)
-im = S.imshow(full_info[:,:,7], cmap=use_cmap, aspect='equal', interpolation='nearest', origin='lower',
+svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,7], spr)
+im = S.imshow(full_info[:,:,7], cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
 S = F.add_subplot(3,2,6)
 S.set_title(r'IPNL $[K^2a+KK^\prime]_{0,0}$ (ppm/e):')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
-svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,22]*1e6, 2.)
-im = S.imshow(full_info[:,:,22]*1e6, cmap=use_cmap, aspect='equal', interpolation='nearest', origin='lower',
+svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,22]*1e6, spr)
+im = S.imshow(full_info[:,:,22]*1e6, cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
 F.set_tight_layout(True)

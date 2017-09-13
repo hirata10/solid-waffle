@@ -11,7 +11,7 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 3
+  return 4
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -20,6 +20,7 @@ def get_version():
 def get_nside(formatpars):
   if formatpars==1: return 4096
   if formatpars==2: return 2048
+  if formatpars==3: return 4096
 
 # Get number of time slices
 def get_num_slices(formatpars, filename):
@@ -28,6 +29,10 @@ def get_num_slices(formatpars, filename):
   if formatpars==1 or formatpars==2:
     hdus = fits.open(filename)
     ntslice = int(hdus[0].header['NAXIS3'])
+    hdus.close()
+  elif formatpars==3:
+    hdus = fits.open(filename)
+    ntslice = len(hdus)-1
     hdus.close()
   else:
     print 'Error! Invalid formatpars =', formatpars
@@ -77,6 +82,17 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
         t = tslices[ts]
         output_cube[ts,:,:] = 65535 - in_hdu.data[t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]]
       hdus.close()
+  elif formatpars==3:
+    if use_fitsio:
+      fileh = fitsio.FITS(filename)
+      N = get_nside(formatpars)
+      for ts in range(ntslice_use):
+        t = tslices[ts]
+        output_cube[ts,:,:] = numpy.array(fileh[t][xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
+      fileh.close()
+    else:
+      print 'Error: non-fitsio methods not yet supported for formatpars=3'
+      exit()
   else:
     print 'Error! Invalid formatpars =', formatpars
     exit()
@@ -254,11 +270,13 @@ def pixel_data(filelist, formatpars, xyrange, tslices, maskinfo, verbose):
 #   alphaH
 #   alphaV
 #
+# returns [] if failed.
 def gain_alphacorr(graw, CH, CV, signal):
   g = graw
   for i in range(100):
     alphaH = CH*g/(2*signal)
     alphaV = CV*g/(2*signal)
+    if (alphaH+alphaV>0.25): return [] # FAIL!
     g = graw*( (1-2*(alphaH+alphaV))**2 + 2*(alphaH**2+alphaV**2) )
   return [g, alphaH, alphaV]
 
@@ -278,6 +296,8 @@ def gain_alphacorr(graw, CH, CV, signal):
 #   alphaV
 #   beta
 #   current I (electrons per time slice)
+#
+# returns [] if failed
 def gain_alphabetacorr(graw, CH, CV, signal, frac_dslope, times):
 
   # This is solving the following set of equations
@@ -306,9 +326,11 @@ def gain_alphabetacorr(graw, CH, CV, signal, frac_dslope, times):
     temp = (1-4*alpha-4*beta*I*times[3])*2*I*(times[3]-times[0])/g**2
     alphaH = CH/temp
     alphaV = CV/temp
+    if (alphaH+alphaV>0.25): return [] # FAIL!
     alpha = (alphaH+alphaV)/2.
     I = signal*g/(times[3]-times[0])/(1-beta*I*(times[3]+times[0]))
     beta = -frac_dslope/I/(times[2]+times[3]-times[0]-times[1])
+    if numpy.fabs(beta)*I*(times[3]+times[0])>0.5: return [] # FAIL!
 
   return [g, alphaH, alphaV, beta, I]
 
@@ -481,9 +503,11 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
 
   # Get alpha-corrected gains
   out = gain_alphacorr(gain_raw, tCH, tCV, med2)
+  if len(out)<1: return [] # FAIL!
   gain_acorr = out[0]
 
   out = gain_alphabetacorr(gain_raw, tCH, tCV, med2, frac_dslope, [t-treset for t in tslices])
+  if len(out)<1: return [] # FAIL!
   gain_abcorr = out[0]
   aH = out[1]
   aV = out[2]
