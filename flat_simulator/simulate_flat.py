@@ -40,5 +40,19 @@ fitsio.write(dclfile, data_cube_S, clobber=True)
 
 # Mean of a given slice checks out
 # data_cube[1,:,:].mean()
-
+# Try compression of data cube into file
+# DCL file saved in 16-bit unsigned integers (look at header)
 # End of script
+
+"""
+Things planned:
+ * unsigned 16-bit integers
+ * offset & clipping
+ * I, dt -> floating point
+ * reference pixels (4 around edge for all but WFC3 which has 5)
+ * generate flats and darks
+ * use real dark cube as read noise is reasonable, won't do hot pixels correctly, but ok for now
+
+ * multiply I by quantum efficiency 
+
+ * time step for read from t_a to t_a+1, need some configurable number of substeps so we can check for convergence
