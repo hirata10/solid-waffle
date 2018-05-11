@@ -9,6 +9,9 @@ from one of the DCL flats.  This is charge.
 Run tests with 128x128 or something small...
 current I is per pixel (units: e/s)
 time t (units: s)
+
+NOTE: to run this, one needs a copy of a DCL flat file with the name
+set below.
 """
 import sys
 import numpy as np
@@ -21,8 +24,8 @@ from fitsio import FITS,FITSHDR
 nx, ny = 4096, 4096
 #nx, ny = 128, 128
 tsamp = 66
-I = 2 # arbitrary scalar for now (e/s/pixel)
-delta_t = 3 # arbitrary for now (s)
+I = 2.0 # arbitrary scalar for now (e/s/pixel)
+delta_t = 3.0 # arbitrary for now (s)
 data_cube_Q = np.zeros((tsamp, nx, ny))
 data_cube_S = np.zeros_like(data_cube_Q)
 gain = 1.5 # arbitrary scalar e-/DN
