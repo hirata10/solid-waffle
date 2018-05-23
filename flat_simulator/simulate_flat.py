@@ -9,6 +9,7 @@ from one of the DCL flats.  This is charge.
 Run tests with 128x128 or something small...
 current I is per pixel (units: e/s)
 time t (units: s)
+time step for read from t_a to t_a+1 (will need to check # for convergence)
 
 NOTE: to run this, one needs a copy of a DCL flat file with the name
 set below.
@@ -37,11 +38,13 @@ gain = 1.5 # arbitrary scalar e-/DN
 for tdx in range(1, nt_step):
     mean = I*delta_t
     # Create realization of charge
-    allQ[tdx,:,:] = alLQ[tdx-1,:,:]+np.random.poisson(
+    # Seems to use up loads of memory, is there a better way?
+    allQ[tdx,:,:] = allQ[tdx-1,:,:]+np.random.poisson(
         mean, allQ[tdx,:,:].shape)
-    #data_cube_Q[tdx,:,:] = data_cube_Q[tdx-1,:,:]+np.random.poisson(
-    #    mean, data_cube_Q[tdx,:,:].shape)
-    #data_cube_S[tdx,:,:] =  data_cube_Q[tdx,:,:]/gain
+
+# Sample tsamp times
+data_cube_Q = allQ[::(nt_step/tsamp),:,:]
+data_cube_S = np.array(data_cube_Q/gain, dtype=np.uint16)
 
 # Open up an example DCL flat file and save the data cube
 dclfile = 'Set_001_Test_0002.fits'
@@ -55,12 +58,9 @@ fitsio.write(dclfile, data_cube_S, clobber=True)
 
 """
 Things planned:
- * unsigned 16-bit integers
  * offset & clipping
  * reference pixels (4 around edge for all but WFC3 which has 5)
  * generate flats and darks
  * use real dark cube as read noise is reasonable, won't do hot pixels correctly, but ok for now
-
  * multiply I by quantum efficiency 
-
- * time step for read from t_a to t_a+1, need some configurable number of substeps so we can check for convergence
+"""
