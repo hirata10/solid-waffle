@@ -11,8 +11,8 @@ current I is per pixel (units: e/s)
 time t (units: s)
 time step for read from t_a to t_a+1 (will need to check # for convergence)
 
-NOTE: to run this, one needs a copy of a DCL flat file with the name
-set below.
+NOTE: to run this, one needs: 
+ ** a copy of a DCL flat file with the name set below
 """
 import sys
 import numpy as np
