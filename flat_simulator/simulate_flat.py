@@ -59,6 +59,14 @@ for tdx in range(1, nt_step):
         allQ = np.zeros((nt_step/tsamp, nx, ny))
         allQ[0,:,:] = data_cube_Q[count,:,:]
         count += 1
+
+# Read in the read noise from a fits file generated with Bernie's ngxhrg
+# Currently using one with one realization because the full one takes
+# a long time to create
+noisefile = 'ex_2.2.1.fits'
+noise = fitsio.read(noisefile)
+data_cube_Q[-1,:,:] += noise  # Adding to only the final time
+
 # Convert charge to signal
 data_cube_S = np.array(data_cube_Q/gain, dtype=np.uint16)
 
