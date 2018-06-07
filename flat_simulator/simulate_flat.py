@@ -86,6 +86,7 @@ allQ = np.zeros((substep, nx, ny))
 data_cube_Q = np.zeros((tsamp, nx, ny))
 data_cube_S = np.zeros_like(data_cube_Q)
 count = 1
+reset_count = 0
 
 print 'side length =',N
 print 'samples:', tsamp, 'x', delta_tsamp, 's; # substep =', substep
@@ -107,7 +108,14 @@ for tdx in range(1, nt_step):
   if (idx==0):
     data_cube_Q[count,:,:] = allQ[idx,:,:]
     allQ = np.zeros((substep, nx, ny))
-    allQ[0,:,:] = data_cube_Q[count,:,:]
+    # if this is a reset frame set start to offset
+    # need to define reset_frames as a list above or in config
+    # need to define offset_frame above
+    if count in reset_frames:
+      allQ[0,:,:] = offset_frame
+    else:
+      allQ[0,:,:] = data_cube_Q[count,:,:]
+    
     count += 1
 
 # Add in IPC before the noise
