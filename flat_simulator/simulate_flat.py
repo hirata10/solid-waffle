@@ -95,7 +95,7 @@ for tdx in range(1, nt_step):
   idx = tdx%substep
   # Charge accumulates, dependent on quantum efficiency of the pixel
   allQ[idx,xmin:xmax,ymin:ymax] = allQ[idx-1,xmin:xmax,xmin:xmax] \
-      +QE * np.random.poisson(mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
+      + np.random.poisson(QE*mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
   if (idx==0):
     data_cube_Q[count,:,:] = allQ[idx,:,:]
     allQ = np.zeros((substep, nx, ny))
@@ -109,8 +109,9 @@ noisefile = 'ex_2.2.1.fits'
 noise = fitsio.read(noisefile)
 data_cube_Q[-1,:,:] += noise  # Adding to only the final time
 
-# Convert charge to signal
-data_cube_S = np.array(data_cube_Q/gain, dtype=np.uint16)
+# Convert charge to signal, clipping values<0 and >2**16
+data_cube_S = np.array(
+  np.clip(data_cube_Q/gain, 0, 65535), dtype=np.uint16)
 
 # Open up an example DCL flat file and save the data cube
 #dclfile = 'Set_001_Test_0002.fits'
@@ -120,7 +121,6 @@ fitsio.write(outfile, data_cube_S, clobber=True)
 # Mean of a given slice checks out
 # data_cube[1,:,:].mean()
 # Try compression of data cube into file
-# DCL file saved in 16-bit unsigned integers (look at header)
 # End of script
 
 """
