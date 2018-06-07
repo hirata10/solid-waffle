@@ -102,6 +102,8 @@ for tdx in range(1, nt_step):
     allQ[0,:,:] = data_cube_Q[count,:,:]
     count += 1
 
+# Add in IPC before the noise
+
 # Read in the read noise from a fits file generated with Bernie's ngxhrg
 # Currently using one with one realization because the full one takes
 # a long time to create
@@ -117,9 +119,6 @@ data_cube_S = np.array(
 #dclfile = 'Set_001_Test_0002.fits'
 fitsio.write(outfile, data_cube_S, clobber=True)
 
-
-# Mean of a given slice checks out
-# data_cube[1,:,:].mean()
 # Try compression of data cube into file
 # End of script
 
