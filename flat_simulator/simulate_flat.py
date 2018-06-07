@@ -88,23 +88,19 @@ print 'Illumination:', I, 'ph/s/pix; QE =', QE
 
 # Start with 0 charge in the first frame (t=0)
 for tdx in range(1, nt_step):
-  # Use either the flat current or a dark current (this setting will need
-  # to be put into the config
-  if light:
-    mean = I*delta_t
-  else:
-    mean = I_dark*delta_t
-    # Create realization of charge
-    # This version uses less memory, but probably still sub-optimal
-    idx = tdx%substep
-    # Charge accumulates, dependent on quantum efficiency of the pixel
-    allQ[idx,xmin:xmax,ymin:ymax] = allQ[idx-1,xmin:xmax,xmin:xmax] \
-        +QE * np.random.poisson(mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
-    if (idx==0):
-        data_cube_Q[count,:,:] = allQ[idx,:,:]
-        allQ = np.zeros((substep, nx, ny))
-        allQ[0,:,:] = data_cube_Q[count,:,:]
-        count += 1
+  mean = I*delta_t
+  
+  # Create realization of charge
+  # This version uses less memory, but probably still sub-optimal
+  idx = tdx%substep
+  # Charge accumulates, dependent on quantum efficiency of the pixel
+  allQ[idx,xmin:xmax,ymin:ymax] = allQ[idx-1,xmin:xmax,xmin:xmax] \
+      +QE * np.random.poisson(mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
+  if (idx==0):
+    data_cube_Q[count,:,:] = allQ[idx,:,:]
+    allQ = np.zeros((substep, nx, ny))
+    allQ[0,:,:] = data_cube_Q[count,:,:]
+    count += 1
 
 # Read in the read noise from a fits file generated with Bernie's ngxhrg
 # Currently using one with one realization because the full one takes
