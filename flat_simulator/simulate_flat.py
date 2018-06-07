@@ -61,7 +61,12 @@ print N
 
 # Start with 0 charge in the first frame (t=0)
 for tdx in range(1, nt_step):
+  # Use either the flat current or a dark current (this setting will need
+  # to be put into the config
+  if light:
     mean = I*delta_t
+  else:
+    mean = I_dark*delta_t
     # Create realization of charge
     # This version uses less memory, but probably still sub-optimal
     idx = tdx%substep
@@ -88,6 +93,7 @@ data_cube_S = np.array(data_cube_Q/gain, dtype=np.uint16)
 dclfile = 'Set_001_Test_0002.fits'
 fitsio.write(dclfile, data_cube_S, clobber=True)
 
+
 # Mean of a given slice checks out
 # data_cube[1,:,:].mean()
 # Try compression of data cube into file
@@ -97,6 +103,5 @@ fitsio.write(dclfile, data_cube_S, clobber=True)
 """
 Things planned:
  * offset & clipping
- * generate flats and darks
  * use real dark cube as read noise is reasonable, won't do hot pixels correctly, but ok for now
 """
