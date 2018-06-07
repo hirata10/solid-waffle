@@ -1,0 +1,18 @@
+# Format (1 = H4RG, WFIRST-like)
+FORMAT: 1
+
+# Number of reads
+NREADS: 20
+# Intermediate steps in integration from read n to n+1
+SUBSTEPS: 3
+
+#DETECTOR: H4RG-18237
+#LIGHT:
+#  ../SCA18237/Set_002_Light_0001.fits
+#  ../SCA18237/Set_002_Light_0002.fits
+#DARK:
+#  ../SCA18237/Set_001_Dark_0001.fits
+#  ../SCA18237/Set_001_Dark_0004.fits
+#
+#TIME:    3 11 13 21
+#OUTPUT:		out/this_det12
