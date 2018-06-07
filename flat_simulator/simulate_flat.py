@@ -35,6 +35,7 @@ QE = 0.8
 delta_tsamp = 3.0 # arbitrary for now (s)
 gain = 1.5 # arbitrary scalar e-/DN
 outfile = 'DefaultOutput.fits'
+rngseed = 1000
 
 # Read in information
 config_file = sys.argv[1]
@@ -66,6 +67,10 @@ for line in content:
   m = re.search(r'^QE:\s*(\S+)', line)
   if m: QE = float(m.group(1))
 
+  # RNG seed
+  m = re.search(r'^RNGSEED:\s*(\d+)', line)
+  if m: rngseed = int(m.group(1))
+
   # Output file
   m = re.search(r'^OUTPUT:\s*(\S+)', line)
   if m: outfile = m.group(1)
@@ -85,6 +90,9 @@ count = 1
 print 'side length =',N
 print 'samples:', tsamp, 'x', delta_tsamp, 's; # substep =', substep
 print 'Illumination:', I, 'ph/s/pix; QE =', QE
+
+print 'RNG seed ->', rngseed
+numpy.random.seed(rngseed)
 
 # Start with 0 charge in the first frame (t=0)
 for tdx in range(1, nt_step):
