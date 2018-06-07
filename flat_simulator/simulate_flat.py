@@ -33,6 +33,7 @@ substep = 2
 I = 10.0
 QE = 0.8
 delta_tsamp = 3.0 # arbitrary for now (s)
+gain = 1.5 # arbitrary scalar e-/DN
 outfile = 'DefaultOutput.fits'
 
 # Read in information
@@ -53,6 +54,10 @@ for line in content:
   # Time step (s)
   m = re.search(r'^DT:\s*(\S+)', line)
   if m: delta_tsamp = float(m.group(1))
+
+  # Gain (e/DN)
+  m = re.search(r'^GAIN:\s*(\S+)', line)
+  if m: gain = float(m.group(1))
 
   # Illumination (photons/s/pixel)
   m = re.search(r'^ILLUMINATION:\s*(\S+)', line)
@@ -75,7 +80,6 @@ delta_t = (delta_tsamp*tsamp)/nt_step # time between timesteps
 allQ = np.zeros((substep, nx, ny))
 data_cube_Q = np.zeros((tsamp, nx, ny))
 data_cube_S = np.zeros_like(data_cube_Q)
-gain = 1.5 # arbitrary scalar e-/DN
 count = 1
 
 print 'side length =',N

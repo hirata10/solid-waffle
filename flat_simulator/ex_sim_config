@@ -8,6 +8,9 @@ SUBSTEPS: 3
 # time step (s)
 DT: 2.75
 
+# gain in e/DN
+GAIN: 1.5
+
 # Illumination & QE
 ILLUMINATION: 3.0e1
 QE: 8e-1
