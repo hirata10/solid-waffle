@@ -36,6 +36,7 @@ delta_tsamp = 3.0 # arbitrary for now (s)
 gain = 1.5 # arbitrary scalar e-/DN
 outfile = 'DefaultOutput.fits'
 rngseed = 1000
+noisemode = 'none'
 
 # Read in information
 config_file = sys.argv[1]
@@ -70,6 +71,13 @@ for line in content:
   # RNG seed
   m = re.search(r'^RNGSEED:\s*(\d+)', line)
   if m: rngseed = int(m.group(1))
+
+  # Noise
+  m = re.search(r'^NOISE:\s*(\S+)\s+(\S+)', line)
+  if m:
+    noisemode = m.group(1)
+    if noisemode != 'none':
+      noisefile = m.group(2)
 
   # Output file
   m = re.search(r'^OUTPUT:\s*(\S+)', line)
@@ -123,9 +131,9 @@ for tdx in range(1, nt_step):
 # Read in the read noise from a fits file generated with Bernie's ngxhrg
 # Currently using one with one realization because the full one takes
 # a long time to create
-noisefile = 'ex_2.2.1.fits'
-noise = fitsio.read(noisefile)
-data_cube_Q[-1,:,:] += noise  # Adding to only the final time
+if noisemode == 'last':
+  noise = fitsio.read(noisefile)
+  data_cube_Q[-1,:,:] += noise  # Adding to only the final time
 
 # Convert charge to signal, clipping values<0 and >2**16
 data_cube_S = np.array(
