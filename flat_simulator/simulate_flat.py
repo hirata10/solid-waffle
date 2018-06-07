@@ -21,42 +21,56 @@ import astropy.io.fits as fits
 import fitsio
 from fitsio import FITS,FITSHDR
 import sys
+import re
 sys.path.insert(0, '../')
 #sys.path.insert(0, '/users/PCON0003/cond0080/src/solid-waffle/')
 from pyirc import *
 
+# Read in information
+config_file = sys.argv[1]
+with open(config_file) as myf: content = myf.read().splitlines()
+for line in content:
+  # Format
+  m = re.search(r'^FORMAT:\s*(\d+)', line)
+  if m: formatpars = int(m.group(1))
+
+  # Number of reads
+  m = re.search(r'^NREADS:\s*(\d+)', line)
+  if m: tsamp = int(m.group(1))
+  # substeps
+  m = re.search(r'^SUBSTEPS:\s*(\d+)', line)
+  if m: substep = int(m.group(1))
+
 # data cube attributes
-formatpars=1
-nx, ny = 4096, 4096
-#nx, ny = 128, 128
-N = get_nside(formatpars) # possibly redundant with nx,ny
+N = nx = ny = get_nside(formatpars) # possibly redundant with nx,ny
 # Reference pixels hard-coded to 4 rows/cols around border, true for
 # all except WFC3 which has 5
 xmin,xmax,ymin,ymax = 4,N-4,4,N-4 # Extent of non-reference pixels
-tsamp = 66
 I = 2.0 # arbitrary scalar for now (e/s/pixel)
 QE=0.8 # quantum efficiency, will eventually be a map
 delta_tsamp = 3.0 # arbitrary for now (s)
-nt_step = tsamp*3 # number of tot timesteps depending on convergence needs
+nt_step = tsamp*substep # number of tot timesteps depending on convergence needs
 delta_t = (delta_tsamp*tsamp)/nt_step # time between timesteps
-allQ = np.zeros((nt_step/tsamp, nx, ny))
+allQ = np.zeros((substep, nx, ny))
 data_cube_Q = np.zeros((tsamp, nx, ny))
 data_cube_S = np.zeros_like(data_cube_Q)
 gain = 1.5 # arbitrary scalar e-/DN
 count = 1
+
+print N
 
 # Start with 0 charge in the first frame (t=0)
 for tdx in range(1, nt_step):
     mean = I*delta_t
     # Create realization of charge
     # This version uses less memory, but probably still sub-optimal
-    idx = tdx%(nt_step/tsamp)
+    idx = tdx%substep
     # Charge accumulates, dependent on quantum efficiency of the pixel
     allQ[idx,xmin:xmax,ymin:ymax] = allQ[idx-1,xmin:xmax,xmin:xmax] \
         +QE * np.random.poisson(mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
     if (idx==0):
         data_cube_Q[count,:,:] = allQ[idx,:,:]
-        allQ = np.zeros((nt_step/tsamp, nx, ny))
+        allQ = np.zeros((substep, nx, ny))
         allQ[0,:,:] = data_cube_Q[count,:,:]
         count += 1
 # Convert charge to signal
