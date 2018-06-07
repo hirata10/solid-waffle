@@ -17,6 +17,8 @@ QE: 8e-1
 
 RNGSEED: 512
 
+RESET_E: 1.0e2
+
 # Noise command has two arguments:
 #  first is the noise mode
 #  second is the input file

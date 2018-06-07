@@ -37,7 +37,7 @@ gain = 1.5 # arbitrary scalar e-/DN
 outfile = 'DefaultOutput.fits'
 rngseed = 1000
 noisemode = 'none'
-reset_frames = []
+reset_frames = [0]
 
 # Read in information
 config_file = sys.argv[1]
@@ -80,6 +80,10 @@ for line in content:
     if noisemode != 'none':
       noisefile = m.group(2)
 
+  # Reset level (in e)
+  m = re.search(r'^RESET_E:\s*(\S+)', line)
+  if m: resetlevel = float(m.group(1))
+
   # Output file
   m = re.search(r'^OUTPUT:\s*(\S+)', line)
   if m: outfile = m.group(1)
@@ -105,6 +109,11 @@ print 'Illumination:', I, 'ph/s/pix; QE =', QE
 print 'RNG seed ->', rngseed
 numpy.random.seed(rngseed)
 
+# Reset first frame if needed
+offset_frame[:,:,:] = resetlevel
+if 0 in reset_frames:
+  allQ[0,:,:] = data_cube_Q[0,:,:] = offset_frame
+
 # Start with 0 charge in the first frame (t=0)
 for tdx in range(1, nt_step):
   mean = I*delta_t
@@ -113,8 +122,8 @@ for tdx in range(1, nt_step):
   # This version uses less memory, but probably still sub-optimal
   idx = tdx%substep
   # Charge accumulates, dependent on quantum efficiency of the pixel
-  allQ[idx,xmin:xmax,ymin:ymax] = allQ[idx-1,xmin:xmax,xmin:xmax] \
-      + np.random.poisson(QE*mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
+  allQ[idx,:,:] = allQ[idx-1,:,:]
+  allQ[idx,xmin:xmax,ymin:ymax] += np.random.poisson(QE*mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
   if (idx==0):
     data_cube_Q[count,:,:] = allQ[idx,:,:]
     allQ = np.zeros((substep, nx, ny))
