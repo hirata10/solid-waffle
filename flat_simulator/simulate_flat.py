@@ -26,6 +26,15 @@ sys.path.insert(0, '../')
 #sys.path.insert(0, '/users/PCON0003/cond0080/src/solid-waffle/')
 from pyirc import *
 
+# Defaults
+formatpars = 1
+tsamp = 66
+substep = 2
+I = 10.0
+QE = 0.8
+delta_tsamp = 3.0 # arbitrary for now (s)
+outfile = 'DefaultOutput.fits'
+
 # Read in information
 config_file = sys.argv[1]
 with open(config_file) as myf: content = myf.read().splitlines()
@@ -41,14 +50,26 @@ for line in content:
   m = re.search(r'^SUBSTEPS:\s*(\d+)', line)
   if m: substep = int(m.group(1))
 
+  # Time step (s)
+  m = re.search(r'^DT:\s*(\S+)', line)
+  if m: delta_tsamp = float(m.group(1))
+
+  # Illumination (photons/s/pixel)
+  m = re.search(r'^ILLUMINATION:\s*(\S+)', line)
+  if m: I = float(m.group(1))
+  # QE (Illumination * QE = current, e/s/pixel)
+  m = re.search(r'^QE:\s*(\S+)', line)
+  if m: QE = float(m.group(1))
+
+  # Output file
+  m = re.search(r'^OUTPUT:\s*(\S+)', line)
+  if m: outfile = m.group(1)
+
 # data cube attributes
 N = nx = ny = get_nside(formatpars) # possibly redundant with nx,ny
 # Reference pixels hard-coded to 4 rows/cols around border, true for
 # all except WFC3 which has 5
 xmin,xmax,ymin,ymax = 4,N-4,4,N-4 # Extent of non-reference pixels
-I = 2.0 # arbitrary scalar for now (e/s/pixel)
-QE=0.8 # quantum efficiency, will eventually be a map
-delta_tsamp = 3.0 # arbitrary for now (s)
 nt_step = tsamp*substep # number of tot timesteps depending on convergence needs
 delta_t = (delta_tsamp*tsamp)/nt_step # time between timesteps
 allQ = np.zeros((substep, nx, ny))
@@ -57,7 +78,9 @@ data_cube_S = np.zeros_like(data_cube_Q)
 gain = 1.5 # arbitrary scalar e-/DN
 count = 1
 
-print N
+print 'side length =',N
+print 'samples:', tsamp, 'x', delta_tsamp, 's; # substep =', substep
+print 'Illumination:', I, 'ph/s/pix; QE =', QE
 
 # Start with 0 charge in the first frame (t=0)
 for tdx in range(1, nt_step):
@@ -77,8 +100,8 @@ for tdx in range(1, nt_step):
 data_cube_S = np.array(data_cube_Q/gain, dtype=np.uint16)
 
 # Open up an example DCL flat file and save the data cube
-dclfile = 'Set_001_Test_0002.fits'
-fitsio.write(dclfile, data_cube_S, clobber=True)
+#dclfile = 'Set_001_Test_0002.fits'
+fitsio.write(outfile, data_cube_S, clobber=True)
 
 # Mean of a given slice checks out
 # data_cube[1,:,:].mean()

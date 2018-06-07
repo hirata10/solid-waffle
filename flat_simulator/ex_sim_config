@@ -5,6 +5,14 @@ FORMAT: 1
 NREADS: 20
 # Intermediate steps in integration from read n to n+1
 SUBSTEPS: 3
+# time step (s)
+DT: 2.75
+
+# Illumination & QE
+ILLUMINATION: 3.0e1
+QE: 8e-1
+
+OUTPUT: test1.fits
 
 #DETECTOR: H4RG-18237
 #LIGHT:
