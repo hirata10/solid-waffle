@@ -37,6 +37,7 @@ gain = 1.5 # arbitrary scalar e-/DN
 outfile = 'DefaultOutput.fits'
 rngseed = 1000
 noisemode = 'none'
+reset_frames = []
 
 # Read in information
 config_file = sys.argv[1]
@@ -93,6 +94,7 @@ delta_t = (delta_tsamp*tsamp)/nt_step # time between timesteps
 allQ = np.zeros((substep, nx, ny))
 data_cube_Q = np.zeros((tsamp, nx, ny))
 data_cube_S = np.zeros_like(data_cube_Q)
+offset_frame = np.zeros((1, nx, ny))
 count = 1
 reset_count = 0
 
@@ -117,8 +119,6 @@ for tdx in range(1, nt_step):
     data_cube_Q[count,:,:] = allQ[idx,:,:]
     allQ = np.zeros((substep, nx, ny))
     # if this is a reset frame set start to offset
-    # need to define reset_frames as a list above or in config
-    # need to define offset_frame above
     if count in reset_frames:
       allQ[0,:,:] = offset_frame
     else:
