@@ -18,6 +18,7 @@ NOTE: to run this, one needs:
 import sys
 import numpy as np
 from numpy.random import randn,poisson
+import scipy.signal as signal
 import astropy.io.fits as fits
 import fitsio
 from fitsio import FITS,FITSHDR
@@ -26,6 +27,7 @@ import re
 sys.path.insert(0, '../')
 #sys.path.insert(0, '/users/PCON0003/cond0080/src/solid-waffle/')
 from pyirc import *
+from detector_functions import *
 
 # Defaults
 formatpars = 1
@@ -137,6 +139,9 @@ for tdx in range(1, nt_step):
     count += 1
 
 # Add in IPC before the noise
+ipc_kern = simple_ipc_kernel()
+for tdx in range(tsamp):
+  data_cube_Q[tdx,:,:] = signal.convolve(data_cube_Q[tdx,:,:], ipc_kern)
 
 # Read in the read noise from a fits file generated with Bernie's ngxhrg
 # Currently using one with one realization because the full one takes
