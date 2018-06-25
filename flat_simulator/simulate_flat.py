@@ -141,7 +141,8 @@ for tdx in range(1, nt_step):
 # Add in IPC before the noise
 ipc_kern = simple_ipc_kernel()
 for tdx in range(tsamp):
-  data_cube_Q[tdx,:,:] = signal.convolve(data_cube_Q[tdx,:,:], ipc_kern)
+  data_cube_Q[tdx,:,:] = signal.convolve(
+    data_cube_Q[tdx,:,:], ipc_kern, mode='same')
 
 # Read in the read noise from a fits file generated with Bernie's ngxhrg
 # Currently using one with one realization because the full one takes

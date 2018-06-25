@@ -2,6 +2,7 @@
 The structure will change, but for now this will be the location for 
 functions related to IPC, BFE, etc.
 """
+import sys
 import numpy as np
 from numpy.random import randn,poisson
 sys.path.insert(0, '../')
