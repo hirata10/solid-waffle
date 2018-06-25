@@ -1,5 +1,6 @@
-""" Start with a realization of a perfect detector
-1.  The mean charge <Q_a(i,j)> = It_a
+""" Start with a realization of a perfect detector plus some BFE effect to
+the charge in a given pixel
+1.  The mean charge <Q_a(i,j)> = It_a + 0.5*Sigma_a*I^2*t_a^2 (Eqn 36) 
 2.  Realization of a 4096 x 4096 pixel^2 grid with 66 time samples
 This final result data cube will then be [4k, 4k, 66] in dimensions
 and will require some kind of identifying header, currently taken
