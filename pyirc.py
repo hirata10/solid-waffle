@@ -509,8 +509,15 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
 
   # Get alpha-corrected gains
   out = gain_alphacorr(gain_raw, tCH, tCV, med2)
+  if tslices[1]>=tslices[-1] and len(out)<1:
+    return [numpy.sum(this_mask), gain_raw, gain_raw, gain_raw, 0., 0., 0., med2/gain_raw/(tslices[1]-tslices[0]), tCH, tCV]
   if len(out)<1: return [] # FAIL!
   gain_acorr = out[0]
+  aH = out[1]
+  aV = out[2]
+
+  if tslices[1]>=tslices[-1]:
+    return [numpy.sum(this_mask), gain_raw, gain_acorr, gain_acorr, aH, aV, 0., med2/gain_acorr/(tslices[1]-tslices[0]), tCH, tCV]
 
   out = gain_alphabetacorr(gain_raw, tCH, tCV, med2, frac_dslope, [t-treset for t in tslices])
   if len(out)<1: return [] # FAIL!

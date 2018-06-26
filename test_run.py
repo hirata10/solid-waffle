@@ -234,20 +234,21 @@ else:
   for iy in range(ny):
     sys.stdout.write('*'); sys.stdout.flush()
     for ix in range(nx):
-      for t in range(ntM2a):
-        temp_tslices = [tslicesM2a[0], tslicesM2a[1], tslicesM2a[1], tfmin+t]
-        if fullref:
-          lightref = pyirc.ref_array_onerow(lightfiles, formatpars, iy, ny, temp_tslices, False)
-          darkref = pyirc.ref_array_onerow(darkfiles, formatpars, iy, ny, temp_tslices, False)
-        region_cube = pyirc.pixel_data(lightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
-                      [sensitivity_spread_cut, True], False)
-        dark_cube = pyirc.pixel_data(darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
-                      [sensitivity_spread_cut, False], False)
-        info = pyirc.basic(region_cube, dark_cube, temp_tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
-        Method2a_vals[iy,ix,t] = lngraw[t] = numpy.log(info[1])
-      # Build least squares fit
-      mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM2a)), numpy.ones(ntM2a)]).T, lngraw)[0]
-      Method2a_slopes[iy,ix] = mS/full_info[iy,ix,7]
+      if is_good[iy,ix]==1:
+        for t in range(ntM2a):
+          temp_tslices = [tslicesM2a[0], tslicesM2a[1], tslicesM2a[1], tfmin+t]
+          if fullref:
+            lightref = pyirc.ref_array_onerow(lightfiles, formatpars, iy, ny, temp_tslices, False)
+            darkref = pyirc.ref_array_onerow(darkfiles, formatpars, iy, ny, temp_tslices, False)
+          region_cube = pyirc.pixel_data(lightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
+                        [sensitivity_spread_cut, True], False)
+          dark_cube = pyirc.pixel_data(darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
+                        [sensitivity_spread_cut, False], False)
+          info = pyirc.basic(region_cube, dark_cube, temp_tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
+          Method2a_vals[iy,ix,t] = lngraw[t] = numpy.log(info[1])
+        # Build least squares fit
+        mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM2a)), numpy.ones(ntM2a)]).T, lngraw)[0]
+        Method2a_slopes[iy,ix] = mS/full_info[iy,ix,7]
   print '|'
   print 'Mean slope d[ln graw]/d[I td] at fixed ta,tb =', numpy.mean(is_good*Method2a_slopes)/numpy.mean(is_good)
   print ''
@@ -278,20 +279,21 @@ else:
   for iy in range(ny):
     sys.stdout.write('*'); sys.stdout.flush()
     for ix in range(nx):
-      for t in range(ntM2b):
-        temp_tslices = [tslicesM2b[0]+t, tslicesM2b[1]+t, tslicesM2b[1]+t, tslicesM2b[2]+t]
-        if fullref:
-          lightref = pyirc.ref_array_onerow(lightfiles, formatpars, iy, ny, temp_tslices, False)
-          darkref = pyirc.ref_array_onerow(darkfiles, formatpars, iy, ny, temp_tslices, False)
-        region_cube = pyirc.pixel_data(lightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
-                      [sensitivity_spread_cut, True], False)
-        dark_cube = pyirc.pixel_data(darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
-                      [sensitivity_spread_cut, False], False)
-        info = pyirc.basic(region_cube, dark_cube, temp_tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
-        Method2b_vals[iy,ix,t] = lngraw[t] = numpy.log(info[1])
-      # Build least squares fit
-      mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM2b)), numpy.ones(ntM2b)]).T, lngraw)[0]
-      Method2b_slopes[iy,ix] = mS/full_info[iy,ix,7]
+      if is_good[iy,ix]==1:
+        for t in range(ntM2b):
+          temp_tslices = [tslicesM2b[0]+t, tslicesM2b[1]+t, tslicesM2b[1]+t, tslicesM2b[2]+t]
+          if fullref:
+            lightref = pyirc.ref_array_onerow(lightfiles, formatpars, iy, ny, temp_tslices, False)
+            darkref = pyirc.ref_array_onerow(darkfiles, formatpars, iy, ny, temp_tslices, False)
+          region_cube = pyirc.pixel_data(lightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
+                        [sensitivity_spread_cut, True], False)
+          dark_cube = pyirc.pixel_data(darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
+                        [sensitivity_spread_cut, False], False)
+          info = pyirc.basic(region_cube, dark_cube, temp_tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
+          Method2b_vals[iy,ix,t] = lngraw[t] = numpy.log(info[1])
+        # Build least squares fit
+        mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM2b)), numpy.ones(ntM2b)]).T, lngraw)[0]
+        Method2b_slopes[iy,ix] = mS/full_info[iy,ix,7]
   print '|'
   print 'Mean slope d[ln graw]/d[I tb] at fixed tab,tad =', numpy.mean(is_good*Method2b_slopes)/numpy.mean(is_good)
   print ''
@@ -323,22 +325,23 @@ else:
   for iy in range(ny):
     sys.stdout.write('*'); sys.stdout.flush()
     for ix in range(nx):
-      for t in range(ntM3):
-        temp_tslices = [tslicesM3[0], tslicesM3[1], tslicesM3[1], tfmin3+t]
-        if fullref:
-          lightref = pyirc.ref_array_onerow(lightfiles, formatpars, iy, ny, temp_tslices, False)
-          darkref = pyirc.ref_array_onerow(darkfiles, formatpars, iy, ny, temp_tslices, False)
-        region_cube = pyirc.pixel_data(lightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
-                      [sensitivity_spread_cut, True], False)
-        dark_cube = pyirc.pixel_data(darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
-                      [sensitivity_spread_cut, False], False)
-        info = pyirc.basic(region_cube, dark_cube, temp_tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
-        Method3_vals[iy,ix,t] = CCraw[t] = (info[8]+info[9])/2.*full_info[iy,ix,3]**2\
-          /(full_info[iy,ix,7]*(temp_tslices[-1]-temp_tslices[0]))
-        Method3_alphas[iy,ix,t] = (info[4]+info[5])/2.
-      # Build least squares fit
-      mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM3)), numpy.ones(ntM3)]).T, CCraw)[0]
-      Method3_slopes[iy,ix] = mS/full_info[iy,ix,7]
+      if is_good[iy,ix]==1:
+        for t in range(ntM3):
+          temp_tslices = [tslicesM3[0], tslicesM3[1], tslicesM3[0], tfmin3+t]
+          if fullref:
+            lightref = pyirc.ref_array_onerow(lightfiles, formatpars, iy, ny, temp_tslices, False)
+            darkref = pyirc.ref_array_onerow(darkfiles, formatpars, iy, ny, temp_tslices, False)
+          region_cube = pyirc.pixel_data(lightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
+                        [sensitivity_spread_cut, True], False)
+          dark_cube = pyirc.pixel_data(darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
+                        [sensitivity_spread_cut, False], False)
+          info = pyirc.basic(region_cube, dark_cube, temp_tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
+          Method3_vals[iy,ix,t] = CCraw[t] = (info[8]+info[9])/2.*full_info[iy,ix,3]**2\
+            /(full_info[iy,ix,7]*(temp_tslices[-1]-temp_tslices[0]))
+          Method3_alphas[iy,ix,t] = (info[4]+info[5])/2.
+        # Build least squares fit
+        mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM3)), numpy.ones(ntM3)]).T, CCraw)[0]
+        Method3_slopes[iy,ix] = mS/full_info[iy,ix,7]
   print '|'
   print 'Mean slope d[g^2/(Itad) Cadj,ad]/d[I td] at fixed ta,tb =', numpy.mean(is_good*Method3_slopes)/numpy.mean(is_good)
   print ''
