@@ -412,7 +412,7 @@ if used_3:
   S.set_title(r'Fitted $\alpha$ vs. signal')
   S.set_xlabel(r'Signal level $It_{'+'{:d}'.format(tslicesM3[0])+r',d}$ [ke]')
   S.set_ylabel(r'Fitted $\alpha$ [%]')
-  SX = [numpy.mean(is_good*full_info[:,:,7]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(tfmin-tslicesM3[0], tfmax+1-tslicesM3[0])]
+  SX = [numpy.mean(is_good*full_info[:,:,7]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(tfmin3-tslicesM3[0], tfmax3+1-tslicesM3[0])]
   SY = [numpy.mean(is_good*Method3_alphas[:,:,t])/numpy.mean(is_good)/1.0e-2 for t in range(ntM3)]
   SS = [] # std. dev. on the mean
   for t in range(ntM3):

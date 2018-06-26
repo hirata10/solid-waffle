@@ -353,6 +353,9 @@ def gain_alphabetacorr(graw, CH, CV, signal, frac_dslope, times):
 # Returns a list of basic calibration parameters.
 # Returns the null list [] if failed.
 #
+# Includes a test so this won't crash if tslices[1]>=tslices[-1] but returns meaningful x-correlation C_{abab}
+# (everything else is nonsense in this case)
+#
 def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose):
 
   # Settings:
@@ -416,7 +419,7 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
       if verbose: print 'Inner loop,', if1, if2, temp_box.shape
   var1 /= num_files*(num_files-1)/2.
   var2 /= num_files*(num_files-1)/2.
-  if var2<=var1: return [] # FAIL!
+  if var2<=var1 and tslices[1]<tslices[-1]: return [] # FAIL!
   gain_raw = (med2-med1)/(var2-var1) # in e/DN
 
   # Correlations of neighboring pixels, in DN^2
@@ -468,31 +471,34 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   tCV /= num_files*(num_files-1)*cov_clip_corr
 
   # Curvature information (for 2nd order NL coefficient)
-  if subtr_href:
-    for f in range(num_files):
-      box1[f,:,:] += lightref[f,nt+1]
-  boxD = region_cube[0:num_files,-2,:,:] - region_cube[0:num_files,-1,:,:]\
-         - (tslices[-1]-tslices[-2])/float(tslices[1]-tslices[0])*box1
-         # difference map
-  if subtr_href:
-    for f in range(num_files):
-      box1[f,:,:] -= lightref[f,nt+1]
-      boxD[f,:,:] -= (tslices[-1]-tslices[-2])/float(tslices[1]-tslices[0]) * lightref[f,2*nt]
-  fac0 = fac1 = 0
-  for if1 in range(num_files):
-    box1R = box1[if1,:,:]
-    boxDR = boxD[if1,:,:]
-    c1min = pyIRC_percentile(box1R, corr_mask, 100*epsilon)
-    if c1min<=.5: c1min = .5   # should have no effect if successful, but prevents division by 0 if failure
-    c1max = pyIRC_percentile(box1R, corr_mask, 100*(1-epsilon))
-    cDmin = pyIRC_percentile(boxDR, corr_mask, 100*epsilon)
-    cDmax = pyIRC_percentile(boxDR, corr_mask, 100*(1-epsilon))
-    this_file_mask = numpy.where(numpy.logical_and(box1R>c1min, numpy.logical_and(box1R<c1max,
-      numpy.logical_and(boxDR>cDmin, boxDR<cDmax))), corr_mask, 0)
-    fac0 += numpy.sum(this_file_mask*boxDR)
-    fac1 += numpy.sum(this_file_mask*box1R)
-  if fac1<.5: return [] # FAIL!
-  frac_dslope = fac0/fac1/((tslices[-1]-tslices[-2])/float(tslices[1]-tslices[0]))
+  if (tslices[-1]!=tslices[-2]):
+    if subtr_href:
+      for f in range(num_files):
+        box1[f,:,:] += lightref[f,nt+1]
+    boxD = region_cube[0:num_files,-2,:,:] - region_cube[0:num_files,-1,:,:]\
+           - (tslices[-1]-tslices[-2])/float(tslices[1]-tslices[0])*box1
+           # difference map
+    if subtr_href:
+      for f in range(num_files):
+        box1[f,:,:] -= lightref[f,nt+1]
+        boxD[f,:,:] -= (tslices[-1]-tslices[-2])/float(tslices[1]-tslices[0]) * lightref[f,2*nt]
+    fac0 = fac1 = 0
+    for if1 in range(num_files):
+      box1R = box1[if1,:,:]
+      boxDR = boxD[if1,:,:]
+      c1min = pyIRC_percentile(box1R, corr_mask, 100*epsilon)
+      if c1min<=.5: c1min = .5   # should have no effect if successful, but prevents division by 0 if failure
+      c1max = pyIRC_percentile(box1R, corr_mask, 100*(1-epsilon))
+      cDmin = pyIRC_percentile(boxDR, corr_mask, 100*epsilon)
+      cDmax = pyIRC_percentile(boxDR, corr_mask, 100*(1-epsilon))
+      this_file_mask = numpy.where(numpy.logical_and(box1R>c1min, numpy.logical_and(box1R<c1max,
+        numpy.logical_and(boxDR>cDmin, boxDR<cDmax))), corr_mask, 0)
+      fac0 += numpy.sum(this_file_mask*boxDR)
+      fac1 += numpy.sum(this_file_mask*box1R)
+    if fac1<.5: return [] # FAIL!
+    frac_dslope = fac0/fac1/((tslices[-1]-tslices[-2])/float(tslices[1]-tslices[0]))
+  else:
+    frac_dslope = 0.
   if verbose: print 'frac_dslope =', frac_dslope
 
   if verbose:
