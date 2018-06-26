@@ -1,5 +1,6 @@
-""" Start with a realization of a perfect detector
-1.  The mean charge <Q_a(i,j)> = It_a
+""" Start with a realization of a perfect detector plus some BFE effect to
+the charge in a given pixel
+1.  The mean charge <Q_a(i,j)> = It_a + 0.5*Sigma_a*I^2*t_a^2 (Eqn 36) 
 2.  Realization of a 4096 x 4096 pixel^2 grid with 66 time samples
 This final result data cube will then be [4k, 4k, 66] in dimensions
 and will require some kind of identifying header, currently taken
@@ -17,6 +18,7 @@ NOTE: to run this, one needs:
 import sys
 import numpy as np
 from numpy.random import randn,poisson
+import scipy.signal as signal
 import astropy.io.fits as fits
 import fitsio
 from fitsio import FITS,FITSHDR
@@ -25,6 +27,7 @@ import re
 sys.path.insert(0, '../')
 #sys.path.insert(0, '/users/PCON0003/cond0080/src/solid-waffle/')
 from pyirc import *
+from detector_functions import *
 
 # Defaults
 formatpars = 1
@@ -136,6 +139,10 @@ for tdx in range(1, nt_step):
     count += 1
 
 # Add in IPC before the noise
+ipc_kern = simple_ipc_kernel()
+for tdx in range(tsamp):
+  data_cube_Q[tdx,:,:] = signal.convolve(
+    data_cube_Q[tdx,:,:], ipc_kern, mode='same')
 
 # Read in the read noise from a fits file generated with Bernie's ngxhrg
 # Currently using one with one realization because the full one takes
