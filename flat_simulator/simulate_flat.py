@@ -145,11 +145,14 @@ for tdx in range(tsamp):
     data_cube_Q[tdx,:,:], ipc_kern, mode='same')
 
 # Read in the read noise from a fits file generated with Bernie's ngxhrg
-# Currently using one with one realization because the full one takes
+# noisemode 'last' uses one realization because the full one takes
 # a long time to create
 if noisemode == 'last':
   noise = fitsio.read(noisefile)
   data_cube_Q[-1,:,:] += noise  # Adding to only the final time
+elif noisemode == 'full':
+  noise = fitsio.read(noisefile)
+  data_cube_Q += noise  # Adding the noise at all reads
 
 # Convert charge to signal, clipping values<0 and >2**16
 data_cube_S = np.array(

@@ -26,6 +26,7 @@ RESET_E: 1.0e2
 # Possible modes (must be all lower case):
 #  'none' = do not include the noise (no need for file name)
 #  'last' = add noise file to the last frame
+#  'full' = add noise file to all frames
 # 
 #NOISE: none
 NOISE: last ex_2.2.1.fits
