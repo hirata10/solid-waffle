@@ -33,6 +33,8 @@ blsub = True
 config_file = sys.argv[1]
 with open(config_file) as myf: content = myf.read().splitlines()
 is_in_light = is_in_dark = False
+maskX = [] # list of regions to mask
+maskY = []
 for line in content:
   # Cancellations
   m = re.search(r'^[A-Z]+\:', line)
@@ -82,6 +84,12 @@ for line in content:
   m = re.search(r'^COLOR:\s*(\S+)', line)
   if m: use_cmap = m.group(1)
 
+  # Mask regions by hand
+  m = re.search(r'^MASK:\s*(\d+)\s+(\d+)', line)
+  if m:
+    maskX = maskX + [int(m.group(1))]
+    maskY = maskY + [int(m.group(2))]
+
 # Check number of slices available
 NTMAX = 16384
 for f in lightfiles+darkfiles:
@@ -92,6 +100,7 @@ print 'Output will be directed to {:s}*'.format(outstem)
 print 'Light files:', lightfiles
 print 'Dark files:', darkfiles
 print 'Time slices:', tslices, 'max=',NTMAX
+print 'Mask regions:', maskX, maskY
 # 
 if len(lightfiles)!=len(darkfiles) or len(lightfiles)<2:
   print 'Failed: {:d} light files and {:d} dark files'.format(len(lightfiles), len(darkfiles))
@@ -148,6 +157,13 @@ for iy in range(ny):
       full_info[iy,ix,1:] = 0 # wipe out this super-pixel
 
 print '|'
+
+# Mask regions
+for mask_index in range(len(maskX)):
+  ix = maskX[mask_index]
+  iy = maskY[mask_index]
+  is_good[iy,ix] = 0
+  full_info[iy,ix,:] = 0 # wipe out this super-pixel
 
 print full_info.shape
 print 'Number of good regions =', numpy.sum(is_good)
@@ -347,6 +363,7 @@ else:
   print ''
   # Predicted slopes
   ave = (mean_full_info[21]+mean_full_info[23]+mean_full_info[17]+mean_full_info[27])/4.
+  slope_3_beta = -4*(mean_full_info[4]+mean_full_info[5])*mean_full_info[6]
   slope_3_BFE = -4*(mean_full_info[4]+mean_full_info[5])*mean_full_info[6] + ave
   slope_3_NLIPC = -4*(mean_full_info[4]+mean_full_info[5])*mean_full_info[6] + ave*2.
 
@@ -409,7 +426,11 @@ if used_3:
   S.errorbar(SX, SY, yerr=SS, marker='x', color='r', ls='None')
   S.plot(xr, yc+(xr-xc)*slope_3_BFE*1e3, 'g--', label='pure BFE')
   S.plot(xr, yc+(xr-xc)*slope_3_NLIPC*1e3, 'b-', label='pure NL-IPC')
+  S.plot(xr, yc+(xr-xc)*slope_3_beta*1e3, 'k:', label='beta only')
   S.legend(loc=2)
+  print 'Method 3 implied slopes =', slope_3_beta, slope_3_BFE, slope_3_NLIPC
+  for i in range(len(SX)):
+    print '{:9.6f} {:9.6f} {:9.6f}'.format(SX[i], SY[i], SS[i])
   #
   S = F.add_subplot(2,2,4)
   S.set_title(r'Fitted $\alpha$ vs. signal')
@@ -446,6 +467,8 @@ thisOut.write('# Input format {:d}\n'.format(formatpars))
 thisOut.write('# Time slices:')
 for t in tslices: thisOut.write(' {:3d}'.format(t))
 thisOut.write('\n')
+thisOut.write('# Mask: ' + str(maskX) + ',' + str(maskY) + '\n')
+thisOut.write('#\n')
 thisOut.write('# Cut on good pixels {:7.4f}% deviation from median\n'.format(100*sensitivity_spread_cut))
 thisOut.write('# Dimensions: {:3d}(x) x {:3d}(y) super-pixels, {:4d} good\n'.format(nx,ny,int(numpy.sum(is_good))))
 thisOut.write('# Reference pixel subtraction for linearity: {:s}\n'.format(str(fullref)))
