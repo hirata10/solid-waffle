@@ -581,7 +581,7 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
 def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars):
 
   # make copy of ctrl_pars, but force 5th element to be False
-  ctrl_pars2 = ctrl_pars
+  ctrl_pars2 = ctrl_pars[:]
   if len(ctrl_pars2)<6: ctrl_pars2.append(False)
   ctrl_pars2[5] = False
 
