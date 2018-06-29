@@ -204,6 +204,27 @@ def ref_array_onerow(filelist, formatpars, iy, ny, tslices, verbose):
       print ifile, iy
       print output_array[ifile, iy, :]
   return(output_array)
+#
+# similar but uses a user-specified range of y-values, and output lacks the 'iy' index
+# (i.e. is 2D array)
+def ref_array_block(filelist, formatpars, yrange, tslices, verbose):
+
+  num_files = len(filelist)
+  ntslice_use = len(tslices)
+  output_array = numpy.zeros((num_files, 2*ntslice_use+1))
+
+  if len(yrange)<2:
+    print 'Error in ref_array_block: yrange =', yrange
+    exit()
+  for ifile in range(num_files):
+    ymin = yrange[0]
+    ymax = yrange[1]
+    output_array[ifile, :] = numpy.asarray(ref_corr(filelist[ifile], formatpars, [ymin,ymax], tslices, False))
+    if verbose:
+      print ifile
+      print output_array[ifile, :]
+
+  return(output_array)
 
 # Generate a 4D date cube containing information on a region of the detector
 #
@@ -348,9 +369,14 @@ def gain_alphabetacorr(graw, CH, CV, signal, frac_dslope, times):
 #   ctrl_pars[2] = noise subtraction for the IPC correlation? (default to True)
 #   ctrl_pars[3] = reset frame (default to 0)
 #   ctrl_pars[4] = reference pixel subtraction? (default to True)
+#   ctrl_pars[5] = which parameters to report (default to True = standard basic pars; False = correlation data instead)
 # verbose = True or False  (recommend True only for de-bugging)
 #
 # Returns a list of basic calibration parameters.
+# if ctrl_pars[5] is True
+#   [number of good pixels, gain_raw, gain_acorr, gain_abcorr, aH, aV, beta, I, tCH, tCV]
+# if False:
+#   [number of good pixels, median, variance, tCH, tCV]
 # Returns the null list [] if failed.
 #
 # Includes a test so this won't crash if tslices[1]>=tslices[-1] but returns meaningful x-correlation C_{abab}
@@ -387,6 +413,10 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   # Reference pixel subtraction?
   subtr_href = True
   if len(ctrl_pars)>=5: subtr_href = ctrl_pars[4]
+
+  # return full correlation information?
+  full_corr = True
+  if len(ctrl_pars)>=6: full_corr = ctrl_pars[5]
 
   # Get means and variances at the early and last slices
   # (i.e. 1-point information)
@@ -470,6 +500,10 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   tCH /= num_files*(num_files-1)*cov_clip_corr
   tCV /= num_files*(num_files-1)*cov_clip_corr
 
+  # if we don't need full correlations, exit now
+  if not full_corr:
+    return [numpy.sum(this_mask), med2, var2, tCH, tCV]
+
   # Curvature information (for 2nd order NL coefficient)
   if (tslices[-1]!=tslices[-2]):
     if subtr_href:
@@ -528,6 +562,54 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   I = out[4]
 
   return [numpy.sum(this_mask), gain_raw, gain_acorr, gain_abcorr, aH, aV, beta, I, tCH, tCV]
+
+# Routine to obtain statistical properties of a region of the detector across many time slices
+#
+# Inputs:
+# lightfiles = list of light files
+# darkfiles = list of dark files
+# formatpars = format parameters
+# box = list [xmin, xmax, ymin, ymax]
+# tslices = list [tmin, tmax, deltas ...] (Python format -- xmax, ymax, tmax not included)
+#   if no deltas (tslices length 2) then compute everything; if deltas specified, then only compute
+#   correlations at the specified deltas (e.g. [1,3] for delta t = 1 or 3)
+# sensitivity_spread_cut = for good pixels (typically 0.1)
+# ctrl_pars = parameters for basic
+#
+# Each data[ti,tj,:] contains:
+#   [number of good pixels, median, variance, tCH, tCV]
+def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars):
+
+  # make copy of ctrl_pars, but force 5th element to be False
+  ctrl_pars2 = ctrl_pars
+  if len(ctrl_pars2)<6: ctrl_pars2.append(False)
+  ctrl_pars2[5] = False
+
+  tmin = tslices[0]; tmax = tslices[1]; nt = tmax-tmin
+  # build cube of good pixels, medians, variances, correlations
+  data = numpy.zeros((nt,nt,5))
+  # and get mask (last 'time' slice) -- only thing we are extracting from region_cube_X
+  region_cube_X = pixel_data(lightfiles, formatpars, box[:4], [tmin,tmax-1,tmax-1,tmax-1], [sensitivity_spread_cut, True], False)
+
+  # Get list of (good pix, median, var, cov_H, cov_V)
+  for ti in range(nt-1):
+    for tj in range(ti+1,nt):
+      if tslices[2:]==[] or tj-ti in tslices[2:]:
+        t1 = tmin+ti
+        t2 = tmin+tj
+        tarray = [t1,t2,t2,t2]
+        lightref = ref_array_block(lightfiles, formatpars, box[2:4], tarray, False)
+        darkref = ref_array_block(darkfiles, formatpars, box[2:4], tarray, False)
+        region_cube = pixel_data(lightfiles, formatpars, box[:4], tarray, [sensitivity_spread_cut, False], False)
+        dark_cube = pixel_data(darkfiles, formatpars, box[:4], tarray, [sensitivity_spread_cut, False], False)
+        # switch to the mask from above
+        region_cube[-1,:,:,:] = region_cube_X[-1,:,:,:]
+        dark_cube[-1,:,:,:] = region_cube_X[-1,:,:,:]
+        B = basic(region_cube, dark_cube, tarray, lightref, darkref, ctrl_pars2, False)
+        if len(B)==5: data[ti,tj,:] = numpy.asarray(B)
+        # print t1, t2, data[ti,tj,:]
+
+  return data
 
 # Routines to compute the BFE coefficients
 #

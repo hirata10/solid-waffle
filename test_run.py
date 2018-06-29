@@ -158,6 +158,14 @@ for iy in range(ny):
 
 print '|'
 
+# Correlation statistics -- not used yet
+#if True:
+#  for iy in range(ny):
+#    for ix in range(nx):
+#      print '---', iy, ix, '---'
+#      data = pyirc.corrstats(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], [1,5,2,3], sensitivity_spread_cut, basicpar)
+#      print data[:,:,2]
+
 # Mask regions
 for mask_index in range(len(maskX)):
   ix = maskX[mask_index]
