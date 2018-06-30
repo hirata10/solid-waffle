@@ -22,6 +22,7 @@ tslicesM3 = []
 fullref = True
 sensitivity_spread_cut = .1
 critfrac = 0.75
+mychar = 'Basic'
 
 # Parameters for basic characterization
 basicpar = [.01, True, True, 1, True]
@@ -67,6 +68,10 @@ for line in content:
   if m:
     nx = int(m.group(1))
     ny = int(m.group(2))
+
+  # Characterization type (Basic or Advanced)
+  m = re.search(r'^CHAR:\s*(\S+)', line)
+  if m: mychar = m.group(1)
 
   # Time slices
   m = re.search(r'^TIME:\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
@@ -144,6 +149,10 @@ for iy in range(ny):
     #print len(numpy.where(region_cube[len(lightfiles),0,:,:]>0)[0])
     info = pyirc.basic(region_cube, dark_cube, tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
     if len(info)>0:
+      if mychar.lower()=='advanced':
+        Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)],
+               [tslices[0], tslices[-1]+1, 1, 4], sensitivity_spread_cut, basicpar)
+        info[3:8] = numpy.asarray(Cdata[1:6])
       bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, 2, blsub], False)
       info += bfeCoefs[0:5,0:5].flatten().tolist()
     else:
@@ -157,14 +166,6 @@ for iy in range(ny):
       full_info[iy,ix,1:] = 0 # wipe out this super-pixel
 
 print '|'
-
-# Correlation statistics -- not used yet
-#if True:
-#  for iy in range(ny):
-#    for ix in range(nx):
-#      print '---', iy, ix, '---'
-#      data = pyirc.corrstats(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], [1,5,2,3], sensitivity_spread_cut, basicpar)
-#      print data[:,:,2]
 
 # Mask regions
 for mask_index in range(len(maskX)):

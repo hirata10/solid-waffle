@@ -450,7 +450,8 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   var1 /= num_files*(num_files-1)/2.
   var2 /= num_files*(num_files-1)/2.
   if var2<=var1 and tslices[1]<tslices[-1]: return [] # FAIL!
-  gain_raw = (med2-med1)/(var2-var1) # in e/DN
+  gain_raw = (med2-med1)/(var2-var1+1e-100) # in e/DN
+    # 1e-100 does nothing except to prevent an error when var1 and var2 are exactly the same
 
   # Correlations of neighboring pixels, in DN^2
   #
@@ -594,7 +595,7 @@ def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_sprea
   # Get list of (good pix, median, var, cov_H, cov_V)
   for ti in range(nt-1):
     for tj in range(ti+1,nt):
-      if tslices[2:]==[] or tj-ti in tslices[2:]:
+      if tslices[2:]==[] or tj-ti in tslices[2:] or tj-ti==nt-1:
         t1 = tmin+ti
         t2 = tmin+tj
         tarray = [t1,t2,t2,t2]
@@ -610,6 +611,93 @@ def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_sprea
         # print t1, t2, data[ti,tj,:]
 
   return data
+
+# Routine to characterize of a region of the detector across many time slices
+#
+# Inputs:
+# lightfiles = list of light files
+# darkfiles = list of dark files
+# formatpars = format parameters
+# box = list [xmin, xmax, ymin, ymax]
+# tslices = list [tmin, tmax, dt1, dt2] (Python format -- xmax, ymax, tmax not included)
+#   correlations at the specified dt's are used (e.g. [1,5])
+# sensitivity_spread_cut = for good pixels (typically 0.1)
+# ctrl_pars = parameters for basic
+# 
+# return value is [isgood (1/0), g, aH, aV, beta, I, da (residual)]
+#
+def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars):
+
+  # Check time range
+  if len(tslices)<4:
+    print 'Error: polychar: not enough data', tslices
+    return []
+  if tslices[2]>=tslices[3] or tslices[3]>=tslices[1]-tslices[0] or tslices[1]-tslices[0]<3:
+    print 'Error: polychar: invalid slices range', tslices
+    return []
+
+  # Get correlation function data (including adjacent steps))
+  data = corrstats(lightfiles, darkfiles, formatpars, box, tslices+[1], sensitivity_spread_cut, ctrl_pars)
+
+  # check if this is good
+  nt = tslices[1]-tslices[0]
+  for ti in range(nt-1):
+    for tj in range(ti+1,nt):
+      if data[ti,tj,0]==0 and tj-ti in [1,tslices[2],tslices[3]]:
+        return [0,0,0,0,0,0]
+
+  # Fit of differences as a function of slice number
+  # slope = -2*beta*I^2/g
+  # intercept = (I - beta I^2)/g
+  npts = tslices[1]-tslices[0]-1
+  diff_frames = numpy.zeros((npts))
+  for j in range(npts):
+    diff_frames[j] = data[j,j+1,1] # median from frame tslices[0]+j -> tslices[0]+j+1
+  slopemed, icpt = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(npts)) + tslices[0]-ctrl_pars[3],
+                   numpy.ones(npts)]).T, diff_frames)[0]
+
+  # Difference of correlation functions
+  #
+  # Cdiff = I/g^2 * ((1-4a)^2 + 2aH^2 + 2aV^2) * t_{bd} - 4(1-8a)beta I^2/g^2 * (t_{ad}t_d - t_{ab}t_b + (e-1)/2*t_{bd})
+  # where e = npts2 is number of bins averaged together
+  #
+  # and horizontal and vertical cross-correlations
+  # CH = 2 I t_{ab} / g^2 * ( 1-4a - 4 beta (I t_b + 1/2 + (e-1)/2*I) ) * aH
+  # CV = 2 I t_{ab} / g^2 * ( 1-4a - 4 beta (I t_b + 1/2 + (e-1)/2*I) ) * aV
+  #
+  npts2 = tslices[1]-tslices[0]-tslices[3]
+  Cdiff = CV = CH = 0.
+  for j in range(npts2):
+    Cdiff += data[j,j+tslices[3],2] - data[j,j+tslices[2],2]
+    CH += data[j,j+tslices[3],3]
+    CV += data[j,j+tslices[3],4]
+  Cdiff /= npts2; CH /= npts2; CV /= npts2
+
+  # initialize with no IPC or NL
+  alphaH = alphaV = alpha = beta = 0.
+  da = 1.
+  # dummy initializations; these get over-written before they are used
+  I = g = 1.
+  for iCycle in range(100):
+    alphaH_old = alphaH; alphaV_old = alphaV # to track convergence
+
+    # Get combination of I and gain from difference of correlation functions
+    tbrack = tslices[3]*(tslices[0]+tslices[3]-ctrl_pars[3]) - tslices[2]*(tslices[0]+tslices[2]-ctrl_pars[3])\
+             + (npts2-1)/2.0*(tslices[3]-tslices[2])
+    I__g2 = (Cdiff + 4.*(1.-8.*alpha)*beta*I**2/g**2*tbrack) / (tslices[3]-tslices[2]) / ( (1.-4*alpha)**2 + 2*alphaH**2+2*alphaV**2 )
+
+    # Now use slopemed = -2 beta I^2/g, icpt = (I - beta I^2)/g, and I/g^2 to solve for I, beta, and g
+    g = (icpt - slopemed/2.)/I__g2
+    I = I__g2 * g**2
+    beta = -g*slopemed/2./I**2
+
+    factor = 2.*I__g2*tslices[3] * ( 1.-4.*alpha - 4.*beta*( I*(tslices[0]+tslices[3]-ctrl_pars[3]+(npts2-1.)/2.) +0.5) )
+    alphaH = CH/factor
+    alphaV = CV/factor
+    alpha = (alphaH+alphaV)/2.
+    da = numpy.abs(alphaH_old-alphaH) + numpy.abs(alphaV_old-alphaV)
+
+  return [1, g, alphaH, alphaV, beta, I, da]
 
 # Routines to compute the BFE coefficients
 #
