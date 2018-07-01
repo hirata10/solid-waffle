@@ -71,7 +71,17 @@ for line in content:
 
   # Characterization type (Basic or Advanced)
   m = re.search(r'^CHAR:\s*(\S+)', line)
-  if m: mychar = m.group(1)
+  if m:
+     mychar = m.group(1)
+     if mychar.lower()=='advanced':
+       m = re.search(r'^CHAR:\s*(\S+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
+       if m:
+         tchar1 = int(m.group(2))
+         tchar2 = int(m.group(3))
+         ncycle = int(m.group(4))
+       else:
+         print 'Error: insufficient arguments: ' + line + '\n'
+         exit()
 
   # Time slices
   m = re.search(r'^TIME:\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
@@ -150,9 +160,11 @@ for iy in range(ny):
     info = pyirc.basic(region_cube, dark_cube, tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
     if len(info)>0:
       if mychar.lower()=='advanced':
-        Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)],
-               [tslices[0], tslices[-1]+1, 1, 4], sensitivity_spread_cut, basicpar)
-        info[3:8] = numpy.asarray(Cdata[1:6])
+        for iCycle in range(ncycle):
+          bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, 2, blsub], False)
+          Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)],
+                 [tslices[0], tslices[-1]+1, tchar1, tchar2], sensitivity_spread_cut, basicpar, ['bfe', bfeCoefs]) # 1,3 or 9,19
+          info[3:8] = numpy.asarray(Cdata[1:6])
       bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, 2, blsub], False)
       info += bfeCoefs[0:5,0:5].flatten().tolist()
     else:
@@ -438,8 +450,8 @@ if used_3:
   S.plot(xr, yc+(xr-xc)*slope_3_beta*1e3, 'k:', label='beta only')
   S.legend(loc=2)
   print 'Method 3 implied slopes =', slope_3_beta, slope_3_BFE, slope_3_NLIPC
-  for i in range(len(SX)):
-    print '{:9.6f} {:9.6f} {:9.6f}'.format(SX[i], SY[i], SS[i])
+  #for i in range(len(SX)):
+  #  print '{:9.6f} {:9.6f} {:9.6f}'.format(SX[i], SY[i], SS[i])
   #
   S = F.add_subplot(2,2,4)
   S.set_title(r'Fitted $\alpha$ vs. signal')
@@ -481,6 +493,7 @@ thisOut.write('#\n')
 thisOut.write('# Cut on good pixels {:7.4f}% deviation from median\n'.format(100*sensitivity_spread_cut))
 thisOut.write('# Dimensions: {:3d}(x) x {:3d}(y) super-pixels, {:4d} good\n'.format(nx,ny,int(numpy.sum(is_good))))
 thisOut.write('# Reference pixel subtraction for linearity: {:s}\n'.format(str(fullref)))
+thisOut.write('# Characterization type: '+mychar+'\n')
 thisOut.write('# BFE Method 1\n#   Baseline subtraction = {:s}\n'.format(str(blsub)))
 thisOut.write('# BFE Method 2a\n#   Enabled = {:s}\n'.format(str(used_2a)))
 thisOut.write('# BFE Method 2b\n#   Enabled = {:s}\n'.format(str(used_2b)))

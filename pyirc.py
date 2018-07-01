@@ -623,10 +623,11 @@ def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_sprea
 #   correlations at the specified dt's are used (e.g. [1,5])
 # sensitivity_spread_cut = for good pixels (typically 0.1)
 # ctrl_pars = parameters for basic
+# addInfo = additional information (sometimes needed)
 # 
 # return value is [isgood (1/0), g, aH, aV, beta, I, da (residual)]
 #
-def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars):
+def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars, addInfo):
 
   # Check time range
   if len(tslices)<4:
@@ -645,6 +646,14 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
     for tj in range(ti+1,nt):
       if data[ti,tj,0]==0 and tj-ti in [1,tslices[2],tslices[3]]:
         return [0,0,0,0,0,0]
+
+  # Determine whether we are applying corrections
+  applyCorr = False
+  if len(addInfo)>=2:
+    applyCorr = True
+    typeCorr = addInfo[0]
+    ipnl = addInfo[1]
+    sBFE = numpy.shape(ipnl)[0]//2
 
   # Fit of differences as a function of slice number
   # slope = -2*beta*I^2/g
@@ -678,22 +687,32 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
   da = 1.
   # dummy initializations; these get over-written before they are used
   I = g = 1.
+  Cdiffcorr = 0.
   for iCycle in range(100):
     alphaH_old = alphaH; alphaV_old = alphaV # to track convergence
 
     # Get combination of I and gain from difference of correlation functions
     tbrack = tslices[3]*(tslices[0]+tslices[3]-ctrl_pars[3]) - tslices[2]*(tslices[0]+tslices[2]-ctrl_pars[3])\
              + (npts2-1)/2.0*(tslices[3]-tslices[2])
-    I__g2 = (Cdiff + 4.*(1.-8.*alpha)*beta*I**2/g**2*tbrack) / (tslices[3]-tslices[2]) / ( (1.-4*alpha)**2 + 2*alphaH**2+2*alphaV**2 )
+    I__g2 = (Cdiff - Cdiffcorr + 4.*(1.-8.*alpha)*beta*I**2/g**2*tbrack) / (tslices[3]-tslices[2]) / ( (1.-4*alpha)**2 + 2*alphaH**2+2*alphaV**2 )
 
     # Now use slopemed = -2 beta I^2/g, icpt = (I - beta I^2)/g, and I/g^2 to solve for I, beta, and g
     g = (icpt - slopemed/2.)/I__g2
     I = I__g2 * g**2
     beta = -g*slopemed/2./I**2
 
+    # Corrections to horiz. and vert. IPC
+    #
+    CHcorr = CVcorr = 0.
+    if applyCorr:
+      if typeCorr.lower() == 'bfe':
+        CHcorr = (ipnl[sBFE,sBFE+1]+ipnl[sBFE,sBFE-1])/2. * (I/g*tslices[3])**2
+        CVcorr = (ipnl[sBFE+1,sBFE]+ipnl[sBFE-1,sBFE])/2. * (I/g*tslices[3])**2
+        Cdiffcorr = ipnl[sBFE,sBFE] * (I/g)**2*(tslices[3]**2-tslices[2]**2)
+
     factor = 2.*I__g2*tslices[3] * ( 1.-4.*alpha - 4.*beta*( I*(tslices[0]+tslices[3]-ctrl_pars[3]+(npts2-1.)/2.) +0.5) )
-    alphaH = CH/factor
-    alphaV = CV/factor
+    alphaH = (CH - CHcorr)/factor
+    alphaV = (CV - CVcorr)/factor
     alpha = (alphaH+alphaV)/2.
     da = numpy.abs(alphaH_old-alphaH) + numpy.abs(alphaV_old-alphaV)
 
