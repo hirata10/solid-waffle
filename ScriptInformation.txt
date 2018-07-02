@@ -1,0 +1,219 @@
+=== Information on how to build and run a solid-waffle script ===
+
+A script can be run as follows:
+
+python test_run.py myScript
+
+The file 'myScript' contains instructions on which darks and flats are to be analyzed, what format they are in, and what analysis options are desired.
+
+A typical script might look something like the following:
+
+DETECTOR: H4RG-18237
+LIGHT:
+  ../SCA18237/Set_002_Light_0001.fits
+  ../SCA18237/Set_004_Light_0001.fits
+  ../SCA18237/Set_006_Light_0001.fits
+DARK:
+  ../SCA18237/Set_001_Dark_0001.fits
+  ../SCA18237/Set_001_Dark_0002.fits
+  ../SCA18237/Set_001_Dark_0003.fits
+FORMAT: 1
+
+CHAR: Advanced 1 3 3 bfe
+
+#NBIN: 128 16
+
+TIME:    1 10 12 20
+#TIME2A:  1  2  3 20
+#TIME2B:  1  2  3 20
+#TIME3:   1  2  3 20
+OUTPUT:         out/adv2multi
+
+Generally, commands in the script start with a command name (capital letters, followed by a colon, e.g., 'FORMAT:'). Following the command is a list of arguments, which must be on the same line as the command except as specified below. Blank lines and lines starting with a hash ('#') are skipped.
+
+Some script commands are *required*; others are optional, and come with defaults.
+
+=== Required commands ===
+
+-- LIGHT --
+
+This command contains a list of the flat field exposures. Input files in *.fits format are listed on subsequent lines as follows --
+
+LIGHT:
+  ../SCA18237/Set_002_Light_0001.fits
+  ../SCA18237/Set_004_Light_0001.fits
+  ../SCA18237/Set_006_Light_0001.fits
+
+The list is terminated by the next command or by the end of the file.
+
+-- DARK --
+
+This works the same way as the LIGHT command, but contains dark exposures. There must be the same number of dark exposures as flat field exposures, since internally in the script each flat is paired with a dark. The darks should be at least as long as the flats (in terms of number of frames), and need to be in the same format.
+
+
+=== Optional commands ===
+
+-- OUTPUT --
+
+This command tells the script where to save output files:
+
+OUTPUT:         out/adv2multi
+
+The default is 'default_output'. This is a stem, e.g. in this case the 'summary.txt' output will be saved to 'out/adv2multi_summary.txt', etc.
+
+-- FORMAT --
+
+The format of the fits files:
+
+FORMAT: 1
+
+Note that aside from the array dimensions, the script does *not* use any information from the FITS headers, it only uses the image data.
+
+The options are:
+
+(*) 1 (default if not specified): H4RG-10, FITS cube, ascending ramps (signal level in DN increases during a flat). The data should be in HDU #0, with NAXIS=3, NAXIS1=NAXIS2=4096, and NAXIS3 equal to the number of frames in the flat.
+
+(*) 2: same as 1, but for a H2RG (NAXIS1=NAXIS2=2048).
+
+(*) 3: H4RG-10, descending ramps (signal level in DN decreases during a flat). The images are in HDU #1 ... HDU #[last time slice], with NAXIS=2 and NAXIS1=NAXIS2=4096.
+
+-- NBIN --
+
+The way the data are binned into super-pixels for statistical analysis:
+
+NBIN: 128 16
+
+This produces 128 super-pixels on the X axis, and 16 super-pixels on the Y axis. For an H4RG, this means that the super-pixels are 4096/128=32 pixels wide and 4096/16=256 pixels high. (Note that the fast read direction and the channel number direction are in X, and the slow read direction is in Y.)
+
+The default is 32 super-pixels in each direction.
+
+-- CHAR --
+
+The type of characterization to perform. Right now there are two options:
+
+CHAR: Basic
+
+This is the default, and extracts basic information (gain, non-linearity, IPC) based on the statistics (medians, variances, and covariances) of two CDS images at different signal levels.
+
+CHAR: Advanced 1 3 3 bfe
+
+This takes more time, but fits gain, non-linearity, and IPC to a stack of CDS images extracted from different epochs in the ramp. The arguments of 'Advanced' are tchar1, tchar2, ncycle, and chartype. Here the CDS images have length tchar1 and tchar2 frames, and ncycle iterations of gain/non-linearity/IPC characterization and IPNL characterization are performed.
+
+The type of IPNL characterization can be: 'none' or 'bfe'. If 'none' is selected, then IPNL is ignored during fits to gain, non-linearity, and IPC. If 'bfe' is selected, then the IPNL obtained from the non-overlapping correlation function is assumed to be due entirely to the BFE, and the resulting correction is applied to the statistical properties of the CDS images.
+
+-- TIME --
+
+Determines which time slices to use for initial characterization and IPNL correlations.
+
+TIME:    1 10 12 20
+
+There are four arguments, and they need to be in strictly ascending order. They represent frame numbers, with 1 being the first frame in the file. In the above example, the non-overlapping correlation function used for IPNL is the correlation of [frame 10 - frame 1] x [frame 20 - frame 12].
+
+For the basic characterization (and the initial condition for advanced characterization), the non-linearity parameter would be based on frames 1, 10, and 20; the gain is determined from the variance and medians of [frame 20 - frame 1] and [frame 10 - frame 1]; and the IPC is determined from the autocorrelation of [frame 20 - frame 1].
+
+-- TIME2A --
+
+Determines which time slices to use for the raw gain vs. interval duration test. If not present or commented out, the test is skipped.
+
+TIME2A:  1  2  3 20
+
+There are four arguments; in this case, raw gain is computed for the frame triplets:
+
+[1,2,3], [1,2,4], [1,2,5] ... [1,2,20].
+
+Note that the first two frames are kept fixed, while the third frame is varied.
+
+-- TIME2B --
+
+Determines which time slices to use for the raw gain vs. interval center test. If not present or commented out, the test is skipped.
+
+TIME2B:  1  2  3 20
+
+There are four arguments; in this case, raw gain is computed for the frame triplets:
+
+[1,2,3], [2,3,4], [3,4,5] ... [18,19,20].
+
+Note that the time differences used to compute raw gain are kept fixed, while the absolute time stamp is varied. If not present or commented out, the test is skipped.
+
+-- TIME3 --
+
+Determines which time slices to use for the IPC correlation vs. interval duration test. If not present or commented out, the test is skipped.
+
+TIME3:  1  2  3 20
+
+There are four arguments; in this case, IPC is computed using basic characterization for the frame triplets:
+
+[1,2,3], [1,2,4], [1,2,5] ... [1,2,20].
+
+Note that the first two frames are kept fixed, while the third frame is varied. The CDS autocorrelations of [frame 3 - frame 1], [frame 4 - frame 1], ... [frame 20 - frame 1] are also computed.
+
+-- DETECTOR --
+
+Name of the SCA (not used, except copied into the output data). The default is the null string ''.
+
+DETECTOR: H4RG-18237
+
+-- COLOR --
+
+Color scheme for output plots.
+
+COLOR: gnuplot
+
+-- MASK --
+
+If provided, manually masks a super-pixel, e.g.
+
+MASK: 17 31
+
+removes the (17,31) super-pixel. This is in X,Y order, with the lower-left being (0,0). The user may mask as many super-pixels as desired; if a super-pixel is repeated, this is equivalent to masking it once.
+
+=== Outputs ===
+
+The script outputs a set of summary files and figures.
+
+-- *_summary.txt --
+
+This file contains the calibration data obtained on that SCA. It starts with a time stamp and version number:
+
+# This summary created at Mon Jul  2 00:15:04 2018
+# Uses pyirc v5
+
+followed by a list of settings. This includes a list of the figures associated with the summary file. Then comes a table of the results in each super pixel; the number of columns may vary, but they always come with a description:
+
+# Columns:
+#   1, X (super pixel grid)
+#   2, Y (super pixel grid)
+...
+#  37, BFE kernel K^2a (+NL-IPC) at ( 2, 2) (e^-1)
+
+Following this is the actual list of data, with one line per super-pixel:
+
+  0   0  1.5050000E+04  2.8682524E+00  ... -5.0412114E-07
+...
+ 31  31  1.4963000E+04  2.8977701E+00  ...  7.2685133E-07
+
+Failures or masked super-pixels have rows of zeros.
+
+-- *_multi.eps --
+
+This is a 6-panel figure displaying the results of the characterization. In English reading order, the panels display:
+
+(*) The percentage of pixels that are good (max = 100%; note that reference pixels are rejected so you will see a lower percentage around the edges of the SCA).
+
+(*) The gain in e/DN, as corrected in the characterization chosen (this is always IPC and non-linearity corrected; the advanced characterization will be BFE-corrected if the 'bfe' option is chosen and the number of iterations is >=1).
+
+(*) The IPC in percent (nearest-neighbor, averaged over up, down, right, and left).
+
+(*) The quadratic non-linearity parameter beta (in ppm/e).
+
+(*) The charge per frame (in e).
+
+(*) The IPNL coefficient at zero lag (in ppm/e). See the paper for the exact definition, but roughly speaking this is the sum of the self-BFE coefficient (i.e. the fractional change in pixel area when 1 e of charge is deposited in it) and - 4 d[IPC alpha]/d[charge]. It may be interpreted as either BFE, NL-IPC, or both, depending on the outcome of other tests. It is usually negative, and with small numbers of flats may be very noisy.
+
+-- *_m23.eps --
+
+This is a 4-panel figure displaying how raw gains, autocorrelations of synthetic CDS images (at 1-pixel lag), and basic characterization-inferred IPC coefficients vary with the intervals used. These panels all have slopes that depend on whether the IPNL is due to BFE or NL-IPC (or some combination). They can thus be used to distinguish the various effects.
+
+The figures depend on the IPNL characterization methods used (2a, 2b, and 3), which can be controlled using the TIME2A, TIME2B, and TIME3 commands. If these commands are absent or invalid, then the corresponding figures are skipped, and a plot with fewer panels will be generated.
+
+In each panel, the data points are the average over all super-pixels, with error bars computed by 'error on the mean' using the dispersion of the super-pixels. The predicted *slopes* of the relations are plotted, assuming that the IPNL is pure BFE (green) or pure NL-IPC (blue).
