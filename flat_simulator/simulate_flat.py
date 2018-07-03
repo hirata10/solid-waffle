@@ -118,15 +118,29 @@ if 0 in reset_frames:
   allQ[0,:,:] = data_cube_Q[0,:,:] = offset_frame
 
 # Start with 0 charge in the first frame (t=0)
+mean = I*delta_t
+
 for tdx in range(1, nt_step):
-  mean = I*delta_t
-  
   # Create realization of charge
   # This version uses less memory, but probably still sub-optimal
   idx = tdx%substep
   # Charge accumulates, dependent on quantum efficiency of the pixel
-  allQ[idx,:,:] = allQ[idx-1,:,:]
-  allQ[idx,xmin:xmax,ymin:ymax] += np.random.poisson(QE*mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
+  # and the brighter-fatter effect.  First timestep is Poisson realization
+  if (tdx==1):
+    allQ[idx,:,:] = allQ[idx-1,:,:]
+    allQ[idx,xmin:xmax,ymin:ymax] += np.random.poisson(
+      QE*mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
+  else:
+    # If not the first step, the brighter-fatter effect comes into play
+    # We must now loop through all pixels
+    for xdx in range(xmin,xmax):
+      for ydx in range(ymin,ymax):
+        # Get the local array of charge, currently just 3x3
+        q_local_3x3 = allQ[idx-1,xdx-1:xdx+2,ydx-1:ydx+2]
+        a_coeff = get_bfe_kernel_3x3()
+        area_defect = calc_area_defect(a_coeff, q_local_3x3)
+        meanQ_ij = allQ[idx-1,xdx,ydx] + QE*mean*area_defect
+        allQ[idx,xdx,ydx] = np.random.poisson(meanQ_ij)
   if (idx==0):
     data_cube_Q[count,:,:] = allQ[idx,:,:]
     allQ = np.zeros((substep, nx, ny))
