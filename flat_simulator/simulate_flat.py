@@ -86,12 +86,12 @@ for line in content:
       noisefile = m.group(2)
 
   # BFE
-  m = re.search(r'BFE:\s*(\S+)\s+(\S+)', line)
-  if m: bfemode = str(m.group(1))
+  m = re.search(r'BFE:\s*(\S+)', line)
+  if m: bfemode = m.group(1)
 
   # linear IPC
-  m = re.search(r'L_IPC:\s*(\S+)\s+(\S+)', line)
-  if m: lipcmode = str(m.group(1))
+  m = re.search(r'L_IPC:\s*(\S+)', line)
+  if m: lipcmode = m.group(1)
 
   # Reset level (in e)
   m = re.search(r'^RESET_E:\s*(\S+)', line)
