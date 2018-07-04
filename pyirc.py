@@ -333,7 +333,7 @@ def gain_alphabetacorr(graw, CH, CV, signal, frac_dslope, times):
   # Initial guess
   g = graw
   alpha = alphaH = alphaV = beta = 0
-  I = signal*g
+  I = signal*g/(times[3]-times[0])
 
   # Iterate
   # (100 iterations is overkill for this problem if alpha and beta are small)
