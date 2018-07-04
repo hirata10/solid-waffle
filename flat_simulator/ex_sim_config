@@ -31,4 +31,7 @@ RESET_E: 1.0e2
 #NOISE: none
 NOISE: last ex_2.2.1.fits
 
+BFE: true
+L_IPC: true
+
 OUTPUT: test1.fits

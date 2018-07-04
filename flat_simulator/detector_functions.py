@@ -19,3 +19,20 @@ def simple_ipc_kernel(alpha=0.01):
   kernel[1,0] = kernel[0,1] = kernel[1,2] = kernel[2,1] = alpha
   kernel[1,1] = 1-4*alpha
   return kernel
+
+def get_bfe_kernel_3x3():
+  """ This returns a simple, currently arbitrary bfe 3 x 3 kernel
+  units of 10^-6 per electron
+  """
+  bfe_kernel_3x3 = 1.E-6*np.array(
+    [[0.065, 0.23, 0.065],[0.24, -1.2, 0.24], [0.065, 0.23, 0.065]])
+  return bfe_kernel_3x3
+
+def calc_area_defect(ap, Q_local):
+  """ ap is the a_deltaideltaj coefficient matrix
+  Q_local is q_deltaideltaj for a given pixel i,j
+  the area defect is unitless
+  """
+  aQ = ap*Q_local
+  W = 1 + aQ.sum()
+  return W

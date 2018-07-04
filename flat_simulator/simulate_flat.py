@@ -40,6 +40,8 @@ gain = 1.5 # arbitrary scalar e-/DN
 outfile = 'DefaultOutput.fits'
 rngseed = 1000
 noisemode = 'none'
+bfemode = 'true'
+lipcmode = 'true'
 reset_frames = [0]
 
 # Read in information
@@ -83,6 +85,14 @@ for line in content:
     if noisemode != 'none':
       noisefile = m.group(2)
 
+  # BFE
+  m = re.search(r'BFE:\s*(\S+)', line)
+  if m: bfemode = m.group(1)
+
+  # linear IPC
+  m = re.search(r'L_IPC:\s*(\S+)', line)
+  if m: lipcmode = m.group(1)
+
   # Reset level (in e)
   m = re.search(r'^RESET_E:\s*(\S+)', line)
   if m: resetlevel = float(m.group(1))
@@ -118,15 +128,35 @@ if 0 in reset_frames:
   allQ[0,:,:] = data_cube_Q[0,:,:] = offset_frame
 
 # Start with 0 charge in the first frame (t=0)
+mean = I*delta_t
+
 for tdx in range(1, nt_step):
-  mean = I*delta_t
-  
   # Create realization of charge
   # This version uses less memory, but probably still sub-optimal
   idx = tdx%substep
   # Charge accumulates, dependent on quantum efficiency of the pixel
-  allQ[idx,:,:] = allQ[idx-1,:,:]
-  allQ[idx,xmin:xmax,ymin:ymax] += np.random.poisson(QE*mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
+  # and the brighter-fatter effect.  First timestep is Poisson realization
+  if (tdx==1):
+    allQ[idx,:,:] = allQ[idx-1,:,:]
+    allQ[idx,xmin:xmax,ymin:ymax] += np.random.poisson(
+      QE*mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
+  else:
+    # If not the first step, and the brighter-fatter effect is turned
+    # on, then now loop through all pixels
+    if bfemode=='true':
+      for xdx in range(xmin,xmax):
+        for ydx in range(ymin,ymax):
+          # Get the local array of charge, currently just 3x3
+          q_local_3x3 = allQ[idx-1,xdx-1:xdx+2,ydx-1:ydx+2]
+          a_coeff = get_bfe_kernel_3x3()
+          area_defect = calc_area_defect(a_coeff, q_local_3x3)
+          meanQ_ij = allQ[idx-1,xdx,ydx] + QE*mean*area_defect
+          allQ[idx,xdx,ydx] = np.random.poisson(meanQ_ij)
+    else:
+      # Otherwise Poisson draw the charge as before
+      allQ[idx,:,:] = allQ[idx-1,:,:]
+      allQ[idx,xmin:xmax,ymin:ymax] += np.random.poisson(
+        QE*mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
   if (idx==0):
     data_cube_Q[count,:,:] = allQ[idx,:,:]
     allQ = np.zeros((substep, nx, ny))
@@ -138,11 +168,14 @@ for tdx in range(1, nt_step):
     
     count += 1
 
-# Add in IPC before the noise
-ipc_kern = simple_ipc_kernel()
-for tdx in range(tsamp):
-  data_cube_Q[tdx,:,:] = signal.convolve(
-    data_cube_Q[tdx,:,:], ipc_kern, mode='same')
+# Add in IPC before the noise if the mode is turned on
+if lipcmode=='true':
+  ipc_kern = simple_ipc_kernel()
+  for tdx in range(tsamp):
+    data_cube_Q[tdx,:,:] = signal.convolve(
+      data_cube_Q[tdx,:,:], ipc_kern, mode='same')
+else:
+  pass
 
 # Read in the read noise from a fits file generated with Bernie's ngxhrg
 # noisemode 'last' uses one realization because the full one takes
