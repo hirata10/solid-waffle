@@ -709,6 +709,11 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
         CHcorr = (ipnl[sBFE,sBFE+1]+ipnl[sBFE,sBFE-1])/2. * (I/g*tslices[3])**2
         CVcorr = (ipnl[sBFE+1,sBFE]+ipnl[sBFE-1,sBFE])/2. * (I/g*tslices[3])**2
         Cdiffcorr = ipnl[sBFE,sBFE] * (I/g)**2*(tslices[3]**2-tslices[2]**2)
+      if typeCorr.lower() == 'nlipc':
+        CHcorr = (ipnl[sBFE,sBFE+1]+ipnl[sBFE,sBFE-1])/2. * (I/g)**2*tslices[3]*(tslices[0]+tslices[3]+(npts2-1)*0.5)*2
+        CVcorr = (ipnl[sBFE+1,sBFE]+ipnl[sBFE-1,sBFE])/2. * (I/g)**2*tslices[3]*(tslices[0]+tslices[3]+(npts2-1)*0.5)*2
+        Cdiffcorr = ipnl[sBFE,sBFE] * (I/g)**2*( (tslices[0]+tslices[3])*tslices[3] - (tslices[0]+tslices[2])*tslices[2]
+                      + (tslices[3]-tslices[2])*(npts2-1)*0.5)
 
     factor = 2.*I__g2*tslices[3] * ( 1.-4.*alpha - 4.*beta*( I*(tslices[0]+tslices[3]-ctrl_pars[3]+(npts2-1.)/2.) +0.5) )
     alphaH = (CH - CHcorr)/factor
