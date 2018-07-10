@@ -914,6 +914,57 @@ def hotpix(darkfiles, formatpars, tslices, pars, verbose):
 
   return numpy.where(this_hot>0)
 
+# Return IPC data from a list of hot pixels.
+# y, x = lists of hot pixel coordinates to use (probably selected from hotpix)
+# darkfiles = list of dark files to use
+# formatpars = format code for dark files
+# tslices = list of time slices to report
+# pars = parameters to control data selection
+# verbose = T/F
+#
+# Returns data cube with three indices.
+# data[jpix,jt,jpos] = signal (in DN) at position jpos (relative to hot pixel)
+#                      at time slice jt
+#                      of hot pixel jpix
+#
+# positions are: jpos=0 (center), 1 (right), 2 (up), 3 (left), 4 (down), 5 (bkgnd 5x5-3x3)
+def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
+
+  # Build array for the dark cube
+  ndarks = len(darkfiles)
+  N = get_nside(formatpars)
+  cube = numpy.zeros((ndarks,N,N))
+
+  nt = len(tslices)
+  npix = len(x)
+  data = numpy.zeros((npix,nt,6))
+
+  # offset table
+  dx = [0, 1, 0, -1, 0]
+  dy = [0, 0, 1, 0, -1]
+
+  # background mask
+  bkmask = numpy.ones((5,5))
+  bkmask[1:4,1:4]=0.
+  if verbose: print 'bkmask =', bkmask
+  # 16 ones and 9 zeros
+
+  # now make data cube
+  for jt in range(nt):
+    for f in range(ndarks):
+      CDS = load_segment(darkfiles[f], formatpars, [0,N,0,N], [1,tslices[jt]], False)
+      cube[f,:,:] = CDS[0,:,:] - CDS[1,:,:]
+    medframe = numpy.median(cube, axis=0)
+    if verbose: print 'med', numpy.shape(medframe), jt
+    for jpix in range(npix):
+      for jpos in range(5):
+        x_ = x[jpix] + dx[jpos]
+        y_ = y[jpix] + dy[jpos]
+        data[jpix,jt,jpos] = medframe[y_,x_]
+      data[jpix,jt,5] = 25./16.*numpy.mean(bkmask*medframe[y[jpix]-2:y[jpix]+3, x[jpix]-2:x[jpix]+3])
+
+  return data
+
 # Generates min and max range for a color bar
 # based on inter-quartile range
 def get_vmin_vmax(mydata, qext):

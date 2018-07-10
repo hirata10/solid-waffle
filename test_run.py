@@ -537,7 +537,17 @@ for iy in range(ny):
 thisOut.close()
 
 print 'Hot pixels!'
-hotX, hotY = pyirc.hotpix(darkfiles, formatpars, range(1,NTMAX), [1000,10000,0.1,0.1], True)
+hotY, hotX = pyirc.hotpix(darkfiles, formatpars, range(1,NTMAX), [1000,1500,0.1,0.1], True)
 print len(hotX), len(hotY)
-print hotX
-print hotY
+hotcube = pyirc.hotpix_ipc(hotY, hotX, darkfiles, formatpars, range(1,NTMAX,5), [], True)
+#
+# write hot pixel information
+thisOut = open(outstem+'_hot.txt', 'w')
+for jpix in range(len(hotX)):
+  iy = hotY[jpix]//dy
+  ix = hotX[jpix]//dx
+  thisOut.write('{:4d} {:4d} {:8.6f}'.format(hotX[jpix], hotY[jpix], full_info[iy,ix,4]/2.+full_info[iy,ix,5]/2.))
+  for t in range(1,12):
+    thisOut.write(' {:8.2f} {:8.2f} {:8.2f}'.format(hotcube[jpix,t,0], numpy.mean(hotcube[jpix,t,1:]), hotcube[jpix,t,-1]))
+  thisOut.write('\n')
+thisOut.close()
