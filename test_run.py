@@ -640,7 +640,7 @@ if hotpix:
   #
   # hot pixel level
   S = F.add_subplot(2,2,2)
-  S.set_xlabel(r'Signal level $S_{1,' + '{:d}'.format(htsteps[-1]) +'}$ [ADU]')
+  S.set_xlabel(r'Signal level $S_{1,' + '{:d}'.format(htsteps[-1]) +'}$ [DN]')
   S.set_ylabel(r'IPC $\alpha$ [%]')
   SX = hotpix_signal[:,-1]
   SY = hotpix_alpha[:,-1]/.01
@@ -652,7 +652,7 @@ if hotpix:
   #
   # dependence on signal level
   S = F.add_subplot(2,2,3)
-  S.set_xlabel(r'Signal level $S_{1,b}$ [ADU]')
+  S.set_xlabel(r'Signal level $S_{1,b}$ [DN]')
   S.set_ylabel(r'IPC $\alpha(S_{1,b})-\alpha(S_{1,' + '{:d}'.format(htsteps[-1]) + '})$ [%]')
   for t in range(1,nhstep):
     SXa = hotpix_signal[:,t]
@@ -672,10 +672,10 @@ if hotpix:
   #
   # comparison with auto-correlations
   S = F.add_subplot(2,2,4)
-  S.set_title(r'hot pixels vs. autocor. IPC $\alpha$')
+  S.set_title(r'hot pixels vs. autocorr. IPC $\alpha$')
   scale_test = numpy.concatenate((grid_alphaCorr.flatten(), grid_alphaHot.flatten()))
-  smin = 0.88 * numpy.min(scale_test[scale_test>0]) / .01
-  smax = 1.12 * numpy.max(scale_test) / .01
+  smin = 0.92 * numpy.min(scale_test[scale_test>0]) / .01
+  smax = 1.08 * numpy.max(scale_test) / .01
   S.set_xlim(smin,smax); S.set_ylim(smin,smax); S.set_aspect('equal')
   S.set_xlabel(r'autocorrelation $\alpha$ [%]'); S.set_ylabel(r'hot pixel $\alpha$ [%]')
   S.grid(True, color='g', linestyle='-', linewidth=.5)

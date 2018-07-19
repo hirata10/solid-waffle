@@ -181,6 +181,19 @@ IPCSUB: True
 
 If 'True', then the correlation function used for IPC determination will subtract a 'baseline' region +/- 4 pixels to the left and right (fast-scan direction). This increases the noise but may be useful as a systematic check if you think your autocorrelation IPC measurement is affected by 1/f noise.
 
+-- HOTPIX --
+
+HOTPIX: 1500 3000 0.1 0.08
+
+If provided, does a hot pixel-based IPC analysis. This uses only the dark frames.
+
+Selected pixels should be:
+
+(*) in the range from 1500-3000 DN (in the example above)
+(*) 'stable' (here meaning top to bottom of 0.1 or 10% of the median signal) and
+(*) 'isolated' (here meaning no other pixels in a 5x5 box exceeding 0.08 or 8% of the selected pixel)
+(*) not within 2 pixels of a boundary or reference pixel
+
 === Outputs ===
 
 The script outputs a set of summary files and figures.
@@ -231,3 +244,29 @@ This is a 4-panel figure displaying how raw gains, autocorrelations of synthetic
 The figures depend on the IPNL characterization methods used (2a, 2b, and 3), which can be controlled using the TIME2A, TIME2B, and TIME3 commands. If these commands are absent or invalid, then the corresponding figures are skipped, and a plot with fewer panels will be generated.
 
 In each panel, the data points are the average over all super-pixels, with error bars computed by 'error on the mean' using the dispersion of the super-pixels. The predicted *slopes* of the relations are plotted, assuming that the IPNL is pure BFE (green) or pure NL-IPC (blue).
+
+-- *_hot.txt --
+
+A table of output information on the hot pixels. This is a flat text file, with each row denoting a hot pixel. The columns are:
+
+Col # 1: pixel x
+Col # 2: pixel y
+Col # 3: IPC alpha from auto-correlation in that pixel's super-pixel
+Col # 4: S_{1,6} in that pixel
+Col # 5: S_{1,6}, average in the 4 nearest neighbors
+Col # 6: S_{1,6}, average in the 16-pixel 'ring' region (5x5 minus 3x3 centered on that pixel)
+Col # 7: S_{1,6}, asymmetry (left-right minus top-bottom, divided by 2)
+
+then Columns 8-11 are for S_{1,11}, Columns 12-15 are for S_{1,16} ... all the way up to the last S_{1,1+5n} in the data cube.
+
+-- *_hotipc.eps --
+
+A graphical display of the information on the hot pixels. It is a 4-panel plot. In English reading order, the panels display:
+
+(*) A map of the selected hot pixel locations on the SCA.
+
+(*) A plot of the alpha inferred from each hot pixel as a function of the signal level (i.e., how hot the pixel is)
+
+(*) A plot of Delta alpha: the IPC inferred from a partial ramp (so the hot pixel does not reach its final deposited charge) minus that inferred from the full ramp. For perfectly linear response (including linear IPC), this will be zero, with some scatter due to noise. The red points denote each sample; the black points are median stacks of the red points with binomial error bars. The last black point is zero by construction.
+
+(*) A scatter plot of the hot pixel and autocorrelation-based IPC measurements, binned into 16 'hyper-pixels', each N/4 x N/4 physical pixels (e.g. 1024x1024 for an H4RG). The red line indicates perfect agreement.
