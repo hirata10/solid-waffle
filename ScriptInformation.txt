@@ -167,6 +167,20 @@ MASK: 17 31
 
 removes the (17,31) super-pixel. This is in X,Y order, with the lower-left being (0,0). The user may mask as many super-pixels as desired; if a super-pixel is repeated, this is equivalent to masking it once.
 
+-- EPSILON --
+
+EPSILON: .025
+
+If provided, sets the clipping fraction for the IPC correlations (default: 0.01, meaning clip the top 1% and bottom 1% of the pixels before computing the covariance; >=0.50 will result in the IPC measurement failing).
+
+-- IPCSUB --
+
+IPCSUB: True
+
+[Default is false.]
+
+If 'True', then the correlation function used for IPC determination will subtract a 'baseline' region +/- 4 pixels to the left and right (fast-scan direction). This increases the noise but may be useful as a systematic check if you think your autocorrelation IPC measurement is affected by 1/f noise.
+
 === Outputs ===
 
 The script outputs a set of summary files and figures.

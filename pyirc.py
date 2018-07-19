@@ -11,7 +11,7 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 5
+  return 6
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -370,6 +370,7 @@ def gain_alphabetacorr(graw, CH, CV, signal, frac_dslope, times):
 #   ctrl_pars[3] = reset frame (default to 0)
 #   ctrl_pars[4] = reference pixel subtraction? (default to True)
 #   ctrl_pars[5] = which parameters to report (default to True = standard basic pars; False = correlation data instead)
+#   ctrl_pars[6] = lead-trail subtraction? (default to False)
 # verbose = True or False  (recommend True only for de-bugging)
 #
 # Returns a list of basic calibration parameters.
@@ -386,6 +387,7 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
 
   # Settings:
   newMeanSubMethod = True     # use False only for test/debug
+  leadtrailSub = True         # subtract leading & trailing (by +/-4 pix) from horiz & vert correlations
 
   # Extract basic parameters
   num_files = region_cube.shape[0]-1
@@ -417,6 +419,9 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   # return full correlation information?
   full_corr = True
   if len(ctrl_pars)>=6: full_corr = ctrl_pars[5]
+
+  # lead-trail subtraction for IPC correlations?
+  if len(ctrl_pars)>=7: leadtrailSub = ctrl_pars[6]
 
   # Get means and variances at the early and last slices
   # (i.e. 1-point information)
@@ -481,7 +486,25 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
         CH /= maskCH
         CV /= maskCV
 
-        if subtr_corr and not newMeanSubMethod:
+        if leadtrailSub:
+          maskCVx1 = numpy.sum(this_mask[:-1,:-4]*this_mask[1:,4:])
+          maskCHx1 = numpy.sum(this_mask[:,:-5]*this_mask[:,5:])
+          CVx1 = numpy.sum(this_mask[:-1,:-4]*this_mask[1:,4:]*temp_box[:-1,:-4]*temp_box[1:,4:])
+          CHx1 = numpy.sum(this_mask[:,:-5]*this_mask[:,5:]*temp_box[:,:-5]*temp_box[:,5:])
+          if maskCHx1<1 or maskCVx1<1: return []
+          CHx1 /= maskCHx1
+          CVx1 /= maskCVx1
+          maskCVx2 = numpy.sum(this_mask[:-1,4:]*this_mask[1:,:-4])
+          maskCHx2 = numpy.sum(this_mask[:,:-3]*this_mask[:,3:])
+          CVx2 = numpy.sum(this_mask[:-1,4:]*this_mask[1:,:-4]*temp_box[:-1,4:]*temp_box[1:,:-4])
+          CHx2 = numpy.sum(this_mask[:,:-3]*this_mask[:,3:]*temp_box[:,:-3]*temp_box[:,3:])
+          if maskCHx2<1 or maskCVx2<1: return []
+          CHx2 /= maskCHx2
+          CVx2 /= maskCVx2
+          CH -= (CHx1+CHx2)/2.
+          CV -= (CVx1+CVx2)/2.
+
+        if subtr_corr and not newMeanSubMethod and not leadtrailSub:
           CH -= mean_of_temp_box**2
           CV -= mean_of_temp_box**2
         tCH += CH * (1 if icorr==0 else -1)
