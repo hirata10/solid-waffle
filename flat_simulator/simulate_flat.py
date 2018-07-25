@@ -144,14 +144,12 @@ for tdx in range(1, nt_step):
     # If not the first step, and the brighter-fatter effect is turned
     # on, then now loop through all pixels
     if bfemode=='true':
-      for xdx in range(xmin,xmax):
-        for ydx in range(ymin,ymax):
-          # Get the local array of charge, currently just 3x3
-          q_local_3x3 = allQ[idx-1,xdx-1:xdx+2,ydx-1:ydx+2]
-          a_coeff = get_bfe_kernel_3x3()
-          area_defect = calc_area_defect(a_coeff, q_local_3x3)
-          meanQ_ij = allQ[idx-1,xdx,ydx] + QE*mean*area_defect
-          allQ[idx,xdx,ydx] = np.random.poisson(meanQ_ij)
+      # Calculate the area defect by taking a convolution of the bfe
+      # kernel (flipped in the calc_area_defect function) and the charge Q
+      a_coeff = get_bfe_kernel_3x3()
+      area_defect = calc_area_defect(a_coeff, allQ[idx-1,:,:])
+      meanQ = area_defect*mean*QE
+      allQ[idx,:,:] = allQ[idx-1,:,:] + np.random.poisson(meanQ)
     else:
       # Otherwise Poisson draw the charge as before
       allQ[idx,:,:] = allQ[idx-1,:,:]
