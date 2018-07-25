@@ -26,7 +26,8 @@ def get_bfe_kernel_3x3():
   units of 10^-6 per electron
   """
   bfe_kernel_3x3 = 1.E-6*np.array(
-    [[0.065, 0.23, 0.065],[0.24, -1.2, 0.24], [0.065, 0.23, 0.065]])
+    [[0.065, 0.23, 0.065],[0.24, -1.2, 0.24], [0.065, 0.23, 0.065]]) 
+  # Currently symmetrical but can put in something more complex
   return bfe_kernel_3x3
 
 def calc_area_defect(ap, Q_full):
@@ -34,6 +35,6 @@ def calc_area_defect(ap, Q_full):
   Q_local is q_deltaideltaj for a given pixel i,j
   the area defect is unitless
   """
-  aQ = signal.convolve(np.flip(ap),Q_full)
+  aQ = signal.convolve(ap[::-1,::-1],Q_full)
   W = 1 + aQ
   return W

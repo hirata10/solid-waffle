@@ -149,12 +149,13 @@ for tdx in range(1, nt_step):
       a_coeff = get_bfe_kernel_3x3()
       area_defect = calc_area_defect(a_coeff, allQ[idx-1,:,:])
       meanQ = area_defect*mean*QE
-      allQ[idx,:,:] = allQ[idx-1,:,:] + np.random.poisson(meanQ)
+      allQ[idx,xmin:xmax,ymin:ymax] = allQ[idx-1,xmin:xmax,ymin:ymax] + \
+          np.random.poisson(meanQ[xmin:xmax,ymin:ymax])
     else:
       # Otherwise Poisson draw the charge as before
       allQ[idx,:,:] = allQ[idx-1,:,:]
       allQ[idx,xmin:xmax,ymin:ymax] += np.random.poisson(
-        QE*mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
+        QE*mean, allQ[idx,xmin:xmax,ymin:ymax].shape)
   if (idx==0):
     data_cube_Q[count,:,:] = allQ[idx,:,:]
     allQ = np.zeros((substep, nx, ny))
