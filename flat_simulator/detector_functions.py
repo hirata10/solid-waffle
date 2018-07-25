@@ -30,11 +30,17 @@ def get_bfe_kernel_3x3():
   # Currently symmetrical but can put in something more complex
   return bfe_kernel_3x3
 
-def calc_area_defect(ap, Q_full):
+def calc_area_defect(ap, Q, npad=2):
   """ ap is the a_deltaideltaj coefficient matrix
-  Q_local is q_deltaideltaj for a given pixel i,j
+  Q is the charge going from xmin:xmax and ymin:ymax
   the area defect is unitless
+  Q_pad is a padded array with mirror reflection along the
+  boundaries
   """
-  aQ = signal.convolve(ap[::-1,::-1],Q_full)
+  Q_pad = np.pad(Q, pad_width=(npad,npad), mode='symmetric')
+  aQ = signal.convolve(ap[::-1,::-1], Q_pad)
   W = 1 + aQ
-  return W
+  # Final dimensions of W will be npad+Q.shape[0]+ap.shape[0]-1
+  # on each side
+  extra_dim = (npad+ap.shape[0]-1)
+  return W[extra_dim:-extra_dim,extra_dim:-extra_dim]
