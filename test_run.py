@@ -26,7 +26,7 @@ mychar = 'Basic'
 hotpix = False
 
 # Parameters for basic characterization
-basicpar = [.01, True, True, 1, True, True, False]
+basicpar = [.01, True, True, 1, True, True, False, 75.]
 
 # Parameters for BFE
 blsub = True
@@ -95,6 +95,9 @@ for line in content:
   m = re.search(r'^TIME3:\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
   if m: tslicesM3 = [ int(m.group(x)) for x in range(1,5)]
 
+  # variance parameters
+  m = re.search(r'^QUANTILE:\s*(\S+)', line)
+  if m: basicpar[7] = float(m.group(1))
   # correlation parameters
   m = re.search(r'^EPSILON:\s*(\S+)', line)
   if m: basicpar[0] = float(m.group(1))
@@ -509,6 +512,7 @@ thisOut.write('#\n')
 thisOut.write('# Cut on good pixels {:7.4f}% deviation from median\n'.format(100*sensitivity_spread_cut))
 thisOut.write('# Dimensions: {:3d}(x) x {:3d}(y) super-pixels, {:4d} good\n'.format(nx,ny,int(numpy.sum(is_good))))
 thisOut.write('# Reference pixel subtraction for linearity: {:s}\n'.format(str(fullref)))
+thisOut.write('# Quantile for variance computation = {:9.6f}%\n'.format(basicpar[7]))
 thisOut.write('# Clipping fraction epsilon = {:9.7f}\n'.format(basicpar[0]))
 thisOut.write('# Lead-trail subtraction for IPC correlation = ' + str(basicpar[6]) + '\n')
 thisOut.write('# Characterization type: '+mychar+'\n')

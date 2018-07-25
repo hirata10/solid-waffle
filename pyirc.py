@@ -389,6 +389,8 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   newMeanSubMethod = True     # use False only for test/debug
   leadtrailSub = True         # subtract leading & trailing (by +/-4 pix) from horiz & vert correlations
 
+  g_ptile = 75.               # percentile use for inter-quantile range for variance (default: 75, giving standard IQR)
+
   # Extract basic parameters
   num_files = region_cube.shape[0]-1
   nt = region_cube.shape[1]
@@ -423,9 +425,12 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   # lead-trail subtraction for IPC correlations?
   if len(ctrl_pars)>=7: leadtrailSub = ctrl_pars[6]
 
+  # quantile for variance?
+  if len(ctrl_pars)>=8: g_ptile = ctrl_pars[7]
+
   # Get means and variances at the early and last slices
   # (i.e. 1-point information)
-  gauss_iqr_in_sigmas = scipy.stats.norm.ppf(.75)*2  # about 1.349
+  gauss_iqr_in_sigmas = scipy.stats.norm.ppf(g_ptile/100.)*2  # about 1.349 for g_ptile=75.
   box1 = region_cube[0:num_files,0,:,:] - region_cube[0:num_files,1,:,:]
   box2 = region_cube[0:num_files,0,:,:] - region_cube[0:num_files,-1,:,:]
   box2Noise = dark_cube[0:num_files,0,:,:] - dark_cube[0:num_files,-1,:,:]
@@ -446,9 +451,9 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   for if1 in range(1,num_files):
     for if2 in range(if1):
       temp_box = box1[if1,:,:] - box1[if2,:,:]
-      iqr1 = pyIRC_percentile(temp_box,corr_mask,75) - pyIRC_percentile(temp_box,corr_mask,25)
+      iqr1 = pyIRC_percentile(temp_box,corr_mask,g_ptile) - pyIRC_percentile(temp_box,corr_mask,100-g_ptile)
       temp_box = box2[if1,:,:] - box2[if2,:,:]
-      iqr2 = pyIRC_percentile(temp_box,corr_mask,75) - pyIRC_percentile(temp_box,corr_mask,25)
+      iqr2 = pyIRC_percentile(temp_box,corr_mask,g_ptile) - pyIRC_percentile(temp_box,corr_mask,100-g_ptile)
       var1 += (iqr1/gauss_iqr_in_sigmas)**2/2.
       var2 += (iqr2/gauss_iqr_in_sigmas)**2/2.
       if verbose: print 'Inner loop,', if1, if2, temp_box.shape

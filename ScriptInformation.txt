@@ -167,6 +167,12 @@ MASK: 17 31
 
 removes the (17,31) super-pixel. This is in X,Y order, with the lower-left being (0,0). The user may mask as many super-pixels as desired; if a super-pixel is repeated, this is equivalent to masking it once.
 
+-- QUANTILE --
+
+QUANTILE: 75
+
+If provided, sets the quantile level used for estimating the variance in gain determination (default is 75, which corresponds to using the inter-quartile range).
+
 -- EPSILON --
 
 EPSILON: .025
