@@ -170,10 +170,8 @@ for tdx in range(1, nt_step):
 
 # Add in IPC before the noise if the mode is turned on
 if lipcmode=='true':
-  ipc_kern = simple_ipc_kernel()
-  for tdx in range(tsamp):
-    data_cube_Q[tdx,:,:] = signal.convolve(
-      data_cube_Q[tdx,:,:], ipc_kern, mode='same')
+  data_cube_Q[:,xmin:xmax,ymin:ymax] = calculate_ipc(
+    data_cube_Q[:,xmin:xmax,ymin:ymax])
 else:
   pass
 
