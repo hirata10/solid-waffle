@@ -146,7 +146,7 @@ for tdx in range(1, nt_step):
     if bfemode=='true':
       # Calculate the area defect by taking a convolution of the bfe
       # kernel (flipped in the calc_area_defect function) and the charge Q
-      a_coeff = get_bfe_kernel_3x3()
+      a_coeff = get_bfe_kernel_5x5()
       area_defect = calc_area_defect(
         a_coeff, allQ[idx-1,xmin:xmax,ymin:ymax])
       meanQ = area_defect*mean*QE
@@ -165,7 +165,7 @@ for tdx in range(1, nt_step):
       allQ[0,:,:] = offset_frame
     else:
       allQ[0,:,:] = data_cube_Q[count,:,:]
-    
+    #print count
     count += 1
 
 # Add in IPC before the noise if the mode is turned on
