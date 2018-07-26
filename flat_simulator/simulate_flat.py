@@ -186,7 +186,7 @@ else:
 
 # Apply non-linearity if mode turned on; assumed to act after IPC
 if (nlmode=='true'):
-  data_cube_Q[:,xmin:xmax,ymin:ymax] -= nlbeta * \
+  data_cube_Q[:,xmin:xmax,ymin:ymax] -= (1.E-6*nlbeta) * \
       data_cube_Q[:,xmin:xmax,ymin:ymax]**2
 else:
   pass
