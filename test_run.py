@@ -582,7 +582,7 @@ if hotpix:
     fromcorr_alpha[jpix] = full_info[iy,ix,4]/2.+full_info[iy,ix,5]/2.
     thisOut.write('{:4d} {:4d} {:8.6f}'.format(hotX[jpix], hotY[jpix], fromcorr_alpha[jpix]))
     for t in range(1,nhstep):
-      R = ( numpy.mean(hotcube[jpix,t,1:]) - hotcube[jpix,t,-1] ) / (hotcube[jpix,t,0]-hotcube[jpix,t,-1] )
+      R = ( numpy.mean(hotcube[jpix,t,1:-1]) - hotcube[jpix,t,-1] ) / (hotcube[jpix,t,0]-hotcube[jpix,t,-1] )
       hotpix_alpha[jpix, t] = R/(1.+4*R)
       hotpix_signal[jpix, t] = hotcube[jpix,t,0]-hotcube[jpix,t,-1]
       thisOut.write(' {:8.2f} {:8.2f} {:8.2f} {:8.2f}'.format(hotcube[jpix,t,0], numpy.mean(hotcube[jpix,t,1:]), hotcube[jpix,t,-1],
