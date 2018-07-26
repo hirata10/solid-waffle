@@ -33,5 +33,8 @@ NOISE: last ex_2.2.1.fits
 
 BFE: true
 L_IPC: true
+# Non-linearity mode NL can be 'false'
+# or 'true' followed by a floating point value for beta 
+NL: true
 
 OUTPUT: test1.fits

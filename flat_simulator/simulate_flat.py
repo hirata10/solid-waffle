@@ -42,6 +42,8 @@ rngseed = 1000
 noisemode = 'none'
 bfemode = 'true'
 lipcmode = 'true'
+nlmode = 'true'
+nlbeta = 1.4 # (ppm/e-)
 reset_frames = [0]
 
 # Read in information
@@ -86,12 +88,19 @@ for line in content:
       noisefile = m.group(2)
 
   # BFE
-  m = re.search(r'BFE:\s*(\S+)', line)
+  m = re.search(r'^BFE:\s*(\S+)', line)
   if m: bfemode = m.group(1)
 
   # linear IPC
-  m = re.search(r'L_IPC:\s*(\S+)', line)
+  m = re.search(r'^L_IPC:\s*(\S+)', line)
   if m: lipcmode = m.group(1)
+
+  # non-linearity beta
+  m = re.search(r'^NL:\s*(\S+)\s+(\S+)', line)
+  if m:
+    nlmode = m.group(1)
+    if nlmode == 'true':
+      nlbeta = float(m.group(2))
 
   # Reset level (in e)
   m = re.search(r'^RESET_E:\s*(\S+)', line)
@@ -169,9 +178,16 @@ for tdx in range(1, nt_step):
     count += 1
 
 # Add in IPC before the noise if the mode is turned on
-if lipcmode=='true':
+if (lipcmode=='true'):
   data_cube_Q[:,xmin:xmax,ymin:ymax] = calculate_ipc(
     data_cube_Q[:,xmin:xmax,ymin:ymax])
+else:
+  pass
+
+# Apply non-linearity if mode turned on; assumed to act after IPC
+if (nlmode=='true'):
+  data_cube_Q[:,xmin:xmax,ymin:ymax] -= nlbeta * \
+      data_cube_Q[:,xmin:xmax,ymin:ymax]**2
 else:
   pass
 
@@ -195,9 +211,3 @@ fitsio.write(outfile, data_cube_S, clobber=True)
 
 # Try compression of data cube into file
 # End of script
-
-"""
-Things planned:
- * offset & clipping
- * use real dark cube as read noise is reasonable, won't do hot pixels correctly, but ok for now
-"""

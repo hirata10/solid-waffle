@@ -83,3 +83,4 @@ def calc_area_defect(ap, Q, npad=2):
   # on each side
   extra_dim = (2*npad+ap.shape[0]-1)/2
   return W[extra_dim:-extra_dim,extra_dim:-extra_dim]
+
