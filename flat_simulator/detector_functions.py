@@ -21,6 +21,15 @@ def simple_ipc_kernel(alpha=0.01):
   kernel[1,1] = 1-4*alpha
   return kernel
 
+def ipc_kernel_HV(alpha_H=0.01,alpha_V=0.01):
+  """ Return a 3x3 kernel with horizontal and vertical alpha, which can
+  be different.
+  """
+  kernel = np.zeros((3, 3))
+  kernel[0,1] = kernel[2,1] = alpha_H
+  kernel[1,0] = kernel[1,2] = alpha_V
+  kernel[1,1] = 1-2*alpha_H-2*alpha_V
+  return kernel
 
 def calculate_ipc(data_cube_Q, npad=2):
   """ Convolves the input charge data cube with an IPC kernel 
@@ -50,6 +59,15 @@ def get_bfe_kernel_3x3():
   # Currently symmetrical but can put in something more complex
   return bfe_kernel_3x3
 
+def get_bfe_kernel_5x5():
+  """ Returns an arbitrary bfe 5x5 kernel
+  units of 10&-6 per electron
+  """
+  bfe_kernel_5x5 = 1.E-6*np.array(
+    [[-0.07, 0.01, -0.01, -0.08, -0.04], [-0.03, 0.12, 0.39, 0.0, -0.02],
+     [-0.04, 0.52, -1.48, 0.53, 0.03], [0.09, 0.04, 0.41, 0.04, 0.09],
+     [0.02, 0.02, 0.09, -0.04, 0.05]])
+  return bfe_kernel_5x5
 
 def calc_area_defect(ap, Q, npad=2):
   """ ap is the a_deltaideltaj coefficient matrix
