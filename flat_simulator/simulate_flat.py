@@ -165,7 +165,7 @@ for tdx in range(1, nt_step):
       allQ[0,:,:] = offset_frame
     else:
       allQ[0,:,:] = data_cube_Q[count,:,:]
-    
+    #print count
     count += 1
 
 # Add in IPC before the noise if the mode is turned on

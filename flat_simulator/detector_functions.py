@@ -35,7 +35,7 @@ def calculate_ipc(data_cube_Q, npad=2):
     Q_pad_ipc = signal.convolve(Q_pad, ipc_kern)
     # Dimensions/side for Q_pad_ipc are now 
     # data_cube_Q.shape[0]+ipc_kern.shape[0]+npad-1
-    extra_dim = ipc_kern.shape[0]+npad-1
+    extra_dim = (2*npad+ipc_kern.shape[0]-1)/2
     data_cube_Q[tdx,:,:] = Q_pad_ipc[extra_dim:-extra_dim,
                                      extra_dim:-extra_dim]
   return data_cube_Q
@@ -61,7 +61,7 @@ def calc_area_defect(ap, Q, npad=2):
   Q_pad = np.pad(Q, pad_width=(npad,npad), mode='symmetric')
   aQ = signal.convolve(ap[::-1,::-1], Q_pad)
   W = 1 + aQ
-  # Final dimensions of W will be npad+Q.shape[0]+ap.shape[0]-1
+  # Final dimensions of W will be 2*npad+Q.shape[0]+ap.shape[0]-1
   # on each side
-  extra_dim = (npad+ap.shape[0]-1)
+  extra_dim = (2*npad+ap.shape[0]-1)/2
   return W[extra_dim:-extra_dim,extra_dim:-extra_dim]
