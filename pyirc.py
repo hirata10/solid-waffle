@@ -974,6 +974,10 @@ def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
   # background mask
   bkmask = numpy.ones((5,5))
   bkmask[1:4,1:4]=0.
+  fourmask = False
+  if fourmask:
+    bkmask[:,:]=0.
+    bkmask[2,0] = bkmask[2,4] = bkmask[0,2] = bkmask[4,2] = 1.
   if verbose: print 'bkmask =', bkmask
   # 16 ones and 9 zeros
 
@@ -990,6 +994,7 @@ def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
         y_ = y[jpix] + dy[jpos]
         data[jpix,jt,jpos] = medframe[y_,x_]
       data[jpix,jt,5] = 25./16.*numpy.mean(bkmask*medframe[y[jpix]-2:y[jpix]+3, x[jpix]-2:x[jpix]+3])
+      if fourmask: data[jpix,jt,5] *= 16./4.
 
   return data
 
