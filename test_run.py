@@ -159,7 +159,7 @@ else:
 # Detector characterization data in a cube (basic characterization + BFE Method 1)
 # Stdout calls are a progress indicator
 #
-my_dim = 35
+my_dim = 36
 full_info = numpy.zeros((ny,nx,my_dim))
 is_good = numpy.zeros((ny,nx))
 print 'Method 1, progress of calculation:'
@@ -182,11 +182,11 @@ for iy in range(ny):
           bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, 2, blsub], False)
           Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)],
                  [tslices[0], tslices[-1]+1, tchar1, tchar2], sensitivity_spread_cut, basicpar, [ipnltype, bfeCoefs]) # 1,3 or 9,19
-          info[3:8] = numpy.asarray(Cdata[1:6])
+          info[3:9] = numpy.asarray(Cdata[1:7])
       bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, 2, blsub], False)
       info += bfeCoefs[0:5,0:5].flatten().tolist()
     else:
-      info = numpy.zeros((35)).tolist()
+      info = numpy.zeros((my_dim)).tolist()
 
     if len(info)==my_dim:
       full_info[iy,ix,:] = numpy.array(info)
@@ -259,7 +259,7 @@ S.set_title(r'IPNL $[K^2a+KK^\prime]_{0,0}$ (ppm/e):')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
 svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,22]*1e6, spr)
-im = S.imshow(full_info[:,:,22]*1e6, cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
+im = S.imshow(full_info[:,:,23]*1e6, cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
 F.set_tight_layout(True)
@@ -308,8 +308,8 @@ else:
   print 'Mean slope d[ln graw]/d[I td] at fixed ta,tb =', numpy.mean(is_good*Method2a_slopes)/numpy.mean(is_good)
   print ''
   # Predicted slopes
-  slope_2a_BFE = 3*mean_full_info[6] - (1+4*mean_full_info[4]+4*mean_full_info[5])*mean_full_info[22]
-  slope_2a_NLIPC = 3*mean_full_info[6] - 2*(1+4*mean_full_info[4]+4*mean_full_info[5])*mean_full_info[22]
+  slope_2a_BFE = 3*mean_full_info[6] - (1+4*mean_full_info[4]+4*mean_full_info[5])*mean_full_info[23]
+  slope_2a_NLIPC = 3*mean_full_info[6] - 2*(1+4*mean_full_info[4]+4*mean_full_info[5])*mean_full_info[23]
 
 # Method 2b
 #
@@ -354,7 +354,7 @@ else:
   print ''
   # Predicted slopes
   slope_2b_BFE = 2*mean_full_info[6]
-  slope_2b_NLIPC = 2*mean_full_info[6] + 2*(1+4*mean_full_info[4]+4*mean_full_info[5])*mean_full_info[22]
+  slope_2b_NLIPC = 2*mean_full_info[6] + 2*(1+4*mean_full_info[4]+4*mean_full_info[5])*mean_full_info[23]
 
 # Method 3
 #
@@ -391,7 +391,7 @@ else:
           dark_cube = pyirc.pixel_data(darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
                         [sensitivity_spread_cut, False], False)
           info = pyirc.basic(region_cube, dark_cube, temp_tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
-          Method3_vals[iy,ix,t] = CCraw[t] = (info[8]+info[9])/2.*full_info[iy,ix,3]**2\
+          Method3_vals[iy,ix,t] = CCraw[t] = (info[9]+info[10])/2.*full_info[iy,ix,3]**2\
             /(full_info[iy,ix,7]*(temp_tslices[-1]-temp_tslices[0]))
           Method3_alphas[iy,ix,t] = (info[4]+info[5])/2.
         # Build least squares fit
@@ -401,7 +401,7 @@ else:
   print 'Mean slope d[g^2/(Itad) Cadj,ad]/d[I td] at fixed ta,tb =', numpy.mean(is_good*Method3_slopes)/numpy.mean(is_good)
   print ''
   # Predicted slopes
-  ave = (mean_full_info[21]+mean_full_info[23]+mean_full_info[17]+mean_full_info[27])/4.
+  ave = (mean_full_info[22]+mean_full_info[24]+mean_full_info[18]+mean_full_info[28])/4.
   slope_3_beta = -4*(mean_full_info[4]+mean_full_info[5])*mean_full_info[6]
   slope_3_BFE = -4*(mean_full_info[4]+mean_full_info[5])*mean_full_info[6] + ave
   slope_3_NLIPC = -4*(mean_full_info[4]+mean_full_info[5])*mean_full_info[6] + ave*2.
@@ -540,6 +540,7 @@ thisOut.write('# {:3d}, IPC alpha horizontal\n'.format(col)); col+=1
 thisOut.write('# {:3d}, IPC alpha vertical\n'.format(col)); col+=1
 thisOut.write('# {:3d}, nonlinearity beta (e^-1)\n'.format(col)); col+=1
 thisOut.write('# {:3d}, charge per time slice (e)\n'.format(col)); col+=1
+thisOut.write('# {:3d}, IPC alpha diagonal (if computed; otherwise all 0s)\n'.format(col)); col+=1
 thisOut.write('# {:3d}, C_H at slices {:d},{:d} (DN^2)\n'.format(col, tslices[0], tslices[-1])); col+=1
 thisOut.write('# {:3d}, C_V at slices {:d},{:d} (DN^2)\n'.format(col, tslices[0], tslices[-1])); col+=1
 for jb in range(5):

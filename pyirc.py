@@ -375,9 +375,9 @@ def gain_alphabetacorr(graw, CH, CV, signal, frac_dslope, times):
 #
 # Returns a list of basic calibration parameters.
 # if ctrl_pars[5] is True
-#   [number of good pixels, gain_raw, gain_acorr, gain_abcorr, aH, aV, beta, I, tCH, tCV]
+#   [number of good pixels, gain_raw, gain_acorr, gain_abcorr, aH, aV, beta, I, 0., tCH, tCV]
 # if False:
-#   [number of good pixels, median, variance, tCH, tCV]
+#   [number of good pixels, median, variance, tCH, tCV, tCD]
 # Returns the null list [] if failed.
 #
 # Includes a test so this won't crash if tslices[1]>=tslices[-1] but returns meaningful x-correlation C_{abab}
@@ -465,7 +465,7 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
 
   # Correlations of neighboring pixels, in DN^2
   #
-  tCH = tCV = 0
+  tCH = tCV = tCD = 0
   for if1 in range(1,num_files):
     for if2 in range(if1):
       temp_box = box2[if1,:,:] - box2[if2,:,:]
@@ -491,6 +491,17 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
         CH /= maskCH
         CV /= maskCV
 
+        # diagonal directions
+        if not full_corr:
+          maskCD1 = numpy.sum(this_mask[:-1,:-1]*this_mask[1:,1:])
+          maskCD2 = numpy.sum(this_mask[:-1,1:]*this_mask[1:,:-1])
+          CD1 = numpy.sum(this_mask[:-1,:-1]*this_mask[1:,1:]*temp_box[:-1,:-1]*temp_box[1:,1:])
+          CD2 = numpy.sum(this_mask[:-1,1:]*this_mask[1:,:-1]*temp_box[:-1,1:]*temp_box[1:,:-1])
+          if maskCD1<1 or maskCD2<1: return []
+          CD1 /= maskCD1
+          CD2 /= maskCD2
+          CD = (CD1+CD2)/2.
+
         if leadtrailSub:
           maskCVx1 = numpy.sum(this_mask[:-1,:-4]*this_mask[1:,4:])
           maskCHx1 = numpy.sum(this_mask[:,:-5]*this_mask[:,5:])
@@ -508,12 +519,32 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
           CVx2 /= maskCVx2
           CH -= (CHx1+CHx2)/2.
           CV -= (CVx1+CVx2)/2.
+          #
+          # correction of the diagonal directions
+          if not full_corr:
+            maskCDx1 = numpy.sum(this_mask[:-1,:-5]*this_mask[1:,5:])
+            maskCDx2 = numpy.sum(this_mask[:-1,:-3]*this_mask[1:,3:])
+            maskCDx3 = numpy.sum(this_mask[1:,:-5]*this_mask[:-1,5:])
+            maskCDx4 = numpy.sum(this_mask[1:,:-3]*this_mask[:-1,3:])
+            CDx1 = numpy.sum(this_mask[:-1,:-5]*this_mask[1:,5:]*temp_box[:-1,:-5]*temp_box[1:,5:])
+            CDx2 = numpy.sum(this_mask[:-1,:-3]*this_mask[1:,3:]*temp_box[:-1,:-3]*temp_box[1:,3:])
+            CDx3 = numpy.sum(this_mask[1:,:-5]*this_mask[:-1,5:]*temp_box[1:,:-5]*temp_box[1:,5:])
+            CDx4 = numpy.sum(this_mask[1:,:-3]*this_mask[:-1,3:]*temp_box[1:,:-3]*temp_box[1:,3:])
+            if maskCDx1<1 or maskCDx2<1 or maskCDx3<1 or maskCDX4<1: return []
+            CDx1 /= maskCDx1
+            CDx2 /= maskCDx2
+            CDx3 /= maskCDx3
+            CDx4 /= maskCDx4
+            CD -= (CDx1+CDx2+CDx3+CDx4)/4.
 
         if subtr_corr and not newMeanSubMethod and not leadtrailSub:
           CH -= mean_of_temp_box**2
           CV -= mean_of_temp_box**2
         tCH += CH * (1 if icorr==0 else -1)
         tCV += CV * (1 if icorr==0 else -1)
+        if not full_corr:
+          if subtr_corr and not newMeanSubMethod and not leadtrailSub: CD -= mean_of_temp_box**2
+          tCD += CD * (1 if icorr==0 else -1)
 
         if verbose:
           print 'pos =', if1, if2, 'iteration', icorr, 'cmin,cmax =', cmin, cmax
@@ -528,10 +559,11 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   cov_clip_corr = (1. - numpy.sqrt(2./numpy.pi)*xi*numpy.exp(-xi*xi/2.)/(1.-2.*epsilon) )**2
   tCH /= num_files*(num_files-1)*cov_clip_corr
   tCV /= num_files*(num_files-1)*cov_clip_corr
+  if not full_corr: tCD /= num_files*(num_files-1)*cov_clip_corr
 
   # if we don't need full correlations, exit now
   if not full_corr:
-    return [numpy.sum(this_mask), med2, var2, tCH, tCV]
+    return [numpy.sum(this_mask), med2, var2, tCH, tCV, tCD]
 
   # Curvature information (for 2nd order NL coefficient)
   if (tslices[-1]!=tslices[-2]):
@@ -573,14 +605,14 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   # Get alpha-corrected gains
   out = gain_alphacorr(gain_raw, tCH, tCV, med2)
   if tslices[1]>=tslices[-1] and len(out)<1:
-    return [numpy.sum(this_mask), gain_raw, gain_raw, gain_raw, 0., 0., 0., med2/gain_raw/(tslices[1]-tslices[0]), tCH, tCV]
+    return [numpy.sum(this_mask), gain_raw, gain_raw, gain_raw, 0., 0., 0., med2/gain_raw/(tslices[1]-tslices[0]), 0., tCH, tCV]
   if len(out)<1: return [] # FAIL!
   gain_acorr = out[0]
   aH = out[1]
   aV = out[2]
 
   if tslices[1]>=tslices[-1]:
-    return [numpy.sum(this_mask), gain_raw, gain_acorr, gain_acorr, aH, aV, 0., med2/gain_acorr/(tslices[1]-tslices[0]), tCH, tCV]
+    return [numpy.sum(this_mask), gain_raw, gain_acorr, gain_acorr, aH, aV, 0., med2/gain_acorr/(tslices[1]-tslices[0]), 0., tCH, tCV]
 
   out = gain_alphabetacorr(gain_raw, tCH, tCV, med2, frac_dslope, [t-treset for t in tslices])
   if len(out)<1: return [] # FAIL!
@@ -590,7 +622,7 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   beta = out[3]
   I = out[4]
 
-  return [numpy.sum(this_mask), gain_raw, gain_acorr, gain_abcorr, aH, aV, beta, I, tCH, tCV]
+  return [numpy.sum(this_mask), gain_raw, gain_acorr, gain_abcorr, aH, aV, beta, I, 0., tCH, tCV]
 
 # Routine to obtain statistical properties of a region of the detector across many time slices
 #
@@ -606,7 +638,7 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
 # ctrl_pars = parameters for basic
 #
 # Each data[ti,tj,:] contains:
-#   [number of good pixels, median, variance, tCH, tCV]
+#   [number of good pixels, median, variance, tCH, tCV, tCD]
 def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars):
 
   # make copy of ctrl_pars, but force 5th element to be False
@@ -616,7 +648,7 @@ def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_sprea
 
   tmin = tslices[0]; tmax = tslices[1]; nt = tmax-tmin
   # build cube of good pixels, medians, variances, correlations
-  data = numpy.zeros((nt,nt,5))
+  data = numpy.zeros((nt,nt,6))
   # and get mask (last 'time' slice) -- only thing we are extracting from region_cube_X
   region_cube_X = pixel_data(lightfiles, formatpars, box[:4], [tmin,tmax-1,tmax-1,tmax-1], [sensitivity_spread_cut, True], False)
 
@@ -635,8 +667,8 @@ def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_sprea
         region_cube[-1,:,:,:] = region_cube_X[-1,:,:,:]
         dark_cube[-1,:,:,:] = region_cube_X[-1,:,:,:]
         B = basic(region_cube, dark_cube, tarray, lightref, darkref, ctrl_pars2, False)
-        if len(B)==5: data[ti,tj,:] = numpy.asarray(B)
-        # print t1, t2, data[ti,tj,:]
+        if len(B)==6: data[ti,tj,:] = numpy.asarray(B)
+        # print t1, t2, data[ti,tj,:], len(B)
 
   return data
 
@@ -653,7 +685,7 @@ def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_sprea
 # ctrl_pars = parameters for basic
 # addInfo = additional information (sometimes needed)
 # 
-# return value is [isgood (1/0), g, aH, aV, beta, I, da (residual)]
+# return value is [isgood (1/0), g, aH, aV, beta, I, aD, da (residual)]
 #
 def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars, addInfo):
 
@@ -703,15 +735,16 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
   # CV = 2 I t_{ab} / g^2 * ( 1-4a - 4 beta (I t_b + 1/2 + (e-1)/2*I) ) * aV
   #
   npts2 = tslices[1]-tslices[0]-tslices[3]
-  Cdiff = CV = CH = 0.
+  Cdiff = CV = CH = CD = 0.
   for j in range(npts2):
     Cdiff += data[j,j+tslices[3],2] - data[j,j+tslices[2],2]
     CH += data[j,j+tslices[3],3]
     CV += data[j,j+tslices[3],4]
-  Cdiff /= npts2; CH /= npts2; CV /= npts2
+    CD += data[j,j+tslices[3],5]
+  Cdiff /= npts2; CH /= npts2; CV /= npts2; CD /= npts2
 
   # initialize with no IPC or NL
-  alphaH = alphaV = alpha = beta = 0.
+  alphaH = alphaV = alphaD = alpha = beta = 0.
   da = 1.
   # dummy initializations; these get over-written before they are used
   I = g = 1.
@@ -736,20 +769,23 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
       if typeCorr.lower() == 'bfe':
         CHcorr = (ipnl[sBFE,sBFE+1]+ipnl[sBFE,sBFE-1])/2. * (I/g*tslices[3])**2
         CVcorr = (ipnl[sBFE+1,sBFE]+ipnl[sBFE-1,sBFE])/2. * (I/g*tslices[3])**2
+        CDcorr = (ipnl[sBFE+1,sBFE+1]+ipnl[sBFE+1,sBFE-1]+ipnl[sBFE-1,sBFE+1]+ipnl[sBFE-1,sBFE-1])/4. * (I/g*tslices[3])**2
         Cdiffcorr = ipnl[sBFE,sBFE] * (I/g)**2*(tslices[3]**2-tslices[2]**2)
       if typeCorr.lower() == 'nlipc':
         CHcorr = (ipnl[sBFE,sBFE+1]+ipnl[sBFE,sBFE-1])/2. * (I/g)**2*tslices[3]*(tslices[0]+tslices[3]+(npts2-1)*0.5)*2
         CVcorr = (ipnl[sBFE+1,sBFE]+ipnl[sBFE-1,sBFE])/2. * (I/g)**2*tslices[3]*(tslices[0]+tslices[3]+(npts2-1)*0.5)*2
+        CDcorr = (ipnl[sBFE+1,sBFE+1]+ipnl[sBFE+1,sBFE-1]+ipnl[sBFE-1,sBFE+1]+ipnl[sBFE-1,sBFE-1])/4. * (I/g)**2*tslices[3]*(tslices[0]+tslices[3]+(npts2-1)*0.5)*2
         Cdiffcorr = ipnl[sBFE,sBFE] * (I/g)**2*( (tslices[0]+tslices[3])*tslices[3] - (tslices[0]+tslices[2])*tslices[2]
                       + (tslices[3]-tslices[2])*(npts2-1)*0.5)
 
     factor = 2.*I__g2*tslices[3] * ( 1.-4.*alpha - 4.*beta*( I*(tslices[0]+tslices[3]-ctrl_pars[3]+(npts2-1.)/2.) +0.5) )
     alphaH = (CH - CHcorr)/factor
     alphaV = (CV - CVcorr)/factor
+    alphaD = (CD - CDcorr)/factor - alphaH*alphaV/(1.-4*alpha)
     alpha = (alphaH+alphaV)/2.
     da = numpy.abs(alphaH_old-alphaH) + numpy.abs(alphaV_old-alphaV)
 
-  return [1, g, alphaH, alphaV, beta, I, da]
+  return [1, g, alphaH, alphaV, beta, I, alphaD, da]
 
 # Routines to compute the BFE coefficients
 #
