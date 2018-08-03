@@ -258,7 +258,7 @@ S = F.add_subplot(3,2,6)
 S.set_title(r'IPNL $[K^2a+KK^\prime]_{0,0}$ (ppm/e):')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
-svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,22]*1e6, spr)
+svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,23]*1e6, spr)
 im = S.imshow(full_info[:,:,23]*1e6, cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
