@@ -22,7 +22,6 @@ import scipy.signal as signal
 import astropy.io.fits as fits
 import fitsio
 from fitsio import FITS,FITSHDR
-import sys
 import re
 sys.path.insert(0, '../')
 #sys.path.insert(0, '/users/PCON0003/cond0080/src/solid-waffle/')
@@ -42,6 +41,7 @@ rngseed = 1000
 noisemode = 'none'
 bfemode = 'true'
 lipcmode = 'true'
+lipc_alpha = [0.01]
 nlmode = 'true'
 nlbeta = 1.4 # (ppm/e-)
 reset_frames = [0]
@@ -92,8 +92,12 @@ for line in content:
   if m: bfemode = m.group(1)
 
   # linear IPC
-  m = re.search(r'^L_IPC:\s*(\S+)', line)
-  if m: lipcmode = m.group(1)
+  m = re.search(r'^L_IPC:\s*(\S+)\s+(\S.*)', line)
+  if m:
+    lipcmode = m.group(1)
+    if lipcmode == 'true':
+      lipc_alpha_str = m.group(2).split(" ")
+      lipc_alpha = [ float(lipc_alpha_str[x]) for x in range(len(lipc_alpha_str)) ]
 
   # non-linearity beta
   m = re.search(r'^NL:\s*(\S+)\s+(\S+)', line)
@@ -180,7 +184,7 @@ for tdx in range(1, nt_step):
 # Add in IPC before the noise if the mode is turned on
 if (lipcmode=='true'):
   data_cube_Q[:,xmin:xmax,ymin:ymax] = calculate_ipc(
-    data_cube_Q[:,xmin:xmax,ymin:ymax])
+    data_cube_Q[:,xmin:xmax,ymin:ymax], lipc_alpha)
 else:
   pass
 

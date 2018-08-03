@@ -31,11 +31,20 @@ def ipc_kernel_HV(alpha_H=0.01,alpha_V=0.01):
   kernel[1,1] = 1-2*alpha_H-2*alpha_V
   return kernel
 
-def calculate_ipc(data_cube_Q, npad=2):
+def calculate_ipc(data_cube_Q, ipc_list, npad=2):
   """ Convolves the input charge data cube with an IPC kernel 
   and returns an output data cube
+  Calls 'simple' or 'HV' IPC kernel depending on user input ipc_list
+  which is either one value (all directions) or two (horiz, vertical)
+  Currently cannot specify horiz or vertically asymmetric alpha
   """
-  ipc_kern = simple_ipc_kernel()
+  if len(ipc_list)==1:
+    ipc_kern = simple_ipc_kernel(ipc_list[0])
+  elif len(ipc_list)==2:
+    ipc_kern = ipc_kernel_HV(ipc_list[0], ipc_list[1])
+  else:
+    raise Exception('Incorrect format of IPC alpha entered')
+
   # The time samples are given by the first dim of the cube
   for tdx in range(data_cube_Q.shape[0]):
     Q_pad = np.pad(

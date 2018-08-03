@@ -32,7 +32,11 @@ RESET_E: 1.0e2
 NOISE: last ex_2.2.1.fits
 
 BFE: true
-L_IPC: true
+# Linear IPC mode L_IPC can be 'false'
+# or 'true' followed by single value for symmetric alpha
+# or two values corresponding to horiz and vert alpha
+L_IPC: true 0.01
+
 # Non-linearity mode NL can be 'false'
 # or 'true' followed by a floating point value for beta 
 NL: true
