@@ -755,7 +755,7 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
     # Get combination of I and gain from difference of correlation functions
     tbrack = tslices[3]*(tslices[0]+tslices[3]-ctrl_pars[3]) - tslices[2]*(tslices[0]+tslices[2]-ctrl_pars[3])\
              + (npts2-1)/2.0*(tslices[3]-tslices[2])
-    I__g2 = (Cdiff - Cdiffcorr + 4.*(1.-8.*alpha)*beta*I**2/g**2*tbrack) / (tslices[3]-tslices[2]) / ( (1.-4*alpha-4*alphaD)**2 + 2*alphaH**2+2*alphaV**2 )
+    I__g2 = (Cdiff - Cdiffcorr + 4.*(1.-8.*alpha)*beta*I**2/g**2*tbrack) / (tslices[3]-tslices[2]) / ( (1.-4*alpha-4*alphaD)**2 + 2*alphaH**2+2*alphaV**2 + 4*alphaD**2 )
 
     # Now use slopemed = -2 beta I^2/g, icpt = (I - beta I^2)/g, and I/g^2 to solve for I, beta, and g
     g = (icpt - slopemed/2.)/I__g2
@@ -780,8 +780,8 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
 
     factor = 2.*I__g2*tslices[3] * ( 1.-4.*alpha - 4.*alphaD - 4.*beta*( I*(tslices[0]+tslices[3]-ctrl_pars[3]+(npts2-1.)/2.) +0.5) )
     factor_raw = 2.*I__g2*tslices[3]
-    alphaH = (CH - CHcorr - 4.*alphaV*alphaD*factor_raw)/factor
-    alphaV = (CV - CVcorr - 4.*alphaH*alphaD*factor_raw)/factor
+    alphaH = (CH - CHcorr - 2.*alphaV*alphaD*factor_raw)/factor
+    alphaV = (CV - CVcorr - 2.*alphaH*alphaD*factor_raw)/factor
     alphaD = ( (CD - CDcorr)/factor_raw - alphaH*alphaV) / (1.-4.*alpha-4.*alphaD)
     alpha = (alphaH+alphaV)/2.
     da = numpy.abs(alphaH_old-alphaH) + numpy.abs(alphaV_old-alphaV)
