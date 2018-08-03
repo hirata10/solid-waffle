@@ -573,6 +573,7 @@ if hotpix:
   print 'number of time steps ->', nhstep
   fromcorr_alpha = numpy.zeros((len(hotX)))
   hotpix_alpha = numpy.zeros((len(hotX), nhstep))
+  hotpix_alphaD = numpy.zeros((len(hotX), nhstep))
   hotpix_signal = numpy.zeros((len(hotX), nhstep))
   #
   # generate and write hot pixel information
@@ -583,11 +584,13 @@ if hotpix:
     fromcorr_alpha[jpix] = full_info[iy,ix,4]/2.+full_info[iy,ix,5]/2.
     thisOut.write('{:4d} {:4d} {:8.6f}'.format(hotX[jpix], hotY[jpix], fromcorr_alpha[jpix]))
     for t in range(1,nhstep):
-      R = ( numpy.mean(hotcube[jpix,t,1:-1]) - hotcube[jpix,t,-1] ) / (hotcube[jpix,t,0]-hotcube[jpix,t,-1] )
-      hotpix_alpha[jpix, t] = R/(1.+4*R)
+      R = ( numpy.mean(hotcube[jpix,t,1:5]) - hotcube[jpix,t,-1] ) / (hotcube[jpix,t,0]-hotcube[jpix,t,-1] )
+      S = ( numpy.mean(hotcube[jpix,t,5:9]) - hotcube[jpix,t,-1] ) / (hotcube[jpix,t,0]-hotcube[jpix,t,-1] )
+      hotpix_alpha[jpix, t] = R/(1.+4*R+4*S)
+      hotpix_alphaD[jpix, t] = S/(1.+4*R+4*S)
       hotpix_signal[jpix, t] = hotcube[jpix,t,0]-hotcube[jpix,t,-1]
-      thisOut.write(' {:8.2f} {:8.2f} {:8.2f} {:8.2f}'.format(hotcube[jpix,t,0], numpy.mean(hotcube[jpix,t,1:]), hotcube[jpix,t,-1],
-        (hotcube[jpix,t,1]+hotcube[jpix,t,3]-hotcube[jpix,t,2]-hotcube[jpix,t,4])/4.))
+      thisOut.write(' {:8.2f} {:8.2f} {:8.2f} {:8.2f} {:8.2f}'.format(hotcube[jpix,t,0], numpy.mean(hotcube[jpix,t,1:5]), hotcube[jpix,t,-1],
+        (hotcube[jpix,t,1]+hotcube[jpix,t,3]-hotcube[jpix,t,2]-hotcube[jpix,t,4])/4., numpy.mean(hotcube[jpix,t,5:9])))
     thisOut.write('\n')
   thisOut.close()
 
@@ -596,14 +599,16 @@ if hotpix:
   ipcmed_x = numpy.zeros((nhstep))
   ipcmed_y = numpy.zeros((nhstep))
   ipcmed_yerr = numpy.zeros((nhstep))
+  delta = .5/numpy.sqrt(len(hotX))
   for t in range(1,nhstep):
-    delta = .5/numpy.sqrt(len(hotX))
     my_y = hotpix_alpha[:,t]-hotpix_alpha[:,-1]
     ipcmed_x[t] = numpy.nanpercentile(hotpix_signal[:, t], 50.)
     ipcmed_y[t] = numpy.nanpercentile(my_y, 50.)
     ipcmed_yerr[t] = (numpy.nanpercentile(my_y, 50.+100*delta)-numpy.nanpercentile(my_y, 50.-100*delta))/2.
     print '{:10.2f} {:9.6f} {:9.6f}'.format(ipcmed_x[t], ipcmed_y[t], ipcmed_yerr[t])
   print ''
+  print 'median alphaD:', '{:9.6f} {:9.6f}'.format(numpy.nanpercentile(hotpix_alphaD[:,-1], 50.),
+    (numpy.nanpercentile(hotpix_alphaD[:,-1], 50.+100*delta)-numpy.nanpercentile(hotpix_alphaD[:,-1], 50.-100*delta))/2.)
 
   # bigger grid for IPC comparisons
   NG=4

@@ -11,7 +11,7 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 6
+  return 7
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -755,7 +755,7 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
     # Get combination of I and gain from difference of correlation functions
     tbrack = tslices[3]*(tslices[0]+tslices[3]-ctrl_pars[3]) - tslices[2]*(tslices[0]+tslices[2]-ctrl_pars[3])\
              + (npts2-1)/2.0*(tslices[3]-tslices[2])
-    I__g2 = (Cdiff - Cdiffcorr + 4.*(1.-8.*alpha)*beta*I**2/g**2*tbrack) / (tslices[3]-tslices[2]) / ( (1.-4*alpha)**2 + 2*alphaH**2+2*alphaV**2 )
+    I__g2 = (Cdiff - Cdiffcorr + 4.*(1.-8.*alpha)*beta*I**2/g**2*tbrack) / (tslices[3]-tslices[2]) / ( (1.-4*alpha-4*alphaD)**2 + 2*alphaH**2+2*alphaV**2 )
 
     # Now use slopemed = -2 beta I^2/g, icpt = (I - beta I^2)/g, and I/g^2 to solve for I, beta, and g
     g = (icpt - slopemed/2.)/I__g2
@@ -778,10 +778,11 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
         Cdiffcorr = ipnl[sBFE,sBFE] * (I/g)**2*( (tslices[0]+tslices[3])*tslices[3] - (tslices[0]+tslices[2])*tslices[2]
                       + (tslices[3]-tslices[2])*(npts2-1)*0.5)
 
-    factor = 2.*I__g2*tslices[3] * ( 1.-4.*alpha - 4.*beta*( I*(tslices[0]+tslices[3]-ctrl_pars[3]+(npts2-1.)/2.) +0.5) )
-    alphaH = (CH - CHcorr)/factor
-    alphaV = (CV - CVcorr)/factor
-    alphaD = (CD - CDcorr)/factor - alphaH*alphaV/(1.-4*alpha)
+    factor = 2.*I__g2*tslices[3] * ( 1.-4.*alpha - 4.*alphaD - 4.*beta*( I*(tslices[0]+tslices[3]-ctrl_pars[3]+(npts2-1.)/2.) +0.5) )
+    factor_raw = 2.*I__g2*tslices[3]
+    alphaH = (CH - CHcorr - 4.*alphaV*alphaD*factor_raw)/factor
+    alphaV = (CV - CVcorr - 4.*alphaH*alphaD*factor_raw)/factor
+    alphaD = ( (CD - CDcorr)/factor_raw - alphaH*alphaV) / (1.-4.*alpha-4.*alphaD)
     alpha = (alphaH+alphaV)/2.
     da = numpy.abs(alphaH_old-alphaH) + numpy.abs(alphaV_old-alphaV)
 
@@ -991,7 +992,7 @@ def hotpix(darkfiles, formatpars, tslices, pars, verbose):
 #                      at time slice jt
 #                      of hot pixel jpix
 #
-# positions are: jpos=0 (center), 1 (right), 2 (up), 3 (left), 4 (down), 5 (bkgnd 5x5-3x3)
+# positions are: jpos=0 (center), 1 (right), 2 (up), 3 (left), 4 (down), 5-8 (diag, quadrants I-IV), 9 (bkgnd 5x5-3x3)
 def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
 
   # Build array for the dark cube
@@ -1001,11 +1002,11 @@ def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
 
   nt = len(tslices)
   npix = len(x)
-  data = numpy.zeros((npix,nt,6))
+  data = numpy.zeros((npix,nt,10))
 
   # offset table
-  dx = [0, 1, 0, -1, 0]
-  dy = [0, 0, 1, 0, -1]
+  dx = [0, 1, 0, -1, 0, 1, -1, -1, 1]
+  dy = [0, 0, 1, 0, -1, 1, 1, -1, -1]
 
   # background mask
   bkmask = numpy.ones((5,5))
@@ -1025,12 +1026,12 @@ def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
     medframe = numpy.median(cube, axis=0)
     if verbose: print 'med', numpy.shape(medframe), jt
     for jpix in range(npix):
-      for jpos in range(5):
+      for jpos in range(9):
         x_ = x[jpix] + dx[jpos]
         y_ = y[jpix] + dy[jpos]
         data[jpix,jt,jpos] = medframe[y_,x_]
-      data[jpix,jt,5] = 25./16.*numpy.mean(bkmask*medframe[y[jpix]-2:y[jpix]+3, x[jpix]-2:x[jpix]+3])
-      if fourmask: data[jpix,jt,5] *= 16./4.
+      data[jpix,jt,9] = 25./16.*numpy.mean(bkmask*medframe[y[jpix]-2:y[jpix]+3, x[jpix]-2:x[jpix]+3])
+      if fourmask: data[jpix,jt,9] *= 16./4.
 
   return data
 

@@ -262,8 +262,9 @@ Col # 4: S_{1,6} in that pixel
 Col # 5: S_{1,6}, average in the 4 nearest neighbors
 Col # 6: S_{1,6}, average in the 16-pixel 'ring' region (5x5 minus 3x3 centered on that pixel)
 Col # 7: S_{1,6}, asymmetry (left-right minus top-bottom, divided by 2)
+Col # 8: S_{1,6}, average in the 4 diagonal neighbors
 
-then Columns 8-11 are for S_{1,11}, Columns 12-15 are for S_{1,16} ... all the way up to the last S_{1,1+5n} in the data cube.
+then Columns 9-13 are for S_{1,11}, Columns 14-18 are for S_{1,16} ... all the way up to the last S_{1,1+5n} in the data cube.
 
 -- *_hotipc.eps --
 
