@@ -38,7 +38,8 @@ BFE: true
 L_IPC: true 0.01
 
 # Non-linearity mode NL can be 'false'
-# or 'true' followed by a floating point value for beta 
-NL: true
+# or 'true' followed by a floating point value for beta,
+# in units of ppm/e-;  default is false
+NL: true 1.4
 
 OUTPUT: test1.fits

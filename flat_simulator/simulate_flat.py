@@ -42,7 +42,7 @@ noisemode = 'none'
 bfemode = 'true'
 lipcmode = 'true'
 lipc_alpha = [0.01]
-nlmode = 'true'
+nlmode = 'false'
 nlbeta = 1.4 # (ppm/e-)
 reset_frames = [0]
 
@@ -192,7 +192,9 @@ else:
 if (nlmode=='true'):
   data_cube_Q[:,xmin:xmax,ymin:ymax] -= (1.E-6*nlbeta) * \
       data_cube_Q[:,xmin:xmax,ymin:ymax]**2
+  print "Applying non-linearity"
 else:
+  print "No additional non-linearity (Beta) applied"
   pass
 
 # Read in the read noise from a fits file generated with Bernie's ngxhrg
