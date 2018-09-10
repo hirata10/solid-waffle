@@ -568,7 +568,9 @@ if hotpix:
   print 'Number of pixels selected:', len(hotX) # only printed for de-bugging -> , len(hotY)
   dtstep = 5 # <-- right now this is hard coded
   htsteps = range(1,NTMAX,dtstep)
-  hotcube = pyirc.hotpix_ipc(hotY, hotX, darkfiles, formatpars, htsteps, [], True)
+  beta_gain = full_info[:,:,6]*full_info[:,:,3]
+  print beta_gain
+  hotcube = pyirc.hotpix_ipc(hotY, hotX, darkfiles, formatpars, htsteps, [beta_gain], True)
   nhstep = len(htsteps)
   print 'number of time steps ->', nhstep
   fromcorr_alpha = numpy.zeros((len(hotX)))

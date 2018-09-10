@@ -985,6 +985,8 @@ def hotpix(darkfiles, formatpars, tslices, pars, verbose):
 # formatpars = format code for dark files
 # tslices = list of time slices to report
 # pars = parameters to control data selection
+#        right now, if not empty:
+#        pars[1] = numpy array map of non-linearity * gain values (units: DN^-1) (skip if not numpy.ndarray)
 # verbose = T/F
 #
 # Returns data cube with three indices.
@@ -1008,6 +1010,21 @@ def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
   dx = [0, 1, 0, -1, 0, 1, -1, -1, 1]
   dy = [0, 0, 1, 0, -1, 1, 1, -1, -1]
 
+  # Perform nonlinearity correction?
+  do_nonlin = False
+  if len(pars)>=1:
+    if type(pars[0]) is numpy.ndarray:
+      do_nonlin = True
+      m = pars[0]
+      beta_gain = numpy.zeros((N,N))
+      (ny1,nx1) = numpy.shape(m)
+      kx1 = N//nx1; ky1 = N//ny1
+      for i in range(nx1):
+        for j in range(ny1):
+          beta_gain[ky1*j:ky1*(j+1),kx1*i:kx1*(i+1)] = m[j,i]
+      # now beta_gain is an NxN map of beta*gain
+      if verbose: print 'beta*gain =', beta_gain
+
   # background mask
   bkmask = numpy.ones((5,5))
   bkmask[1:4,1:4]=0.
@@ -1023,6 +1040,9 @@ def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
     for f in range(ndarks):
       CDS = load_segment(darkfiles[f], formatpars, [0,N,0,N], [1,tslices[jt]], False)
       cube[f,:,:] = CDS[0,:,:] - CDS[1,:,:]
+      if do_nonlin:
+        # non-linearity correction, if turned on
+        cube[f,:,:] = cube[f,:,:]*(1.+beta_gain*cube[f,:,:])
     medframe = numpy.median(cube, axis=0)
     if verbose: print 'med', numpy.shape(medframe), jt
     for jpix in range(npix):
