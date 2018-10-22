@@ -24,12 +24,18 @@ sensitivity_spread_cut = .1
 critfrac = 0.75
 mychar = 'Basic'
 hotpix = False
+ref_for_hotpix_is_autocorr = False
+hotpix_logtspace = False
+hotpix_slidemed = False
 
 # Parameters for basic characterization
 basicpar = [.01, True, True, 1, True, True, False, 75.]
 
 # Parameters for BFE
 blsub = True
+
+# Plotting parameters
+narrowfig = False
 
 # Read in information
 config_file = sys.argv[1]
@@ -116,12 +122,27 @@ for line in content:
   if m:
     hotpix = True
     hotpix_ADU_range = [ float(m.group(x)) for x in range(1,5)]
+  #
+  # change reference for hot pixels from last point to autocorr
+  m = re.search(r'^HOTREF\s+AUTOCORR', line)
+  if m: ref_for_hotpix_is_autocorr = True
+  # log spacing for times?
+  m = re.search(r'^HOTPIX\s+LOGTSPACE', line)
+  if m: hotpix_logtspace = True
+  # sliding median alpha method?
+  m = re.search(r'^HOTPIX\s+SLIDEMED', line)
+  if m: hotpix_slidemed = True
 
   # Mask regions by hand
   m = re.search(r'^MASK:\s*(\d+)\s+(\d+)', line)
   if m:
     maskX = maskX + [int(m.group(1))]
     maskY = maskY + [int(m.group(2))]
+
+  # Control figures
+  m = re.search(r'^NARROWFIG', line)
+  if m: narrowfig = True
+
 
 # Check number of slices available
 NTMAX = 16384
@@ -523,7 +544,16 @@ thisOut.write('# BFE Method 2a\n#   Enabled = {:s}\n'.format(str(used_2a)))
 thisOut.write('# BFE Method 2b\n#   Enabled = {:s}\n'.format(str(used_2b)))
 thisOut.write('# BFE Method 3\n#   Enabled = {:s}\n'.format(str(used_3)))
 thisOut.write('# Hot pixels\n#   Enabled = {:s}\n'.format(str(hotpix)))
-if hotpix: thisOut.write('#   Parameters = {:s}\n'.format(str(hotpix_ADU_range)))
+if hotpix:
+  thisOut.write('#   Parameters = {:s}\n'.format(str(hotpix_ADU_range)))
+  if ref_for_hotpix_is_autocorr:
+    thisOut.write('#   ref for delta alpha = autocorr\n')
+  else:
+    thisOut.write('#   ref for delta alpha = last frame used\n')
+  if hotpix_slidemed:
+    thisOut.write('#   median method = sliding\n')
+  else:
+    thisOut.write('#   median method = normal\n')
 thisOut.write('# Associated figures:\n')
 thisOut.write('#   {:s}\n'.format(outstem+'_multi.eps'))
 thisOut.write('#   {:s}\n'.format(outstem+'_m23.eps'))
@@ -568,6 +598,16 @@ if hotpix:
   print 'Number of pixels selected:', len(hotX) # only printed for de-bugging -> , len(hotY)
   dtstep = 5 # <-- right now this is hard coded
   htsteps = range(1,NTMAX,dtstep)
+  if hotpix_logtspace:
+    htsteps = [1]
+    for k in range(1,12):
+      if 2**k<NTMAX-1: htsteps += [2**k]
+      if k>=2:
+        if 5*2**(k-2)<NTMAX-1: htsteps += [5*2**(k-2)]
+      if 3*2**(k-1)<NTMAX-1: htsteps += [3*2**(k-1)]
+      if k>=2:
+        if 7*2**(k-2)<NTMAX-1: htsteps += [7*2**(k-2)]
+    htsteps += [NTMAX-1]
   beta_gain = full_info[:,:,6]*full_info[:,:,3]
   print beta_gain
   hotcube = pyirc.hotpix_ipc(hotY, hotX, darkfiles, formatpars, htsteps, [beta_gain], True)
@@ -575,6 +615,8 @@ if hotpix:
   print 'number of time steps ->', nhstep
   fromcorr_alpha = numpy.zeros((len(hotX)))
   hotpix_alpha = numpy.zeros((len(hotX), nhstep))
+  hotpix_alpha_num = numpy.zeros((len(hotX), nhstep))
+  hotpix_alpha_den = numpy.zeros((len(hotX), nhstep))
   hotpix_alphaD = numpy.zeros((len(hotX), nhstep))
   hotpix_signal = numpy.zeros((len(hotX), nhstep))
   #
@@ -589,6 +631,8 @@ if hotpix:
       R = ( numpy.mean(hotcube[jpix,t,1:5]) - hotcube[jpix,t,-1] ) / (hotcube[jpix,t,0]-hotcube[jpix,t,-1] )
       S = ( numpy.mean(hotcube[jpix,t,5:9]) - hotcube[jpix,t,-1] ) / (hotcube[jpix,t,0]-hotcube[jpix,t,-1] )
       hotpix_alpha[jpix, t] = R/(1.+4*R+4*S)
+      hotpix_alpha_num[jpix, t] = R
+      hotpix_alpha_den[jpix, t] = 1.+4*R+4*S
       hotpix_alphaD[jpix, t] = S/(1.+4*R+4*S)
       hotpix_signal[jpix, t] = hotcube[jpix,t,0]-hotcube[jpix,t,-1]
       thisOut.write(' {:8.2f} {:8.2f} {:8.2f} {:8.2f} {:8.2f}'.format(hotcube[jpix,t,0], numpy.mean(hotcube[jpix,t,1:5]), hotcube[jpix,t,-1],
@@ -604,9 +648,17 @@ if hotpix:
   delta = .5/numpy.sqrt(len(hotX))
   for t in range(1,nhstep):
     my_y = hotpix_alpha[:,t]-hotpix_alpha[:,-1]
+    if ref_for_hotpix_is_autocorr: my_y = hotpix_alpha[:,t] - fromcorr_alpha
     ipcmed_x[t] = numpy.nanpercentile(hotpix_signal[:, t], 50.)
-    ipcmed_y[t] = numpy.nanpercentile(my_y, 50.)
-    ipcmed_yerr[t] = (numpy.nanpercentile(my_y, 50.+100*delta)-numpy.nanpercentile(my_y, 50.-100*delta))/2.
+    if hotpix_slidemed:
+      X_ = hotpix_alpha_den[:,t]
+      Y_ = hotpix_alpha_num[:,t]-fromcorr_alpha*hotpix_alpha_den[:,t]
+      ipcmed_y[t] = pyirc.slidemed_percentile(X_, Y_, 50)
+      ipcmed_yerr[t] = ( pyirc.slidemed_percentile(X_, Y_, 50.+100*delta)
+        - pyirc.slidemed_percentile(X_, Y_, 50.-100*delta) ) / 2.
+    else:
+      ipcmed_y[t] = numpy.nanpercentile(my_y, 50.)
+      ipcmed_yerr[t] = (numpy.nanpercentile(my_y, 50.+100*delta)-numpy.nanpercentile(my_y, 50.-100*delta))/2.
     print '{:10.2f} {:9.6f} {:9.6f}'.format(ipcmed_x[t], ipcmed_y[t], ipcmed_yerr[t])
   print ''
   print 'median alphaD:', '{:9.6f} {:9.6f}'.format(numpy.nanpercentile(hotpix_alphaD[:,-1], 50.),
@@ -630,8 +682,8 @@ if hotpix:
           grid_alphaCorr[iy,ix] = mya[pmask].mean()
           grid_alphaCorrErr[iy,ix] = mya[pmask].std()/numpy.sqrt(n-1)
         #
-        # bin the hot pixel measurements
-        u = hotpix_alpha[numpy.logical_and(hotY//sp==iy, hotX//sp==ix)]
+        # bin the hot pixel measurements -- use final time slice!
+        u = hotpix_alpha[numpy.logical_and(hotY//sp==iy, hotX//sp==ix), -1]
         if u.size>1:
           grid_alphaHot[iy,ix] = numpy.nanpercentile(u,50)
           delta = .5/numpy.sqrt(u.size)
@@ -640,50 +692,61 @@ if hotpix:
 
   # hot pixel plots
   matplotlib.rcParams.update({'font.size': 8})
-  F = plt.figure(figsize=(7,6))
+  if narrowfig:
+    F = plt.figure(figsize=(3.5,6))
+  else:
+    F = plt.figure(figsize=(7,6))
   #
   # hot pixel locations
-  S = F.add_subplot(2,2,1)
+  if narrowfig:
+    S = F.add_subplot(2,1,1)
+  else:
+    S = F.add_subplot(2,2,1)
   S.set_title('hot pixel locations: '+mydet)
   S.set_xlim(0,N); S.set_ylim(0,N); S.set_aspect('equal')
   S.xaxis.set_ticks(numpy.linspace(0,N,num=5)); S.yaxis.set_ticks(numpy.linspace(0,N,num=5))
   S.grid(True, color='g', linestyle='-')
   S.scatter(hotX+.5, hotY+.5, s=3, marker='.', color='r')
   #
-  # hot pixel level
-  S = F.add_subplot(2,2,2)
-  S.set_xlabel(r'Signal level $S_{1,' + '{:d}'.format(htsteps[-1]) +'}$ [DN]')
-  S.set_ylabel(r'IPC $\alpha$ [%]')
-  SX = hotpix_signal[:,-1]
-  SY = hotpix_alpha[:,-1]/.01
-  S.set_title(r'IPC $\alpha$ for hot pixels')
-  S.set_xlim(.95*(htsteps[-1]-1)/(NTMAX-1.0)*hotpix_ADU_range[0], 1.05*hotpix_ADU_range[1])
-  S.set_ylim(0,4.)
-  S.grid(True, color='g', linestyle='-')
-  S.scatter(SX, SY, s=3, marker='.', color='r')
-  #
-  # dependence on signal level
-  S = F.add_subplot(2,2,3)
-  S.set_xlabel(r'Signal level $S_{1,b}$ [DN]')
-  S.set_ylabel(r'IPC $\alpha(S_{1,b})-\alpha(S_{1,' + '{:d}'.format(htsteps[-1]) + '})$ [%]')
-  for t in range(1,nhstep):
-    SXa = hotpix_signal[:,t]
-    SYa = (hotpix_alpha[:,t]-hotpix_alpha[:,-1])/.01
-    if t==1:
-      SX = SXa; SY = SYa
-    else:
-      print t, numpy.shape(SX), numpy.shape(SXa)
-      SX = numpy.concatenate((SX,SXa)); SY = numpy.concatenate((SY,SYa))
-  S.set_title(r'IPC signal dependence $\Delta\alpha$')
-  S.set_xlim(0., hotpix_ADU_range[1])
-  S.set_ylim(-1.5,1.5)
-  S.xaxis.set_ticks(numpy.linspace(0,hotpix_ADU_range[1],num=6)); S.yaxis.set_ticks(numpy.linspace(-1.5,1.5,num=11))
-  S.grid(True, color='g', linestyle='-', linewidth=.5)
-  S.scatter(SX, SY, s=.25, marker='+', color='r')
-  S.errorbar(ipcmed_x[1:], ipcmed_y[1:]/.01, yerr=ipcmed_yerr[1:]/.01, ms=2, marker='o', color='k', ls='None')
+  # these two panels only in the full version, not the narrow version
+  if not narrowfig:
+    # hot pixel level
+    S = F.add_subplot(2,2,2)
+    S.set_xlabel(r'Signal level $S_{1,' + '{:d}'.format(htsteps[-1]) +'}$ [DN]')
+    S.set_ylabel(r'IPC $\alpha$ [%]')
+    SX = hotpix_signal[:,-1]
+    SY = hotpix_alpha[:,-1]/.01
+    S.set_title(r'IPC $\alpha$ for hot pixels')
+    S.set_xlim(.95*(htsteps[-1]-1)/(NTMAX-1.0)*hotpix_ADU_range[0], 1.05*hotpix_ADU_range[1])
+    S.set_ylim(0,4.)
+    S.grid(True, color='g', linestyle='-')
+    S.scatter(SX, SY, s=3, marker='.', color='r')
+    #
+    # dependence on signal level
+    S = F.add_subplot(2,2,3)
+    S.set_xlabel(r'Signal level $S_{1,b}$ [DN]')
+    S.set_ylabel(r'IPC $\alpha(S_{1,b})-\alpha(S_{1,' + '{:d}'.format(htsteps[-1]) + '})$ [%]')
+    for t in range(1,nhstep):
+      SXa = hotpix_signal[:,t]
+      SYa = (hotpix_alpha[:,t]-hotpix_alpha[:,-1])/.01
+      if t==1:
+        SX = SXa; SY = SYa
+      else:
+        print t, numpy.shape(SX), numpy.shape(SXa)
+        SX = numpy.concatenate((SX,SXa)); SY = numpy.concatenate((SY,SYa))
+    S.set_title(r'IPC signal dependence $\Delta\alpha$')
+    S.set_xlim(0., hotpix_ADU_range[1])
+    S.set_ylim(-1.5,1.5)
+    S.xaxis.set_ticks(numpy.linspace(0,hotpix_ADU_range[1],num=6)); S.yaxis.set_ticks(numpy.linspace(-1.5,1.5,num=11))
+    S.grid(True, color='g', linestyle='-', linewidth=.5)
+    S.scatter(SX, SY, s=.25, marker='+', color='r')
+    S.errorbar(ipcmed_x[1:], ipcmed_y[1:]/.01, yerr=ipcmed_yerr[1:]/.01, ms=2, marker='o', color='k', ls='None')
   #
   # comparison with auto-correlations
-  S = F.add_subplot(2,2,4)
+  if narrowfig:
+    S = F.add_subplot(2,1,2)
+  else:
+    S = F.add_subplot(2,2,4)
   S.set_title(r'hot pixels vs. autocorr. IPC $\alpha$')
   scale_test = numpy.concatenate((grid_alphaCorr.flatten(), grid_alphaHot.flatten()))
   smin = 0.92 * numpy.min(scale_test[scale_test>0]) / .01

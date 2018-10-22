@@ -29,7 +29,7 @@ TIME:    1 10 12 20
 #TIME3:   1  2  3 20
 OUTPUT:         out/adv2multi
 
-Generally, commands in the script start with a command name (capital letters, followed by a colon, e.g., 'FORMAT:'). Following the command is a list of arguments, which must be on the same line as the command except as specified below. Blank lines and lines starting with a hash ('#') are skipped.
+Most commands in the script start with a command name (capital letters, followed by a colon, e.g., 'FORMAT:'). Following the command is a list of arguments, which must be on the same line as the command except as specified below. Commands with no arguments do not include the colon. Blank lines and lines starting with a hash ('#') are skipped.
 
 Some script commands are *required*; others are optional, and come with defaults.
 
@@ -199,6 +199,26 @@ Selected pixels should be:
 (*) 'stable' (here meaning top to bottom of 0.1 or 10% of the median signal) and
 (*) 'isolated' (here meaning no other pixels in a 5x5 box exceeding 0.08 or 8% of the selected pixel)
 (*) not within 2 pixels of a boundary or reference pixel
+
+-- HOTPIX SLIDEMED --
+
+HOTPIX SLIDEMED
+
+This forces the median in the hot pixel IPC computation to be done using a "sliding median" instead of the traditional median. Recall that IPC is a ratio of the signal in nearest neighbors to total signal, i.e., we want y/x. The traditional median is simply the median of y/x. However in cases where x can fluctuate to negative values due to noise, one prefers the sliding median, which is the value of m where 50% of the y-mx values are positive and 50% are negative.
+
+-- HOTPIX LOGTSPACE --
+
+In the sample number dependence of hot pixel IPC, uses binary logarithmic spacing of time stamps (i.e., 1, 3, 5, or 7 times a power of 2) instead of linear scalings (default; every 5th sample).
+
+-- HOTREF AUTOCORR --
+
+In computing the sample number dependence of hot pixel IPC, uses the autocorrelation estimate of IPC as the 'reference' (for alpha_{this sample} - alpha_{reference}) instead of the last sample (default, in which case the last value of Delta alpha is trivially zero).
+
+-- NARROWFIG --
+
+NARROWFIG
+
+This makes some of the output figures narrow format (only some panels are displayed).
 
 === Outputs ===
 

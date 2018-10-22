@@ -11,7 +11,7 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 7
+  return 8
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -1054,6 +1054,30 @@ def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
       if fourmask: data[jpix,jt,9] *= 16./4.
 
   return data
+
+# sliding median function
+#
+# takes in vectors x and y (length N) and percentile p.
+# returns slope m such that p% of the data are below the line y = m*x.
+#
+# works by bisection in the 'guess' range mrange, with niter=64 iterations as default.
+# default mrange is [-1,1] (appropriate for IPC uses)
+#
+# The pivot is not used but is here for forward compatibility; right now it assumes
+# that the pivot point of the distribution is at x>0 (hence ordering in the bisection).
+# In a future release if we need to change this the functionality is there.
+#
+def slidemed_percentile(x,y,p,mrange=[-1,1],niter=64,pivot='pos'):
+  m1 = mrange[0]
+  m2 = mrange[1]
+
+  for k in range(niter):
+    m = (m1+m2)/2.
+    if numpy.nanpercentile(y-m*x,p)>0:
+      m1=m
+    else:
+      m2=m
+  return m
 
 # Generates min and max range for a color bar
 # based on inter-quartile range
