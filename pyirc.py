@@ -986,7 +986,8 @@ def hotpix(darkfiles, formatpars, tslices, pars, verbose):
 # tslices = list of time slices to report
 # pars = parameters to control data selection
 #        right now, if not empty:
-#        pars[1] = numpy array map of non-linearity * gain values (units: DN^-1) (skip if not numpy.ndarray)
+#        pars[0] = numpy array map of non-linearity * gain values (units: DN^-1) (skip if not numpy.ndarray)
+#        pars[1] = reference non-linearity to median stack of initial image? (T/F)
 # verbose = T/F
 #
 # Returns data cube with three indices.
@@ -1024,6 +1025,10 @@ def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
           beta_gain[ky1*j:ky1*(j+1),kx1*i:kx1*(i+1)] = m[j,i]
       # now beta_gain is an NxN map of beta*gain
       if verbose: print 'beta*gain =', beta_gain
+  # baseline for NL correction is median image?
+  medbaseline_nonlin = False
+  if len(pars)>=2:
+    medbaseline_nonlin = pars[1]
 
   # background mask
   bkmask = numpy.ones((5,5))
@@ -1042,7 +1047,10 @@ def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
       cube[f,:,:] = CDS[0,:,:] - CDS[1,:,:]
       if do_nonlin:
         # non-linearity correction, if turned on
-        cube[f,:,:] = cube[f,:,:]*(1.+beta_gain*cube[f,:,:])
+        cube_corr = cube[f,:,:]
+        if medbaseline_nonlin:
+          cube_corr = 2*scipy.ndimage.median_filter(CDS[0,:,:],size=3) - CDS[0,:,:] - CDS[1,:,:]
+        cube[f,:,:] = cube[f,:,:]*(1.+beta_gain*cube_corr)
     medframe = numpy.median(cube, axis=0)
     if verbose: print 'med', numpy.shape(medframe), jt
     for jpix in range(npix):

@@ -610,7 +610,7 @@ if hotpix:
     htsteps += [NTMAX-1]
   beta_gain = full_info[:,:,6]*full_info[:,:,3]
   print beta_gain
-  hotcube = pyirc.hotpix_ipc(hotY, hotX, darkfiles, formatpars, htsteps, [beta_gain], True)
+  hotcube = pyirc.hotpix_ipc(hotY, hotX, darkfiles, formatpars, htsteps, [beta_gain, False], True)
   nhstep = len(htsteps)
   print 'number of time steps ->', nhstep
   fromcorr_alpha = numpy.zeros((len(hotX)))
