@@ -530,7 +530,7 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
             CDx2 = numpy.sum(this_mask[:-1,:-3]*this_mask[1:,3:]*temp_box[:-1,:-3]*temp_box[1:,3:])
             CDx3 = numpy.sum(this_mask[1:,:-5]*this_mask[:-1,5:]*temp_box[1:,:-5]*temp_box[1:,5:])
             CDx4 = numpy.sum(this_mask[1:,:-3]*this_mask[:-1,3:]*temp_box[1:,:-3]*temp_box[1:,3:])
-            if maskCDx1<1 or maskCDx2<1 or maskCDx3<1 or maskCDX4<1: return []
+            if maskCDx1<1 or maskCDx2<1 or maskCDx3<1 or maskCDx4<1: return []
             CDx1 /= maskCDx1
             CDx2 /= maskCDx2
             CDx3 /= maskCDx3
