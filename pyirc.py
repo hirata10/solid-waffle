@@ -1,3 +1,4 @@
+import sys
 import numpy
 import scipy
 import astropy
@@ -11,7 +12,7 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 8
+  return 9
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -277,6 +278,125 @@ def pixel_data(filelist, formatpars, xyrange, tslices, maskinfo, verbose):
     output_array[num_files,t,:,:] = goodmap
 
   return output_array
+
+# Routine to get nonlinearity curve
+# Inputs:
+#   filelist       <- list of 'light' files
+#   formatpars     <- format type for file
+#   tmax           <- integer (does frames 1 .. tmax)
+#   ngrid          <- number of cells, list [ny,nx]
+#   Ib             <- shouldn't need this except for de-bugging (forces a specific quadratic fit)
+#   verbose        <- Boolean
+#
+# Output:
+#   signal, fit, derivative
+#   array of dimensions [tmax, ny, nx] containing reference corrected signal (in DN)
+#     This is median within a file, followed by the mean.
+#   The second and third outputs have the same shape as the first:
+#     2nd is a polynomial fit
+#     3rd is a corrected derivative (in DN/frame)
+def gen_nl_cube(filelist, formatpars, tmax, ngrid, Ib, verbose):
+  # Extract basic information
+  nfiles = len(filelist)
+  nx = ngrid[1]; ny = ngrid[0]
+  N = get_nside(formatpars)
+  dx = N//nx; dy = N//ny
+  output_array = numpy.zeros((tmax, ny, nx))
+  temp_array = numpy.zeros((nfiles, ny, nx))
+
+  # order of polynomial fit per pixel
+  my_order = 3
+
+  if verbose:
+    print 'Nonlinear cube:'
+    sys.stdout.write('  reference pixel extraction ...'); sys.stdout.flush()
+
+  # Extract reference information
+  # Now ref_signal[ifile, iy, it] contains it_th time slice of group iy of ref pixels in file ifile
+  ref_signal = ref_array(filelist, formatpars, ny, range(1,tmax+1), False)
+
+  if verbose:
+    print '  done.'
+    sys.stdout.write('Time slices:'); sys.stdout.flush()
+
+  # Now loop over times
+  for t in range(1,tmax+1):
+    temp_array[:,:,:] = 0.
+    if verbose:
+      sys.stdout.write(' {:2d}'.format(t)); sys.stdout.flush()
+    for ifile in range(nfiles):
+      val = load_segment(filelist[ifile], formatpars, [0,N,0,N], [1,t], False) # make 2D array
+      valc = val[1,:,:] - val[0,:,:]
+      for iy in range(ny):
+        for ix in range(nx):
+          temp_array[ifile,iy,ix] = numpy.median(valc[dy*iy:dy*(iy+1), dx*ix:dx*(ix+1)])\
+            - (ref_signal[ifile, iy, t-1] - ref_signal[ifile, iy, 0])
+    output_array[t-1,:,:] = -numpy.mean(temp_array,axis=0)
+    # <-- note: we flipped the sign so that the signal is positive
+
+  if verbose: print ''
+
+  # Make fit and derivatives
+  fit_array = numpy.zeros_like(output_array)
+  deriv_array = numpy.zeros_like(output_array)
+  for iy in range(ny):
+    for ix in range(nx):
+      p = numpy.poly1d(numpy.polyfit(numpy.asarray(range(tmax)), output_array[:,iy,ix], my_order))
+      # p = numpy.poly1d([-Ib[iy,ix],1,0]) # <-- force proportional to beta-model (if not commented; for debugging only)
+      q=numpy.poly1d.deriv(p)
+      fit_array[:,iy,ix] = p(range(tmax))
+      deriv_array[:,iy,ix] = q(range(tmax))
+
+  return output_array, fit_array, deriv_array
+
+# Routine to estimate the fractional gain error,
+# log( gain[full NL] / gain[est. quad.])
+# caused by using a beta-model for the nonlinearity curve instead of the full curve.
+#
+# Inputs are:
+#   fit_array = signal in DN for true curve (length tmax array, starting with frame #1)
+#   deriv_array = signal rate in DN/frame
+#   Ib = charge per frame times beta (unitless)
+#   tslices = time slices used for the gain (select 3 here)
+#   reset_frame = which frame was reset? (0 if 1st frame is 1 after reset)
+#
+def compute_gain_corr(fit_array, deriv_array, Ib, tslices, reset_frame):
+  # unpack time information
+  ta = tslices[0] - reset_frame
+  tb = tslices[1] - reset_frame
+  td = tslices[2] - reset_frame
+  # indices
+  ina = tslices[0]-1
+  inb = tslices[1]-1
+  ind = tslices[2]-1
+
+  # We want the nonlinearity corrections (mean[td]-mean[tb])/(var[tad]-var[tab])
+  # which, for a non-linearity curve f(t) with f(0)=0, f'(0)=1, is
+  # [f(td)-f(tb)] / { [ta*(f'(td)-f'(ta))^2 + tad*f'(td)^2] - [ta*(f'(tb)-f'(ta))^2 + tab*f'(tb)^2] }
+  # = [f(td)-f(tb)] / [ ta*(f'(td)^2-f'(tb)^2 - 2f'(ta)*(f'(td)-f'(tb)) ) + td*f'(td)^2 - ta*f'(td)^2 - tb*f'(tb)^2 + ta*f'(tb)^2 ]
+  # = [f(td)-f(tb)] / [ -2 ta f'(ta) (f'(td)-f'(tb)) + td f'(td)^2 - tb f'(tb)^2 ]
+  #
+  # Let us call that factor e^{epsilon}
+  # Now for the beta-model, f(t) = t - Ib * t^2
+  # so e^{epsilon} = tbd [1 - Ib (tb+td) ] / [ 4 Ib ta tbd (1 - 2 Ib ta) + td (1 - 2 Ib td)^2 - tb (1 - 2 Ib tb)^2 ]
+  #                = [1 - Ib (tb+td) ] / [ 4 Ib ta (1 - 2 Ib ta) + 1 - 4 Ib (tb+td) + Ib^2 (td^2 + tb td + tb^2) ]
+  # to lowest order in Ib (what is in the notes):
+  # epsilon ~ Ib (-4ta+3tb+3td)
+
+  true_expepsilon = (fit_array[ind]-fit_array[inb]) / (-2*ta*deriv_array[ina]*(deriv_array[ind]-deriv_array[inb])
+    + td*deriv_array[ind]**2 - tb*deriv_array[inb]**2)
+  return numpy.log(true_expepsilon*deriv_array[0]) - Ib*(-4.*ta+3.*tb+3.*td)
+#
+# Same but for a whole grid of points (i.e. all nx x ny cells at a time).
+# also includes a mask to avoid error messages.
+def compute_gain_corr_many(fit_array, deriv_array, Ib, tslices, reset_frame, is_good):
+  out_array = numpy.zeros_like(fit_array[0,:,:])
+  ny = numpy.shape(fit_array)[1]; nx = numpy.shape(fit_array)[2]
+  for iy in range(ny):
+    for ix in range(nx):
+      if is_good[iy,ix]>.5:
+        out_array[iy,ix] = compute_gain_corr(fit_array[:,iy,ix], deriv_array[:,iy,ix], Ib[iy,ix], tslices, reset_frame)
+  return out_array
 
 # Routine to get IPC-corrected gain
 # 

@@ -231,6 +231,38 @@ mean_full_info = numpy.mean(numpy.mean(full_info, axis=0), axis=0)/numpy.mean(is
 print 'Mean info from good regions =', mean_full_info
 print ''
 
+# Non-linearity cube
+ntSub = tslices[-1]
+nlcube, nlfit, nlder = pyirc.gen_nl_cube(lightfiles, formatpars, ntSub, [ny,nx], full_info[:,:,6]*full_info[:,:,7], False)
+thisOut = open(outstem+'_nl.txt', 'w')
+for iy in range(ny):
+  for ix in range(nx):
+    thisOut.write('{:3d} {:3d} {:1d} {:9.6f} {:9.6f}'.format(iy,ix,int(is_good[iy,ix]),
+      full_info[iy,ix,6]*full_info[iy,ix,3]*1e6, full_info[iy,ix,3]))
+    for it in range(ntSub):
+      thisOut.write(' {:7.1f}'.format(nlcube[it,iy,ix]))
+    thisOut.write('\n')
+thisOut.close()
+nlMean = numpy.zeros((ntSub))
+nlFit = numpy.zeros((ntSub))
+nlMeanDer = numpy.zeros((ntSub))
+for it in range(ntSub):
+  nlMean[it] = numpy.sum(is_good*nlcube[it,:,:])/numpy.sum(is_good)
+  nlFit[it] = numpy.sum(is_good*nlfit[it,:,:])/numpy.sum(is_good)
+  nlMeanDer[it] = numpy.sum(is_good*nlder[it,:,:])/numpy.sum(is_good)
+#
+# I have commented out the outputs for this section. We may put them back as needed.
+#for it in range(ntSub): 
+#  print '{:2d} {:8.2f} {:8.2f} {:8.2f}'.format(it+1, nlMean[it], nlFit[it], nlMeanDer[it])
+#print '2a:'
+#for t in range(9,19):
+#  offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,7]*full_info[:,:,6], [1,5,t], basicpar[3], is_good)
+#  print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
+#print '2b:'
+#for t in range(10):
+#  offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,7]*full_info[:,:,6], [t,t+4,t+8], basicpar[3], is_good)
+#  print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
+
 # Multi-panel figure showing basic characterization
 ar = nx/(ny+0.0)
 spr = 2.2
@@ -532,6 +564,7 @@ thisOut.write('# Mask: ' + str(maskX) + ',' + str(maskY) + '\n')
 thisOut.write('#\n')
 thisOut.write('# Cut on good pixels {:7.4f}% deviation from median\n'.format(100*sensitivity_spread_cut))
 thisOut.write('# Dimensions: {:3d}(x) x {:3d}(y) super-pixels, {:4d} good\n'.format(nx,ny,int(numpy.sum(is_good))))
+thisOut.write('# Frame number corresponding to reset: {:d}\n'.format(basicpar[3]))
 thisOut.write('# Reference pixel subtraction for linearity: {:s}\n'.format(str(fullref)))
 thisOut.write('# Quantile for variance computation = {:9.6f}%\n'.format(basicpar[7]))
 thisOut.write('# Clipping fraction epsilon = {:9.7f}\n'.format(basicpar[0]))
