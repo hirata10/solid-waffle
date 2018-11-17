@@ -12,7 +12,7 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 9
+  return 10
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -305,7 +305,7 @@ def gen_nl_cube(filelist, formatpars, tmax, ngrid, Ib, verbose):
   temp_array = numpy.zeros((nfiles, ny, nx))
 
   # order of polynomial fit per pixel
-  my_order = 3
+  my_order = 5
 
   if verbose:
     print 'Nonlinear cube:'
@@ -396,6 +396,41 @@ def compute_gain_corr_many(fit_array, deriv_array, Ib, tslices, reset_frame, is_
     for ix in range(nx):
       if is_good[iy,ix]>.5:
         out_array[iy,ix] = compute_gain_corr(fit_array[:,iy,ix], deriv_array[:,iy,ix], Ib[iy,ix], tslices, reset_frame)
+  return out_array
+
+# Routine to estimate the correction to the correlation
+#   g^2 C_{abab}(+/-1,0)/(It_{ab}) / (2 alpha (1-4 alpha) )
+# caused by using a beta-model for the nonlinearity curve instead of the full curve.
+#
+# Inputs are:
+#   fit_array = signal in DN for true curve (length tmax array, starting with frame #1)
+#   deriv_array = signal rate in DN/frame
+#   Ib = charge per frame times beta (unitless)
+#   tslices = time slices used for the x-corr (select 2 here)
+#   reset_frame = which frame was reset? (0 if 1st frame is 1 after reset)
+#
+def compute_xc_corr(fit_array, deriv_array, Ib, tslices, reset_frame):
+  # unpack time information
+  ta = tslices[0] - reset_frame
+  tb = tslices[1] - reset_frame
+  # indices
+  ina = tslices[0]-1
+  inb = tslices[1]-1
+
+  # We want the correction
+  # f'(tb)^2 + ta/tab * (f'(tb)-f'(ta)) - (1 - 4 Ib tb)
+  return( (deriv_array[inb]**2 - ta/(tb-ta)*(deriv_array[inb]-deriv_array[ina])**2) / deriv_array[0]**2
+    - (1. - 4*Ib*tb) )
+#
+# Same but for a whole grid of points (i.e. all nx x ny cells at a time).
+# also includes a mask to avoid error messages.
+def compute_xc_corr_many(fit_array, deriv_array, Ib, tslices, reset_frame, is_good):
+  out_array = numpy.zeros_like(fit_array[0,:,:])
+  ny = numpy.shape(fit_array)[1]; nx = numpy.shape(fit_array)[2]
+  for iy in range(ny):
+    for ix in range(nx):
+      if is_good[iy,ix]>.5:
+        out_array[iy,ix] = compute_xc_corr(fit_array[:,iy,ix], deriv_array[:,iy,ix], Ib[iy,ix], tslices, reset_frame)
   return out_array
 
 # Routine to get IPC-corrected gain

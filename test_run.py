@@ -250,18 +250,6 @@ for it in range(ntSub):
   nlMean[it] = numpy.sum(is_good*nlcube[it,:,:])/numpy.sum(is_good)
   nlFit[it] = numpy.sum(is_good*nlfit[it,:,:])/numpy.sum(is_good)
   nlMeanDer[it] = numpy.sum(is_good*nlder[it,:,:])/numpy.sum(is_good)
-#
-# I have commented out the outputs for this section. We may put them back as needed.
-#for it in range(ntSub): 
-#  print '{:2d} {:8.2f} {:8.2f} {:8.2f}'.format(it+1, nlMean[it], nlFit[it], nlMeanDer[it])
-#print '2a:'
-#for t in range(9,19):
-#  offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,7]*full_info[:,:,6], [1,5,t], basicpar[3], is_good)
-#  print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
-#print '2b:'
-#for t in range(10):
-#  offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,7]*full_info[:,:,6], [t,t+4,t+8], basicpar[3], is_good)
-#  print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
 
 # Multi-panel figure showing basic characterization
 ar = nx/(ny+0.0)
@@ -459,12 +447,48 @@ else:
   slope_3_BFE = -4*(mean_full_info[4]+mean_full_info[5])*mean_full_info[6] + ave
   slope_3_NLIPC = -4*(mean_full_info[4]+mean_full_info[5])*mean_full_info[6] + ave*2.
 
+# Non-linearity corrections, Methods 2 and 3:
+#
+# I have commented out the outputs for this section. We may put them back as needed.
+#for it in range(ntSub): 
+#  print '{:2d} {:8.2f} {:8.2f} {:8.2f}'.format(it+1, nlMean[it], nlFit[it], nlMeanDer[it])
+print 'Non-linearity correction tables:'
+if used_2a:
+  print '2a:'
+  vec = []
+  for t in range(tslicesM2a[2], tslicesM2a[3]+1):
+    offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,7]*full_info[:,:,6], [tslicesM2a[0],tslicesM2a[1],t], basicpar[3], is_good)
+    print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
+    vec += [numpy.mean(offsets*is_good)/numpy.mean(is_good)]
+  PV2a = max(vec)-min(vec); print 'PV: ', PV2a
+if used_2b:
+  print '2b:'
+  vec = []
+  dt1 = tslicesM2b[1] - tslicesM2b[0]
+  dt2 = tslicesM2b[2] - tslicesM2b[0]
+  for t in range(tslicesM2b[0], tslicesM2b[3]-tslicesM2b[2]+1):
+    offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,7]*full_info[:,:,6], [t,t+dt1,t+dt2], basicpar[3], is_good)
+    print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
+    vec += [numpy.mean(offsets*is_good)/numpy.mean(is_good)]
+  PV2b = max(vec)-min(vec); print 'PV: ', PV2b
+if used_3:
+  print '3:'
+  vec = []
+  for t in range(tslicesM3[2], tslicesM3[3]+1):
+    offsets = pyirc.compute_xc_corr_many(nlfit, nlder, full_info[:,:,7]*full_info[:,:,6], [tslicesM3[0],t], basicpar[3], is_good)
+    alpha3 = (full_info[:,:,4]+full_info[:,:,5])/2.
+    offsets *= 2. * alpha3 * (1.-4*alpha3)
+    print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
+    vec += [numpy.mean(offsets*is_good)/numpy.mean(is_good)]
+  PV3 = max(vec)-min(vec); print 'PV: ', PV3
+print ''
+
 # Method 2 and 3 characterization
 # Multi-panel figure showing basic characterization
 matplotlib.rcParams.update({'font.size': 8})
-F = plt.figure(figsize=(7,6))
+F = plt.figure(figsize=(3.5,9))
 if used_2a:
-  S = F.add_subplot(2,2,1)
+  S = F.add_subplot(3,1,1)
   S.set_title(r'Raw gain vs. interval duration')
   S.set_xlabel(r'Signal level $It_{'+'{:d}'.format(tslicesM2a[0])+r',d}$ [ke]')
   S.set_ylabel(r'$\ln g^{\rm raw}_{' +'{:d},{:d}'.format(tslicesM2a[0],tslicesM2a[1]) +r',d}$')
@@ -477,12 +501,14 @@ if used_2a:
   yc = numpy.mean(numpy.array(SY))
   S.set_xlim(min(SX)-.05*(max(SX)-min(SX)), max(SX)+.05*(max(SX)-min(SX)))
   xr = numpy.arange(min(SX), max(SX), (max(SX)-min(SX))/256.)
+  S.errorbar([xc], [min(SY)], yerr=[PV2a/2.], marker=',', color='k', ls='None')
+  S.text(xc+.05*(max(SX)-min(SX)), min(SY), 'sys nl', color='k')
   S.errorbar(SX, SY, yerr=SS, marker='x', color='r', ls='None')
   S.plot(xr, yc+(xr-xc)*slope_2a_BFE*1e3, 'g--', label='pure BFE')
   S.plot(xr, yc+(xr-xc)*slope_2a_NLIPC*1e3, 'b-', label='pure NL-IPC')
   S.legend(loc=2)
 if used_2b:
-  S = F.add_subplot(2,2,2)
+  S = F.add_subplot(3,1,2)
   S.set_title(r'Raw gain vs. interval center')
   S.set_xlabel(r'Signal level $It_{'+'{:d}'.format(tslicesM2b[0])+r',a}$ [ke]')
   S.set_ylabel(r'$\ln g^{\rm raw}_{' +'a,a+{:d},a+{:d}'.format(tslicesM2b[1]-tslicesM2b[0],tslicesM2b[2]-tslicesM2b[0]) +r'}$')
@@ -496,12 +522,14 @@ if used_2b:
   yc = numpy.mean(numpy.array(SY))
   S.set_xlim(min(SX)-.05*(max(SX)-min(SX)), max(SX)+.05*(max(SX)-min(SX)))
   xr = numpy.arange(min(SX), max(SX), (max(SX)-min(SX))/256.)
+  S.errorbar([xc], [min(SY)], yerr=[PV2b/2.], marker=',', color='k', ls='None')
+  S.text(xc+.05*(max(SX)-min(SX)), min(SY), 'sys nl', color='k')
   S.errorbar(SX, SY, yerr=SS, marker='x', color='r', ls='None')
   S.plot(xr, yc+(xr-xc)*slope_2b_BFE*1e3, 'g--', label='pure BFE')
   S.plot(xr, yc+(xr-xc)*slope_2b_NLIPC*1e3, 'b-', label='pure NL-IPC')
   S.legend(loc=2)
 if used_3:
-  S = F.add_subplot(2,2,3)
+  S = F.add_subplot(3,1,3)
   S.set_title(r'CDS ACF vs. signal')
   S.set_xlabel(r'Signal level $It_{'+'{:d}'.format(tslicesM3[0])+r',d}$ [ke]')
   S.set_ylabel(r'$g^2C_{'+'{:d}'.format(tslicesM3[0])+r'd'+'{:d}'.format(tslicesM3[0])+r'd}(\langle1,0\rangle)/[It_{'\
@@ -515,6 +543,8 @@ if used_3:
   yc = numpy.mean(numpy.array(SY))
   S.set_xlim(min(SX)-.05*(max(SX)-min(SX)), max(SX)+.05*(max(SX)-min(SX)))
   xr = numpy.arange(min(SX), max(SX), (max(SX)-min(SX))/256.)
+  S.errorbar([xc], [min(SY)], yerr=[PV3], marker=',', color='k', ls='None')
+  S.text(xc+.05*(max(SX)-min(SX)), min(SY)+PV3, 'sys nl', color='k')
   S.errorbar(SX, SY, yerr=SS, marker='x', color='r', ls='None')
   S.plot(xr, yc+(xr-xc)*slope_3_BFE*1e3, 'g--', label='pure BFE')
   S.plot(xr, yc+(xr-xc)*slope_3_NLIPC*1e3, 'b-', label='pure NL-IPC')
@@ -524,23 +554,23 @@ if used_3:
   #for i in range(len(SX)):
   #  print '{:9.6f} {:9.6f} {:9.6f}'.format(SX[i], SY[i], SS[i])
   #
-  S = F.add_subplot(2,2,4)
-  S.set_title(r'Fitted $\alpha$ vs. signal')
-  S.set_xlabel(r'Signal level $It_{'+'{:d}'.format(tslicesM3[0])+r',d}$ [ke]')
-  S.set_ylabel(r'Fitted $\alpha$ [%]')
-  SX = [numpy.mean(is_good*full_info[:,:,7]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(tfmin3-tslicesM3[0], tfmax3+1-tslicesM3[0])]
-  SY = [numpy.mean(is_good*Method3_alphas[:,:,t])/numpy.mean(is_good)/1.0e-2 for t in range(ntM3)]
-  SS = [] # std. dev. on the mean
-  for t in range(ntM3):
-    SS += [ numpy.sqrt((numpy.mean(is_good*Method3_alphas[:,:,t]**2)/numpy.mean(is_good)/1.0e-4-SY[t]**2)/(numpy.sum(is_good)-1)) ]
-  xc = numpy.mean(numpy.array(SX))
-  yc = numpy.mean(numpy.array(SY))
-  S.set_xlim(min(SX)-.05*(max(SX)-min(SX)), max(SX)+.05*(max(SX)-min(SX)))
-  xr = numpy.arange(min(SX), max(SX), (max(SX)-min(SX))/256.)
-  S.errorbar(SX, SY, yerr=SS, marker='x', color='r', ls='None')
-  S.plot(xr, yc+(xr-xc)*ave/2./(1.-.08*yc)*1.0e3/1.0e-2, 'g--', label='pure BFE')
-  S.plot(xr, yc+(xr-xc)*ave/(1.-.08*yc)*1.0e3/1.0e-2, 'b-', label='pure NL-IPC')
-  S.legend(loc=2)
+  #S = F.add_subplot(2,2,4)
+  #S.set_title(r'Fitted $\alpha$ vs. signal')
+  #S.set_xlabel(r'Signal level $It_{'+'{:d}'.format(tslicesM3[0])+r',d}$ [ke]')
+  #S.set_ylabel(r'Fitted $\alpha$ [%]')
+  #SX = [numpy.mean(is_good*full_info[:,:,7]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(tfmin3-tslicesM3[0], tfmax3+1-tslicesM3[0])]
+  #SY = [numpy.mean(is_good*Method3_alphas[:,:,t])/numpy.mean(is_good)/1.0e-2 for t in range(ntM3)]
+  #SS = [] # std. dev. on the mean
+  #for t in range(ntM3):
+  #  SS += [ numpy.sqrt((numpy.mean(is_good*Method3_alphas[:,:,t]**2)/numpy.mean(is_good)/1.0e-4-SY[t]**2)/(numpy.sum(is_good)-1)) ]
+  #xc = numpy.mean(numpy.array(SX))
+  #yc = numpy.mean(numpy.array(SY))
+  #S.set_xlim(min(SX)-.05*(max(SX)-min(SX)), max(SX)+.05*(max(SX)-min(SX)))
+  #xr = numpy.arange(min(SX), max(SX), (max(SX)-min(SX))/256.)
+  #S.errorbar(SX, SY, yerr=SS, marker='x', color='r', ls='None')
+  #S.plot(xr, yc+(xr-xc)*ave/2./(1.-.08*yc)*1.0e3/1.0e-2, 'g--', label='pure BFE')
+  #S.plot(xr, yc+(xr-xc)*ave/(1.-.08*yc)*1.0e3/1.0e-2, 'b-', label='pure NL-IPC')
+  #S.legend(loc=2)
 F.set_tight_layout(True)
 F.savefig(outstem+'_m23.eps')
 plt.close(F)
