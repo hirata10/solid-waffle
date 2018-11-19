@@ -12,7 +12,7 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 10
+  return 11
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -919,7 +919,7 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
 
     # Corrections to horiz. and vert. IPC
     #
-    CHcorr = CVcorr = 0.
+    CHcorr = CVcorr = CDcorr = 0.
     if applyCorr:
       if typeCorr.lower() == 'bfe':
         CHcorr = (ipnl[sBFE,sBFE+1]+ipnl[sBFE,sBFE-1])/2. * (I/g*tslices[3])**2
