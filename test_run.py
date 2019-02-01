@@ -304,7 +304,7 @@ im = S.imshow(full_info[:,:,23]*1e6, cmap=use_cmap, aspect=ar, interpolation='ne
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
 F.set_tight_layout(True)
-F.savefig(outstem+'_multi.eps')
+F.savefig(outstem+'_multi.pdf')
 plt.close(F)
 
 # Method 2a
@@ -572,7 +572,7 @@ if used_3:
   #S.plot(xr, yc+(xr-xc)*ave/(1.-.08*yc)*1.0e3/1.0e-2, 'b-', label='pure NL-IPC')
   #S.legend(loc=2)
 F.set_tight_layout(True)
-F.savefig(outstem+'_m23.eps')
+F.savefig(outstem+'_m23.pdf')
 plt.close(F)
 
 # Text output
@@ -618,9 +618,9 @@ if hotpix:
   else:
     thisOut.write('#   median method = normal\n')
 thisOut.write('# Associated figures:\n')
-thisOut.write('#   {:s}\n'.format(outstem+'_multi.eps'))
-thisOut.write('#   {:s}\n'.format(outstem+'_m23.eps'))
-thisOut.write('#   {:s}\n'.format(outstem+'_hotipc.eps'))
+thisOut.write('#   {:s}\n'.format(outstem+'_multi.pdf'))
+thisOut.write('#   {:s}\n'.format(outstem+'_m23.pdf'))
+thisOut.write('#   {:s}\n'.format(outstem+'_hotipc.pdf'))
 thisOut.write('#\n')
 thisOut.write('# Columns:\n'); col=1
 thisOut.write('# {:3d}, X (super pixel grid)\n'.format(col)); col+=1
@@ -824,6 +824,6 @@ if hotpix:
   S.plot(xr, xr, 'r-')
 
   F.set_tight_layout(True)
-  F.savefig(outstem+'_hotipc.eps')
+  F.savefig(outstem+'_hotipc.pdf')
   plt.close(F)
 
