@@ -147,6 +147,18 @@ There are four arguments; in this case, IPC is computed using basic characteriza
 
 Note that the first two frames are kept fixed, while the third frame is varied. The CDS autocorrelations of [frame 3 - frame 1], [frame 4 - frame 1], ... [frame 20 - frame 1] are also computed.
 
+-- TIMEREF --
+
+Determines which time slice is the "reference" (i.e., conversion gain is d[charge]/d[signal] at that signal level). Default = 1. If you want conversion gain reported at the reset level, and the 1st frame in the data cube is the frame *after* the reset, then include:
+
+TIMEREF: 0
+
+-- REF OFF --
+
+Turns off the left & right reference pixel subtraction
+
+REF OFF
+
 -- DETECTOR --
 
 Name of the SCA (not used, except copied into the output data). The default is the null string ''.
