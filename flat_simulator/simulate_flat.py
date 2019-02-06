@@ -43,7 +43,7 @@ bfemode = 'true'
 lipcmode = 'true'
 lipc_alpha = [0.01]
 nlmode = 'false'
-nlbeta = 1.4 # (ppm/e-)
+nlbeta = 1.5 # (ppm/e-)
 reset_frames = [0]
 
 # Read in information
@@ -178,9 +178,10 @@ for tdx in range(1, nt_step):
       allQ[0,:,:] = offset_frame
     else:
       allQ[0,:,:] = data_cube_Q[count,:,:]
-    #print count
-    count += 1
 
+    count += 1
+    print "time: %d" %count
+    
 # Add in IPC before the noise if the mode is turned on
 if (lipcmode=='true'):
   data_cube_Q[:,xmin:xmax,ymin:ymax] = calculate_ipc(
@@ -211,9 +212,22 @@ elif noisemode == 'full':
 data_cube_S = np.array(
   np.clip(data_cube_Q/gain, 0, 65535), dtype=np.uint16)
 
+# Write simple header, todo: add more thorough comments
+hdr = FITSHDR()
+hdr['GAIN'] = gain
+hdr['ILLUMIN'] = I
+hdr['QE'] = QE
+hdr['RNGSEED'] = rngseed
+if (lipcmode=='true'):
+  hdr['LINIPC'] = lipc_alpha[0]
+if (nlmode=='true'):
+  hdr['BETA'] = nlbeta
+if (bfemode=='true'):
+  hdr['BFE_A_0_0'] = acoeff[2][2]  # Hard-coded to expect 5x5 a coeffs
+
 # Open up an example DCL flat file and save the data cube
 #dclfile = 'Set_001_Test_0002.fits'
-fitsio.write(outfile, data_cube_S, clobber=True)
+fitsio.write(outfile, data_cube_S, header=hdr, clobber=True)
 
 # Try compression of data cube into file
 # End of script
