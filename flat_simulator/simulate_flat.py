@@ -170,7 +170,6 @@ for tdx in range(1, nt_step):
       allQ[idx,:,:] = allQ[idx-1,:,:]
       allQ[idx,xmin:xmax,ymin:ymax] += np.random.poisson(
         QE*mean, allQ[idx,xmin:xmax,ymin:ymax].shape)
-
   if (idx==0):
     data_cube_Q[count,:,:] = allQ[idx,:,:]
     allQ = np.zeros((substep, nx, ny))
@@ -179,9 +178,10 @@ for tdx in range(1, nt_step):
       allQ[0,:,:] = offset_frame
     else:
       allQ[0,:,:] = data_cube_Q[count,:,:]
-    print count
-    count += 1
 
+    count += 1
+    print "time: %d" %count
+    
 # Add in IPC before the noise if the mode is turned on
 if (lipcmode=='true'):
   data_cube_Q[:,xmin:xmax,ymin:ymax] = calculate_ipc(
@@ -223,7 +223,7 @@ if (lipcmode=='true'):
 if (nlmode=='true'):
   hdr['BETA'] = nlbeta
 if (bfemode=='true'):
-  hdr['BFE_A_0_0'] = acoeff[2][2]  # Hard-coded to expect 5x5 a coeffs
+  hdr['BFE_A_0_0'] = a_coeff[2][2]  # Hard-coded to expect 5x5 a coeffs
 
 # Open up an example DCL flat file and save the data cube
 #dclfile = 'Set_001_Test_0002.fits'

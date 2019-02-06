@@ -12,7 +12,7 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 11
+  return 12
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -526,6 +526,7 @@ def gain_alphabetacorr(graw, CH, CV, signal, frac_dslope, times):
 #   ctrl_pars[4] = reference pixel subtraction? (default to True)
 #   ctrl_pars[5] = which parameters to report (default to True = standard basic pars; False = correlation data instead)
 #   ctrl_pars[6] = lead-trail subtraction? (default to False)
+#   ctrl_pars[7] = percentile for inter-quantile range (default to 75)
 # verbose = True or False  (recommend True only for de-bugging)
 #
 # Returns a list of basic calibration parameters.
@@ -816,6 +817,9 @@ def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_sprea
         tarray = [t1,t2,t2,t2]
         lightref = ref_array_block(lightfiles, formatpars, box[2:4], tarray, False)
         darkref = ref_array_block(darkfiles, formatpars, box[2:4], tarray, False)
+        if not ctrl_pars[4]:
+          lightref[:,:] = 0.
+          darkref[:,:] = 0.
         region_cube = pixel_data(lightfiles, formatpars, box[:4], tarray, [sensitivity_spread_cut, False], False)
         dark_cube = pixel_data(darkfiles, formatpars, box[:4], tarray, [sensitivity_spread_cut, False], False)
         # switch to the mask from above

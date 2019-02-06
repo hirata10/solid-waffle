@@ -100,6 +100,14 @@ for line in content:
   if m: tslicesM2b = [ int(m.group(x)) for x in range(1,5)]
   m = re.search(r'^TIME3:\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
   if m: tslicesM3 = [ int(m.group(x)) for x in range(1,5)]
+  #
+  # reference time slice
+  m = re.search(r'^TIMEREF:\s*(\d+)', line)
+  if m: basicpar[3] = int(m.group(1))
+
+  # reference pixel subtraction
+  m = re.search(r'^REF\s+OFF', line)
+  if m: fullref = False
 
   # variance parameters
   m = re.search(r'^QUANTILE:\s*(\S+)', line)
@@ -176,6 +184,7 @@ if fullref:
 else:
   lightref = numpy.zeros((len(lightfiles), ny, 2*len(tslices)+1))
   darkref = numpy.zeros((len(darkfiles), ny, 2*len(tslices)+1))
+basicpar[4] = fullref
 
 # Detector characterization data in a cube (basic characterization + BFE Method 1)
 # Stdout calls are a progress indicator
