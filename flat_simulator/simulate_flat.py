@@ -223,7 +223,7 @@ if (lipcmode=='true'):
 if (nlmode=='true'):
   hdr['BETA'] = nlbeta
 if (bfemode=='true'):
-  hdr['BFE_A_0_0'] = a_coeff[2][2]  # Hard-coded to expect 5x5 a coeffs
+  hdr['BFE_A00'] = a_coeff[2][2]  # Hard-coded to expect 5x5 a coeffs
 
 # Open up an example DCL flat file and save the data cube
 #dclfile = 'Set_001_Test_0002.fits'
