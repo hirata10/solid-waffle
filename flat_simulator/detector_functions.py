@@ -86,7 +86,8 @@ def calc_area_defect(ap, Q, npad=2):
   boundaries
   """
   Q_pad = np.pad(Q, pad_width=(npad,npad), mode='symmetric')
-  aQ = signal.convolve(ap[::-1,::-1], Q_pad)
+  # Larger-dimensional array must be first arg to convolve
+  aQ = signal.convolve(Q_pad, ap[::-1,::-1])
   W = 1 + aQ
   # Final dimensions of W will be 2*npad+Q.shape[0]+ap.shape[0]-1
   # on each side
