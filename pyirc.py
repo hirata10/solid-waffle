@@ -12,7 +12,7 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 12
+  return 13
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -22,6 +22,7 @@ def get_nside(formatpars):
   if formatpars==1: return 4096
   if formatpars==2: return 2048
   if formatpars==3: return 4096
+  if formatpars==4: return 4096
 
 # Get number of time slices
 def get_num_slices(formatpars, filename):
@@ -34,6 +35,10 @@ def get_num_slices(formatpars, filename):
   elif formatpars==3:
     hdus = fits.open(filename)
     ntslice = len(hdus)-1
+    hdus.close()
+  elif formatpars==4:
+    hdus = fits.open(filename)
+    ntslice = int(hdus[1].header['NAXIS3'])
     hdus.close()
   else:
     print 'Error! Invalid formatpars =', formatpars
@@ -93,6 +98,17 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
       fileh.close()
     else:
       print 'Error: non-fitsio methods not yet supported for formatpars=3'
+      exit()
+  elif formatpars==4:
+    if use_fitsio:
+      fileh = fitsio.FITS(filename)
+      N = get_nside(formatpars)
+      for ts in range(ntslice_use):
+        t = tslices[ts]
+        output_cube[ts,:,:] = numpy.array(fileh[1][0, t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
+      fileh.close()
+    else:
+      print 'Error: non-fitsio methods not yet supported for formatpars=4'
       exit()
   else:
     print 'Error! Invalid formatpars =', formatpars
