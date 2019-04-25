@@ -109,6 +109,10 @@ for line in content:
   m = re.search(r'^REF\s+OFF', line)
   if m: fullref = False
 
+  # sensitivity spread cut
+  m = re.search(r'^SPREAD:\s*(\S+)', line)
+  if m: sensitivity_spread_cut = float(m.group(1))
+
   # variance parameters
   m = re.search(r'^QUANTILE:\s*(\S+)', line)
   if m: basicpar[7] = float(m.group(1))
