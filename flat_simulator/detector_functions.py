@@ -73,10 +73,12 @@ def get_bfe_kernel_5x5():
   units of 10&-6 per electron
   """
   bfe_kernel_5x5 = 1.E-6*np.array(
-    [[-0.09, -0.01, -0.03, -0.1, -0.06], [-0.06, 0.09, 0.35, -0.005, -0.06],
-     [-0.05, 0.445, -1.56, 0.49, 0.03], [0.05, 0.01, 0.36, 0.01, 0.05],
-     [0.02, 0.02, 0.09, -0.04, 0.05]])
-  return bfe_kernel_5x5
+    [[-0.01, 0.0020, -0.0210, -0.019, 0.028],
+     [0.0040, 0.0490, 0.2480, 0.01, -0.0240],
+     [-0.0170, 0.2990, -1.372, 0.2840, 0.0150],
+     [0.0130, 0.0560, 0.2890, 0.0390, 0.02],
+     [0.035, 0.0070, 0.0380, 0.0010, 0.026]])
+  return np.fliplr(bfe_kernel_5x5)
 
 def calc_area_defect(ap, Q, npad=2):
   """ ap is the a_deltaideltaj coefficient matrix
@@ -87,7 +89,7 @@ def calc_area_defect(ap, Q, npad=2):
   """
   Q_pad = np.pad(Q, pad_width=(npad,npad), mode='symmetric')
   # Larger-dimensional array must be first arg to convolve
-  aQ = signal.convolve(Q_pad, ap[::-1,::-1])
+  aQ = signal.convolve(Q_pad, ap) # ap[::-1,::-1])
   W = 1 + aQ
   # Final dimensions of W will be 2*npad+Q.shape[0]+ap.shape[0]-1
   # on each side
