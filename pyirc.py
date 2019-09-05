@@ -12,7 +12,7 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 13
+  return 14
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -117,6 +117,49 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
   return output_cube
 
 # <== FUNCTIONS BELOW HERE ARE INDEPENDENT OF THE INPUT FORMAT ==>
+
+# Dictionary of indices
+# These are designed for consistency with the outputs lists of certain functions
+class IndexDictionary:
+  def __init__(self, itype):
+    # basic characterization parameter index list -- outputs for "basic" function
+    if itype==0:
+      self.Nb = 11 # number of basic parameters
+      #
+      self.ngood = 0
+      self.graw = 1
+      self.gacorr = 2
+      self.g = 3
+      self.alphaH = 4
+      self.alphaV = 5
+      self.beta = 6
+      self.I = 7
+      self.alphaD = 8
+      self.tCH = 9
+      self.tCV = 10
+      #
+      # polychar indices: output is list [1, ***, residual]
+      # intermediate terms are basic output [ind1:ind2]
+      self.ind1 = 3
+      self.ind2 = 9
+      self.indp1 = 1
+      self.indp2 = self.indp1 + self.ind2-self.ind1
+      #
+      self.N = self.Nbb = self.Nb
+
+  # adds BFE kernel, (2s+1) x (2s+1)
+  def addbfe(self, s):
+    self.s = s
+    self.ker0 = self.Nb + 2*s*(s+1)  # BFE (0,0) kernel index
+    self.Nbb += (2*s+1)*(2*s+1)
+    self.N += (2*s+1)*(2*s+1)
+
+  # adds higher-order non-linearity coefficients (p coefs, for total degree 1+p)
+  def addhnl(self, p):
+    self.p = p
+    self.N += p
+
+swi = IndexDictionary(0)
 
 # Routine to get percentile cuts with a mask removed
 #
@@ -299,29 +342,45 @@ def pixel_data(filelist, formatpars, xyrange, tslices, maskinfo, verbose):
 # Inputs:
 #   filelist       <- list of 'light' files
 #   formatpars     <- format type for file
-#   tmax           <- integer (does frames 1 .. tmax)
+#   timeslice      <- integer (does frames 1 .. tmax) or list [tref,t1,t2], uses t1 ... t2 with reset at tref
 #   ngrid          <- number of cells, list [ny,nx]
 #   Ib             <- shouldn't need this except for de-bugging (forces a specific quadratic fit)
+#   usemode        <- 'dev' (deviation from beta fit) or 'abs' (absolute -- zero of time is absolute)
 #   verbose        <- Boolean
 #
 # Output:
-#   signal, fit, derivative
+#   signal, fit, derivative [, coefs]
 #   array of dimensions [tmax, ny, nx] containing reference corrected signal (in DN)
 #     This is median within a file, followed by the mean.
 #   The second and third outputs have the same shape as the first:
 #     2nd is a polynomial fit
 #     3rd is a corrected derivative (in DN/frame)
-def gen_nl_cube(filelist, formatpars, tmax, ngrid, Ib, verbose):
+#   The polynomial coefficients are reported as coefs (ascending order: t^0, then t^1 ...) in 'abs' mode,
+#     and as a data cube [order+1, ny, nx]
+def gen_nl_cube(filelist, formatpars, timeslice, ngrid, Ib, usemode, verbose):
   # Extract basic information
   nfiles = len(filelist)
   nx = ngrid[1]; ny = ngrid[0]
   N = get_nside(formatpars)
   dx = N//nx; dy = N//ny
-  output_array = numpy.zeros((tmax, ny, nx))
+
+  # Check whether we have a list or single slice
+  if isinstance(timeslice, list):
+    tref = timeslice[0]
+    tmin = timeslice[1]
+    tmax = timeslice[2]
+    nt = tmax-tmin+1
+  else:
+    tref = 0
+    tmin = 1
+    nt = tmax = timeslice
+
+  output_array = numpy.zeros((nt, ny, nx))
   temp_array = numpy.zeros((nfiles, ny, nx))
 
   # order of polynomial fit per pixel
   my_order = 5
+  if usemode=='abs': my_order = swi.p
 
   if verbose:
     print 'Nonlinear cube:'
@@ -329,14 +388,14 @@ def gen_nl_cube(filelist, formatpars, tmax, ngrid, Ib, verbose):
 
   # Extract reference information
   # Now ref_signal[ifile, iy, it] contains it_th time slice of group iy of ref pixels in file ifile
-  ref_signal = ref_array(filelist, formatpars, ny, range(1,tmax+1), False)
+  ref_signal = ref_array(filelist, formatpars, ny, range(tmin,tmax+1), False)
 
   if verbose:
     print '  done.'
     sys.stdout.write('Time slices:'); sys.stdout.flush()
 
   # Now loop over times
-  for t in range(1,tmax+1):
+  for t in range(tmin,tmax+1):
     temp_array[:,:,:] = 0.
     if verbose:
       sys.stdout.write(' {:2d}'.format(t)); sys.stdout.flush()
@@ -346,24 +405,29 @@ def gen_nl_cube(filelist, formatpars, tmax, ngrid, Ib, verbose):
       for iy in range(ny):
         for ix in range(nx):
           temp_array[ifile,iy,ix] = numpy.median(valc[dy*iy:dy*(iy+1), dx*ix:dx*(ix+1)])\
-            - (ref_signal[ifile, iy, t-1] - ref_signal[ifile, iy, 0])
-    output_array[t-1,:,:] = -numpy.mean(temp_array,axis=0)
+            - (ref_signal[ifile, iy, t-tmin] - ref_signal[ifile, iy, 0])
+    output_array[t-tmin,:,:] = -numpy.mean(temp_array,axis=0)
     # <-- note: we flipped the sign so that the signal is positive
 
   if verbose: print ''
 
   # Make fit and derivatives
+  coefs_array = numpy.zeros((my_order+1, ny, nx))
   fit_array = numpy.zeros_like(output_array)
   deriv_array = numpy.zeros_like(output_array)
   for iy in range(ny):
     for ix in range(nx):
-      p = numpy.poly1d(numpy.polyfit(numpy.asarray(range(tmax)), output_array[:,iy,ix], my_order))
+      p = numpy.poly1d(numpy.polyfit(numpy.asarray(range(tmin-tref,tmax+1-tref)), output_array[:,iy,ix], my_order))
       # p = numpy.poly1d([-Ib[iy,ix],1,0]) # <-- force proportional to beta-model (if not commented; for debugging only)
       q=numpy.poly1d.deriv(p)
-      fit_array[:,iy,ix] = p(range(tmax))
-      deriv_array[:,iy,ix] = q(range(tmax))
+      fit_array[:,iy,ix] = p(range(tmin-tref,tmax+1-tref))
+      deriv_array[:,iy,ix] = q(range(tmin-tref,tmax+1-tref))
+      coefs_array[:,iy,ix] = p.c[::-1]
 
-  return output_array, fit_array, deriv_array
+  if usemode=='dev':
+    return output_array, fit_array, deriv_array
+  else:
+    return output_array, fit_array, deriv_array, coefs_array
 
 # Routine to estimate the fractional gain error,
 # log( gain[full NL] / gain[est. quad.])

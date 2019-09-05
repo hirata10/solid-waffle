@@ -161,6 +161,14 @@ Turns off the left & right reference pixel subtraction
 
 REF OFF
 
+-- NLPOLY --
+
+Allows a higher-order non-linear polynomial correction scheme for the classical non-linearity. We don't use this for any corrections yet, we just measure the curve and have the piping to put the results in the output. For example:
+
+NLPOLY: 4 2 32
+
+allows a polynomial of 4th order, fit from time frames 2 .. 32 (inclusive).
+
 -- DETECTOR --
 
 Name of the SCA (not used, except copied into the output data). The default is the null string ''.

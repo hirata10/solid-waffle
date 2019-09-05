@@ -28,6 +28,11 @@ ref_for_hotpix_is_autocorr = False
 hotpix_logtspace = False
 hotpix_slidemed = False
 
+# order parameters
+s_bfe = 2     # order of BFE parameters
+p_order = 0   # non-linearity polynomial table coefficients (table at end goes through order p_order)
+              # set to zero to turn this off
+
 # Parameters for basic characterization
 basicpar = [.01, True, True, 1, True, True, False, 75.]
 
@@ -128,6 +133,13 @@ for line in content:
   m = re.search(r'^COLOR:\s*(\S+)', line)
   if m: use_cmap = m.group(1)
 
+  # Classical non-linearity
+  m = re.search(r'^NLPOLY:\s*(\S+)\s+(\S+)\s+(\S+)', line)
+  if m:
+    p_order = int(m.group(1))
+    nlfit_ts = int(m.group(2))
+    nlfit_te = int(m.group(3))
+
   # Hot pixels
   # (adu min, adu max, cut stability, cut isolation)
   m = re.search(r'^HOTPIX:\s*(\S+)\s+(\S+)\s+(\S+)\s+(\S+)', line)
@@ -155,6 +167,10 @@ for line in content:
   m = re.search(r'^NARROWFIG', line)
   if m: narrowfig = True
 
+# set up array size parameters
+pyirc.swi.addbfe(s_bfe)
+pyirc.swi.addhnl(p_order)
+print 'Number of output field per superpixel =', pyirc.swi.N
 
 # Check number of slices available
 NTMAX = 16384
@@ -193,7 +209,7 @@ basicpar[4] = fullref
 # Detector characterization data in a cube (basic characterization + BFE Method 1)
 # Stdout calls are a progress indicator
 #
-my_dim = 36
+my_dim = pyirc.swi.N
 full_info = numpy.zeros((ny,nx,my_dim))
 is_good = numpy.zeros((ny,nx))
 print 'Method 1, progress of calculation:'
@@ -213,17 +229,17 @@ for iy in range(ny):
     if len(info)>0:
       if mychar.lower()=='advanced':
         for iCycle in range(ncycle):
-          bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, 2, blsub], False)
+          bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, pyirc.swi.s, blsub], False)
           Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)],
                  [tslices[0], tslices[-1]+1, tchar1, tchar2], sensitivity_spread_cut, basicpar, [ipnltype, bfeCoefs]) # 1,3 or 9,19
-          info[3:9] = numpy.asarray(Cdata[1:7])
-      bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, 2, blsub], False)
-      info += bfeCoefs[0:5,0:5].flatten().tolist()
+          info[pyirc.swi.ind1:pyirc.swi.ind2] = numpy.asarray(Cdata[pyirc.swi.indp1:pyirc.swi.indp2])
+      bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, pyirc.swi.s, blsub], False)
+      info += bfeCoefs[0:2*pyirc.swi.s+1,0:2*pyirc.swi.s+1].flatten().tolist()
     else:
-      info = numpy.zeros((my_dim)).tolist()
+      info = numpy.zeros((pyirc.swi.Nbb)).tolist()
 
-    if len(info)==my_dim:
-      full_info[iy,ix,:] = numpy.array(info)
+    if len(info)==pyirc.swi.Nbb:
+      full_info[iy,ix,0:pyirc.swi.Nbb] = numpy.array(info)
     if info[0]>=npix*critfrac:
       is_good[iy,ix] = 1
     else:
@@ -246,12 +262,13 @@ print ''
 
 # Non-linearity cube
 ntSub = tslices[-1]
-nlcube, nlfit, nlder = pyirc.gen_nl_cube(lightfiles, formatpars, ntSub, [ny,nx], full_info[:,:,6]*full_info[:,:,7], False)
+nlcube, nlfit, nlder = pyirc.gen_nl_cube(lightfiles, formatpars, ntSub, [ny,nx],
+  full_info[:,:,pyirc.swi.beta]*full_info[:,:,pyirc.swi.I], 'dev', False)
 thisOut = open(outstem+'_nl.txt', 'w')
 for iy in range(ny):
   for ix in range(nx):
     thisOut.write('{:3d} {:3d} {:1d} {:9.6f} {:9.6f}'.format(iy,ix,int(is_good[iy,ix]),
-      full_info[iy,ix,6]*full_info[iy,ix,3]*1e6, full_info[iy,ix,3]))
+      full_info[iy,ix,pyirc.swi.beta]*full_info[iy,ix,pyirc.swi.g]*1e6, full_info[iy,ix,pyirc.swi.g]))
     for it in range(ntSub):
       thisOut.write(' {:7.1f}'.format(nlcube[it,iy,ix]))
     thisOut.write('\n')
@@ -263,6 +280,19 @@ for it in range(ntSub):
   nlMean[it] = numpy.sum(is_good*nlcube[it,:,:])/numpy.sum(is_good)
   nlFit[it] = numpy.sum(is_good*nlfit[it,:,:])/numpy.sum(is_good)
   nlMeanDer[it] = numpy.sum(is_good*nlder[it,:,:])/numpy.sum(is_good)
+#
+# now coefficients for the info table
+nlcubeX, nlfitX, nlderX, pcoefX = pyirc.gen_nl_cube(lightfiles, formatpars, [basicpar[3], nlfit_ts, nlfit_te], [ny,nx],
+  full_info[:,:,pyirc.swi.beta]*full_info[:,:,pyirc.swi.I], 'abs', False)
+# fill in
+for iy in range(ny):
+  for ix in range(nx):
+    if pcoefX[1,iy,ix]!=0:
+      full_info[iy,ix,pyirc.swi.Nbb] = -pcoefX[0,iy,ix]/pcoefX[1,iy,ix]
+      for o in range(2,pyirc.swi.p+1):
+        full_info[iy,ix,pyirc.swi.Nbb+o-1] = pcoefX[o,iy,ix]/pcoefX[1,iy,ix]**o
+    else:
+      full_info[iy,ix,pyirc.swi.Nbb] = -1e49 # error code
 
 # Multi-panel figure showing basic characterization
 ar = nx/(ny+0.0)
@@ -280,40 +310,40 @@ S = F.add_subplot(3,2,2)
 S.set_title(r'Gain map $g$ (e/DN)')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
-svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,3], spr)
-im = S.imshow(full_info[:,:,3], cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
+svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,pyirc.swi.g], spr)
+im = S.imshow(full_info[:,:,pyirc.swi.g], cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
 S = F.add_subplot(3,2,3)
 S.set_title(r'IPC map $\alpha$ (%)')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
-svmin, svmax = pyirc.get_vmin_vmax((full_info[:,:,4]+full_info[:,:,5])/2.*100., spr)
-im = S.imshow((full_info[:,:,4]+full_info[:,:,5])/2.*100., cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
-  vmin=svmin, vmax=svmax)
+svmin, svmax = pyirc.get_vmin_vmax((full_info[:,:,pyirc.swi.alphaH]+full_info[:,:,pyirc.swi.alphaV])/2.*100., spr)
+im = S.imshow((full_info[:,:,pyirc.swi.alphaH]+full_info[:,:,pyirc.swi.alphaV])/2.*100., cmap=use_cmap, aspect=ar,
+  interpolation='nearest', origin='lower', vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
 S = F.add_subplot(3,2,4)
 S.set_title(r'Non-linearity map $\beta$ (ppm/e)')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
-svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,6]*1e6, spr)
-im = S.imshow(full_info[:,:,6]*1e6, cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
+svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,pyirc.swi.beta]*1e6, spr)
+im = S.imshow(full_info[:,:,pyirc.swi.beta]*1e6, cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
 S = F.add_subplot(3,2,5)
 S.set_title(r'Charge $It_{n,n+1}$ (e):')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
-svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,7], spr)
-im = S.imshow(full_info[:,:,7], cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
+svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,pyirc.swi.I], spr)
+im = S.imshow(full_info[:,:,pyirc.swi.I], cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
 S = F.add_subplot(3,2,6)
 S.set_title(r'IPNL $[K^2a+KK^\prime]_{0,0}$ (ppm/e):')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
 S.set_ylabel('Super pixel Y/{:d}'.format(dy))
-svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,23]*1e6, spr)
-im = S.imshow(full_info[:,:,23]*1e6, cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
+svmin, svmax = pyirc.get_vmin_vmax(full_info[:,:,pyirc.swi.ker0]*1e6, spr)
+im = S.imshow(full_info[:,:,pyirc.swi.ker0]*1e6, cmap=use_cmap, aspect=ar, interpolation='nearest', origin='lower',
   vmin=svmin, vmax=svmax)
 F.colorbar(im, orientation='vertical')
 F.set_tight_layout(True)
@@ -357,13 +387,15 @@ else:
           Method2a_vals[iy,ix,t] = lngraw[t] = numpy.log(info[1])
         # Build least squares fit
         mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM2a)), numpy.ones(ntM2a)]).T, lngraw)[0]
-        Method2a_slopes[iy,ix] = mS/full_info[iy,ix,7]
+        Method2a_slopes[iy,ix] = mS/full_info[iy,ix,pyirc.swi.I]
   print '|'
   print 'Mean slope d[ln graw]/d[I td] at fixed ta,tb =', numpy.mean(is_good*Method2a_slopes)/numpy.mean(is_good)
   print ''
   # Predicted slopes
-  slope_2a_BFE = 3*mean_full_info[6] - (1+4*mean_full_info[4]+4*mean_full_info[5])*mean_full_info[23]
-  slope_2a_NLIPC = 3*mean_full_info[6] - 2*(1+4*mean_full_info[4]+4*mean_full_info[5])*mean_full_info[23]
+  slope_2a_BFE = 3*mean_full_info[pyirc.swi.beta] - (1+4*mean_full_info[pyirc.swi.alphaH]
+                 +4*mean_full_info[pyirc.swi.alphaV])*mean_full_info[pyirc.swi.ker0]
+  slope_2a_NLIPC = 3*mean_full_info[pyirc.swi.beta] - 2*(1+4*mean_full_info[pyirc.swi.alphaH]
+                   +4*mean_full_info[pyirc.swi.alphaV])*mean_full_info[pyirc.swi.ker0]
 
 # Method 2b
 #
@@ -402,13 +434,14 @@ else:
           Method2b_vals[iy,ix,t] = lngraw[t] = numpy.log(info[1])
         # Build least squares fit
         mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM2b)), numpy.ones(ntM2b)]).T, lngraw)[0]
-        Method2b_slopes[iy,ix] = mS/full_info[iy,ix,7]
+        Method2b_slopes[iy,ix] = mS/full_info[iy,ix,pyirc.swi.I]
   print '|'
   print 'Mean slope d[ln graw]/d[I tb] at fixed tab,tad =', numpy.mean(is_good*Method2b_slopes)/numpy.mean(is_good)
   print ''
   # Predicted slopes
-  slope_2b_BFE = 2*mean_full_info[6]
-  slope_2b_NLIPC = 2*mean_full_info[6] + 2*(1+4*mean_full_info[4]+4*mean_full_info[5])*mean_full_info[23]
+  slope_2b_BFE = 2*mean_full_info[pyirc.swi.beta]
+  slope_2b_NLIPC = 2*mean_full_info[pyirc.swi.beta] + 2*(1+4*mean_full_info[pyirc.swi.alphaH]
+                   +4*mean_full_info[pyirc.swi.alphaV])*mean_full_info[pyirc.swi.ker0]
 
 # Method 3
 #
@@ -445,20 +478,21 @@ else:
           dark_cube = pyirc.pixel_data(darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], temp_tslices,
                         [sensitivity_spread_cut, False], False)
           info = pyirc.basic(region_cube, dark_cube, temp_tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
-          Method3_vals[iy,ix,t] = CCraw[t] = (info[9]+info[10])/2.*full_info[iy,ix,3]**2\
-            /(full_info[iy,ix,7]*(temp_tslices[-1]-temp_tslices[0]))
-          Method3_alphas[iy,ix,t] = (info[4]+info[5])/2.
+          Method3_vals[iy,ix,t] = CCraw[t] = (info[pyirc.swi.tCH]+info[pyirc.swi.tCV])/2.*full_info[iy,ix,pyirc.swi.g]**2\
+            /(full_info[iy,ix,pyirc.swi.I]*(temp_tslices[-1]-temp_tslices[0]))
+          Method3_alphas[iy,ix,t] = (info[pyirc.swi.alphaH]+info[pyirc.swi.alphaV])/2.
         # Build least squares fit
         mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM3)), numpy.ones(ntM3)]).T, CCraw)[0]
-        Method3_slopes[iy,ix] = mS/full_info[iy,ix,7]
+        Method3_slopes[iy,ix] = mS/full_info[iy,ix,pyirc.swi.I]
   print '|'
   print 'Mean slope d[g^2/(Itad) Cadj,ad]/d[I td] at fixed ta,tb =', numpy.mean(is_good*Method3_slopes)/numpy.mean(is_good)
   print ''
   # Predicted slopes
-  ave = (mean_full_info[22]+mean_full_info[24]+mean_full_info[18]+mean_full_info[28])/4.
-  slope_3_beta = -4*(mean_full_info[4]+mean_full_info[5])*mean_full_info[6]
-  slope_3_BFE = -4*(mean_full_info[4]+mean_full_info[5])*mean_full_info[6] + ave
-  slope_3_NLIPC = -4*(mean_full_info[4]+mean_full_info[5])*mean_full_info[6] + ave*2.
+  ave = (mean_full_info[pyirc.swi.ker0-1]+mean_full_info[pyirc.swi.ker0+1]+mean_full_info[pyirc.swi.ker0-(2*pyirc.swi.s+1)]
+        +mean_full_info[pyirc.swi.ker0+(2*pyirc.swi.s+1)])/4.
+  slope_3_beta = -4*(mean_full_info[pyirc.swi.alphaH]+mean_full_info[pyirc.swi.alphaV])*mean_full_info[pyirc.swi.beta]
+  slope_3_BFE = -4*(mean_full_info[pyirc.swi.alphaH]+mean_full_info[pyirc.swi.alphaV])*mean_full_info[pyirc.swi.beta] + ave
+  slope_3_NLIPC = -4*(mean_full_info[pyirc.swi.alphaH]+mean_full_info[pyirc.swi.alphaV])*mean_full_info[pyirc.swi.beta] + ave*2.
 
 # Non-linearity corrections, Methods 2 and 3:
 #
@@ -470,7 +504,7 @@ if used_2a:
   print '2a:'
   vec = []
   for t in range(tslicesM2a[2], tslicesM2a[3]+1):
-    offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,7]*full_info[:,:,6], [tslicesM2a[0],tslicesM2a[1],t], basicpar[3], is_good)
+    offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,pyirc.swi.I]*full_info[:,:,pyirc.swi.beta], [tslicesM2a[0],tslicesM2a[1],t], basicpar[3], is_good)
     print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
     vec += [numpy.mean(offsets*is_good)/numpy.mean(is_good)]
   PV2a = max(vec)-min(vec); print 'PV: ', PV2a
@@ -480,7 +514,7 @@ if used_2b:
   dt1 = tslicesM2b[1] - tslicesM2b[0]
   dt2 = tslicesM2b[2] - tslicesM2b[0]
   for t in range(tslicesM2b[0], tslicesM2b[3]-tslicesM2b[2]+1):
-    offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,7]*full_info[:,:,6], [t,t+dt1,t+dt2], basicpar[3], is_good)
+    offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,pyirc.swi.I]*full_info[:,:,pyirc.swi.beta], [t,t+dt1,t+dt2], basicpar[3], is_good)
     print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
     vec += [numpy.mean(offsets*is_good)/numpy.mean(is_good)]
   PV2b = max(vec)-min(vec); print 'PV: ', PV2b
@@ -488,8 +522,8 @@ if used_3:
   print '3:'
   vec = []
   for t in range(tslicesM3[2], tslicesM3[3]+1):
-    offsets = pyirc.compute_xc_corr_many(nlfit, nlder, full_info[:,:,7]*full_info[:,:,6], [tslicesM3[0],t], basicpar[3], is_good)
-    alpha3 = (full_info[:,:,4]+full_info[:,:,5])/2.
+    offsets = pyirc.compute_xc_corr_many(nlfit, nlder, full_info[:,:,pyirc.swi.I]*full_info[:,:,pyirc.swi.beta], [tslicesM3[0],t], basicpar[3], is_good)
+    alpha3 = (full_info[:,:,pyirc.swi.alphaH]+full_info[:,:,pyirc.swi.alphaV])/2.
     offsets *= 2. * alpha3 * (1.-4*alpha3)
     print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
     vec += [numpy.mean(offsets*is_good)/numpy.mean(is_good)]
@@ -505,7 +539,7 @@ if used_2a:
   S.set_title(r'Raw gain vs. interval duration')
   S.set_xlabel(r'Signal level $It_{'+'{:d}'.format(tslicesM2a[0])+r',d}$ [ke]')
   S.set_ylabel(r'$\ln g^{\rm raw}_{' +'{:d},{:d}'.format(tslicesM2a[0],tslicesM2a[1]) +r',d}$')
-  SX = [numpy.mean(is_good*full_info[:,:,7]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(tfmin-tslicesM2a[0], tfmax+1-tslicesM2a[0])]
+  SX = [numpy.mean(is_good*full_info[:,:,pyirc.swi.I]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(tfmin-tslicesM2a[0], tfmax+1-tslicesM2a[0])]
   SY = [numpy.mean(is_good*Method2a_vals[:,:,t])/numpy.mean(is_good) for t in range(ntM2a)]
   SS = [] # std. dev. on the mean
   for t in range(ntM2a):
@@ -525,7 +559,7 @@ if used_2b:
   S.set_title(r'Raw gain vs. interval center')
   S.set_xlabel(r'Signal level $It_{'+'{:d}'.format(tslicesM2b[0])+r',a}$ [ke]')
   S.set_ylabel(r'$\ln g^{\rm raw}_{' +'a,a+{:d},a+{:d}'.format(tslicesM2b[1]-tslicesM2b[0],tslicesM2b[2]-tslicesM2b[0]) +r'}$')
-  SX = [numpy.mean(is_good*full_info[:,:,7]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(ntM2b)]
+  SX = [numpy.mean(is_good*full_info[:,:,pyirc.swi.I]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(ntM2b)]
     # the -1e-5 is to set the x-axis and has no effect
   SY = [numpy.mean(is_good*Method2b_vals[:,:,t])/numpy.mean(is_good) for t in range(ntM2b)]
   SS = [] # std. dev. on the mean
@@ -547,7 +581,7 @@ if used_3:
   S.set_xlabel(r'Signal level $It_{'+'{:d}'.format(tslicesM3[0])+r',d}$ [ke]')
   S.set_ylabel(r'$g^2C_{'+'{:d}'.format(tslicesM3[0])+r'd'+'{:d}'.format(tslicesM3[0])+r'd}(\langle1,0\rangle)/[It_{'\
     +'{:d}'.format(tslicesM3[0])+r'd}]$')
-  SX = [numpy.mean(is_good*full_info[:,:,7]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(tfmin3-tslicesM3[0], tfmax3+1-tslicesM3[0])]
+  SX = [numpy.mean(is_good*full_info[:,:,pyirc.swi.I]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(tfmin3-tslicesM3[0], tfmax3+1-tslicesM3[0])]
   SY = [numpy.mean(is_good*Method3_vals[:,:,t])/numpy.mean(is_good) for t in range(ntM3)]
   SS = [] # std. dev. on the mean
   for t in range(ntM3):
@@ -571,7 +605,7 @@ if used_3:
   #S.set_title(r'Fitted $\alpha$ vs. signal')
   #S.set_xlabel(r'Signal level $It_{'+'{:d}'.format(tslicesM3[0])+r',d}$ [ke]')
   #S.set_ylabel(r'Fitted $\alpha$ [%]')
-  #SX = [numpy.mean(is_good*full_info[:,:,7]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(tfmin3-tslicesM3[0], tfmax3+1-tslicesM3[0])]
+  #SX = [numpy.mean(is_good*full_info[:,:,pyirc.swi.I]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(tfmin3-tslicesM3[0], tfmax3+1-tslicesM3[0])]
   #SY = [numpy.mean(is_good*Method3_alphas[:,:,t])/numpy.mean(is_good)/1.0e-2 for t in range(ntM3)]
   #SS = [] # std. dev. on the mean
   #for t in range(ntM3):
@@ -649,9 +683,13 @@ thisOut.write('# {:3d}, charge per time slice (e)\n'.format(col)); col+=1
 thisOut.write('# {:3d}, IPC alpha diagonal (if computed; otherwise all 0s)\n'.format(col)); col+=1
 thisOut.write('# {:3d}, C_H at slices {:d},{:d} (DN^2)\n'.format(col, tslices[0], tslices[-1])); col+=1
 thisOut.write('# {:3d}, C_V at slices {:d},{:d} (DN^2)\n'.format(col, tslices[0], tslices[-1])); col+=1
-for jb in range(5):
-  for ib in range(5):
-    thisOut.write('# {:3d}, BFE kernel K^2a (+NL-IPC) at ({:2d},{:2d}) (e^-1)\n'.format(col, ib-2, jb-2)); col+=1
+for jb in range(2*pyirc.swi.s+1):
+  for ib in range(2*pyirc.swi.s+1):
+    thisOut.write('# {:3d}, BFE kernel K^2a (+NL-IPC) at ({:2d},{:2d}) (e^-1)\n'.format(col, ib-pyirc.swi.s, jb-pyirc.swi.s)); col+=1
+if pyirc.swi.p>0:
+  thisOut.write('# {:3d}, time intercept\n'.format(col)); col += 1
+  for ip in range(2, pyirc.swi.p+1):
+    thisOut.write('# {:3d}, additional non-linearity coefficient, order {:d} (DN^-{:d})\n'.format(col, ip, ip-1)); col+=1
 if used_2a: thisOut.write('# {:3d}, Method 2a slope (e^-1)\n'.format(col)); col+=1
 if used_2b: thisOut.write('# {:3d}, Method 2b slope (e^-1)\n'.format(col)); col+=1
 if used_3: thisOut.write('# {:3d}, Method 3 slope (e^-1)\n'.format(col)); col+=1
@@ -684,7 +722,7 @@ if hotpix:
       if k>=2:
         if 7*2**(k-2)<NTMAX-1: htsteps += [7*2**(k-2)]
     htsteps += [NTMAX-1]
-  beta_gain = full_info[:,:,6]*full_info[:,:,3]
+  beta_gain = full_info[:,:,pyirc.swi.beta]*full_info[:,:,pyirc.swi.g]
   print beta_gain
   hotcube = pyirc.hotpix_ipc(hotY, hotX, darkfiles, formatpars, htsteps, [beta_gain, False], True)
   nhstep = len(htsteps)
@@ -701,7 +739,7 @@ if hotpix:
   for jpix in range(len(hotX)):
     iy = hotY[jpix]//dy
     ix = hotX[jpix]//dx
-    fromcorr_alpha[jpix] = full_info[iy,ix,4]/2.+full_info[iy,ix,5]/2.
+    fromcorr_alpha[jpix] = full_info[iy,ix,pyirc.swi.alphaH]/2.+full_info[iy,ix,pyirc.swi.alphaV]/2.
     thisOut.write('{:4d} {:4d} {:8.6f}'.format(hotX[jpix], hotY[jpix], fromcorr_alpha[jpix]))
     for t in range(1,nhstep):
       R = ( numpy.mean(hotcube[jpix,t,1:5]) - hotcube[jpix,t,-1] ) / (hotcube[jpix,t,0]-hotcube[jpix,t,-1] )
@@ -751,7 +789,7 @@ if hotpix:
       for iy in range(NG):
         # bin the auto-correlation measurements
         suba = full_info[iy*stepy:(iy+1)*stepy, ix*stepx:(ix+1)*stepx, :]
-        mya = (suba[:,:,4]+suba[:,:,5])/2.
+        mya = (suba[:,:,pyirc.swi.alphaH]+suba[:,:,pyirc.swi.alphaV])/2.
         pmask = suba[:,:,0] > 0
         n = mya[pmask].size
         if n>1:
