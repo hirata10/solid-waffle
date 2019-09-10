@@ -1,0 +1,59 @@
+# This is an example script on how to use these tools
+
+# replace with target directory where you want to do the CRNL analysis
+TARGET_DIR="/Users/christopherhirata/Downloads/SCA20026-run285"
+
+echo "Target directory"
+echo $TARGET_DIR
+
+echo "Small LED"
+perl read_photodiode.pl $TARGET_DIR/rft1\ -\ cold\ run\ 285\ PD1\ small\ LED\ DC\ SCA.txt > leds.txt
+echo "Big LED"
+perl read_photodiode.pl $TARGET_DIR/rft1\ -\ cold\ run\ 285\ PD1\ big\ LED\ DC\ SCA.txt >> leds.txt
+
+rm currents.txt
+
+
+# For each run: give prototype file name, start #, # files
+# then echo [frames between saved samples] [line in leds.txt]
+python crnl_analyze.py $TARGET_DIR/HG_smallLED_10P000_SN20026_ 1 10
+echo 257 0 >> currents.txt
+
+python crnl_analyze.py $TARGET_DIR/HG_smallLED_40P000_SN20026_ 1 10
+echo 257 1 >> currents.txt
+
+python crnl_analyze.py $TARGET_DIR/HG_smallLED_60P000_SN20026_ 1 10
+echo 129 2 >> currents.txt
+
+python crnl_analyze.py $TARGET_DIR/HG_smallLED_80P000_SN20026_ 1 10
+echo 129 3 >> currents.txt
+
+python crnl_analyze.py $TARGET_DIR/HG_smallLED_100P000_SN20026_ 1 10
+echo 129 4 >> currents.txt
+
+python crnl_analyze.py $TARGET_DIR/HG_bigLED1_0P100_bigLED2_0P000_SN20026_ 1 10
+echo 129 5 >> currents.txt
+
+python crnl_analyze.py $TARGET_DIR/HG_bigLED1_0P130_bigLED2_0P000_SN20026_ 1 10
+echo 129 6 >> currents.txt
+
+python crnl_analyze.py $TARGET_DIR/HG_bigLED1_0P170_bigLED2_0P000_SN20026_ 1 10
+echo 129 7 >> currents.txt
+
+python crnl_analyze.py $TARGET_DIR/HG_bigLED1_0P500_bigLED2_0P000_SN20026_ 1 10
+echo 65 8 >> currents.txt
+
+python crnl_analyze.py $TARGET_DIR/HG_bigLED1_2P500_bigLED2_0P000_SN20026_ 1 10
+echo 17 9 >> currents.txt
+
+python crnl_analyze.py $TARGET_DIR/HG_bigLED1_8P600_bigLED2_0P000_SN20026_ 1 10
+echo 1 10 >> currents.txt
+
+python crnl_analyze.py $TARGET_DIR/HG_bigLED1_19P400_bigLED2_0P000_SN20026_ 1 10
+echo 1 11 >> currents.txt
+
+python crnl_analyze.py $TARGET_DIR/HG_bigLED1_44P100_bigLED2_0P000_SN20026_ 1 10
+echo 1 12 >> currents.txt
+
+python combine_nl_func.py $TARGET_DIR
+perl makeplots.pl $TARGET_DIR 32

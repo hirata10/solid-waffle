@@ -1,0 +1,13 @@
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_smallLED_10P000_SN20026_ 257 0
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_smallLED_40P000_SN20026_ 257 1
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_smallLED_60P000_SN20026_ 129 2
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_smallLED_80P000_SN20026_ 129 3
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_smallLED_100P000_SN20026_ 129 4
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_bigLED1_0P100_bigLED2_0P000_SN20026_ 129 5
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_bigLED1_0P130_bigLED2_0P000_SN20026_ 129 6
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_bigLED1_0P170_bigLED2_0P000_SN20026_ 129 7
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_bigLED1_0P500_bigLED2_0P000_SN20026_ 65 8
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_bigLED1_2P500_bigLED2_0P000_SN20026_ 17 9
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_bigLED1_8P600_bigLED2_0P000_SN20026_ 1 10
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_bigLED1_19P400_bigLED2_0P000_SN20026_ 1 11
+/Users/christopherhirata/Downloads/SCA20026-run285/HG_bigLED1_44P100_bigLED2_0P000_SN20026_ 1 12
