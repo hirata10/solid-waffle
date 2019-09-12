@@ -211,21 +211,22 @@ my_dim = pyirc.swi.N
 full_info = numpy.zeros((ny,nx,my_dim))
 is_good = numpy.zeros((ny,nx))
 
-# now coefficients for the info table
-# note that in 'abs' mode, the full_info[:,:,0] grid is not actually used, it
-#   is just there for consistency of the format
-# I moved this up here since we want to have these coefficients before the main program runs
-nlcubeX, nlfitX, nlderX, pcoefX = pyirc.gen_nl_cube(lightfiles, formatpars, [basicpar[3], nlfit_ts, nlfit_te], [ny,nx],
-  full_info[:,:,0], 'abs', False)
-# fill in
-for iy in range(ny):
-  for ix in range(nx):
-    if pcoefX[1,iy,ix]!=0:
-      full_info[iy,ix,pyirc.swi.Nbb] = -pcoefX[0,iy,ix]/pcoefX[1,iy,ix]
-      for o in range(2,pyirc.swi.p+1):
-        full_info[iy,ix,pyirc.swi.Nbb+o-1] = pcoefX[o,iy,ix]/pcoefX[1,iy,ix]**o
-    else:
-      full_info[iy,ix,pyirc.swi.Nbb] = -1e49 # error code
+if p_order>0:
+  # now coefficients for the info table
+  # note that in 'abs' mode, the full_info[:,:,0] grid is not actually used, it
+  #   is just there for consistency of the format
+  # I moved this up here since we want to have these coefficients before the main program runs
+  nlcubeX, nlfitX, nlderX, pcoefX = pyirc.gen_nl_cube(lightfiles, formatpars, [basicpar[3], nlfit_ts, nlfit_te], [ny,nx],
+    full_info[:,:,0], 'abs', False)
+  # fill in
+  for iy in range(ny):
+    for ix in range(nx):
+      if pcoefX[1,iy,ix]!=0:
+        full_info[iy,ix,pyirc.swi.Nbb] = -pcoefX[0,iy,ix]/pcoefX[1,iy,ix]
+        for o in range(2,pyirc.swi.p+1):
+          full_info[iy,ix,pyirc.swi.Nbb+o-1] = pcoefX[o,iy,ix]/pcoefX[1,iy,ix]**o
+      else:
+        full_info[iy,ix,pyirc.swi.Nbb] = -1e49 # error code
 
 # Detector characterization data in a cube (basic characterization + BFE Method 1)
 # Stdout calls are a progress indicator
