@@ -7,6 +7,7 @@ import scipy.stats
 import scipy.ndimage
 import fitsio
 from fitsio import FITS,FITSHDR
+from ftsolve import center,decenter,solve_corr
 
 # <== THESE FUNCTIONS DEPEND ON THE FORMAT OF THE INPUT FILES ==>
 
@@ -1151,6 +1152,24 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     for j in range(fsBFE):
       rowBL = ( numpy.mean(BFEK[j,0:pad]) + numpy.mean(BFEK[j,-pad:]) )/2.
       BFEK[j,:] -= rowBL
+
+  # Implement cr_converge. We have to update this with center/decenter
+  if False:
+    N = 21
+    avals = [alphaV,alphaH,alphaD]
+    avals_nl = [0,0,0]
+    sigma_a = 0
+    tol = 1.e-11 #Pick a tolerance below which the two Crs are considered equal
+    fsBFE_out = 2*sBFE_out+1
+    BFEK_model = numpy.zeros((fsBFE_out,fsBFE_out))
+    element_diff = 10
+    while element_diff > tol:
+        theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,tslices,avals,avals_nl)\
+        *((g**2)/(I**2*(tb-ta)*(td-tc)))
+        observed_Cr = BFEK
+        difference = theory_Cr - observed_Cr
+        element_diff = numpy.amax(abs(difference))
+        BFEK_model -= difference
 
   # Corrections for classical non-linearity
   BFEK[sBFE,sBFE] += 2*(1-4*(aH+aV))*beta
