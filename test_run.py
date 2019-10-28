@@ -391,7 +391,7 @@ else:
           info = pyirc.basic(region_cube, dark_cube, temp_tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
           Method2a_vals[iy,ix,t] = lngraw[t] = numpy.log(info[1])
         # Build least squares fit
-        mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM2a)), numpy.ones(ntM2a)]).T, lngraw)[0]
+        mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM2a)), numpy.ones(ntM2a)]).T, lngraw, rcond=-1)[0]
         Method2a_slopes[iy,ix] = mS/full_info[iy,ix,pyirc.swi.I]
   print ('|')
   print ('Mean slope d[ln graw]/d[I td] at fixed ta,tb =', numpy.mean(is_good*Method2a_slopes)/numpy.mean(is_good))
@@ -438,7 +438,7 @@ else:
           info = pyirc.basic(region_cube, dark_cube, temp_tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
           Method2b_vals[iy,ix,t] = lngraw[t] = numpy.log(info[1])
         # Build least squares fit
-        mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM2b)), numpy.ones(ntM2b)]).T, lngraw)[0]
+        mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM2b)), numpy.ones(ntM2b)]).T, lngraw, rcond=-1)[0]
         Method2b_slopes[iy,ix] = mS/full_info[iy,ix,pyirc.swi.I]
   print ('|')
   print ('Mean slope d[ln graw]/d[I tb] at fixed tab,tad =', numpy.mean(is_good*Method2b_slopes)/numpy.mean(is_good))
@@ -487,7 +487,7 @@ else:
             /(full_info[iy,ix,pyirc.swi.I]*(temp_tslices[-1]-temp_tslices[0]))
           Method3_alphas[iy,ix,t] = (info[pyirc.swi.alphaH]+info[pyirc.swi.alphaV])/2.
         # Build least squares fit
-        mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM3)), numpy.ones(ntM3)]).T, CCraw)[0]
+        mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM3)), numpy.ones(ntM3)]).T, CCraw, rcond=-1)[0]
         Method3_slopes[iy,ix] = mS/full_info[iy,ix,pyirc.swi.I]
   print ('|')
   print ('Mean slope d[g^2/(Itad) Cadj,ad]/d[I td] at fixed ta,tb =', numpy.mean(is_good*Method3_slopes)/numpy.mean(is_good))

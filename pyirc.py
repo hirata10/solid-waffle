@@ -962,7 +962,7 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
   for j in range(npts):
     diff_frames[j] = data[j,j+1,1] # median from frame tslices[0]+j -> tslices[0]+j+1
   slopemed, icpt = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(npts)) + tslices[0]-ctrl_pars[3],
-                   numpy.ones(npts)]).T, diff_frames)[0]
+                   numpy.ones(npts)]).T, diff_frames, rcond=-1)[0]
 
   # Difference of correlation functions
   #
