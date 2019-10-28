@@ -93,7 +93,7 @@ for line in content:
          ncycle = int(m.group(4))
          ipnltype = m.group(5)
        else:
-         print 'Error: insufficient arguments: ' + line + '\n'
+         print ('Error: insufficient arguments: ' + line + '\n')
          exit()
 
   # Time slices
@@ -170,7 +170,7 @@ for line in content:
 # set up array size parameters
 pyirc.swi.addbfe(s_bfe)
 pyirc.swi.addhnl(p_order)
-print 'Number of output field per superpixel =', pyirc.swi.N
+print ('Number of output field per superpixel =', pyirc.swi.N)
 
 # Check number of slices available
 NTMAX = 16384
@@ -178,14 +178,14 @@ for f in lightfiles+darkfiles:
   nt = pyirc.get_num_slices(formatpars, f)
   if nt<NTMAX: NTMAX=nt
 
-print 'Output will be directed to {:s}*'.format(outstem)
-print 'Light files:', lightfiles
-print 'Dark files:', darkfiles
-print 'Time slices:', tslices, 'max=',NTMAX
-print 'Mask regions:', maskX, maskY
+print ('Output will be directed to {:s}*'.format(outstem))
+print ('Light files:', lightfiles)
+print ('Dark files:', darkfiles)
+print ('Time slices:', tslices, 'max=',NTMAX)
+print ('Mask regions:', maskX, maskY)
 # 
 if len(lightfiles)!=len(darkfiles) or len(lightfiles)<2:
-  print 'Failed: {:d} light files and {:d} dark files'.format(len(lightfiles), len(darkfiles))
+  print ('Failed: {:d} light files and {:d} dark files'.format(len(lightfiles), len(darkfiles)))
   exit()
 
 # Additional parameters
@@ -231,10 +231,10 @@ if p_order>0:
 # Detector characterization data in a cube (basic characterization + BFE Method 1)
 # Stdout calls are a progress indicator
 #
-print 'Method 1, progress of calculation:'
+print ('Method 1, progress of calculation:')
 sys.stdout.write('|')
 for iy in range(ny): sys.stdout.write(' ')
-print '| <- 100%'
+print ('| <- 100%')
 sys.stdout.write('|')
 for iy in range(ny):
   sys.stdout.write('*'); sys.stdout.flush()
@@ -243,7 +243,6 @@ for iy in range(ny):
                   [sensitivity_spread_cut, True], False)
     dark_cube = pyirc.pixel_data(darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
                   [sensitivity_spread_cut, False], False)
-    #print len(numpy.where(region_cube[len(lightfiles),0,:,:]>0)[0])
     info = pyirc.basic(region_cube, dark_cube, tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
     if len(info)>0:
       if mychar.lower()=='advanced':
@@ -264,7 +263,7 @@ for iy in range(ny):
     else:
       full_info[iy,ix,1:] = 0 # wipe out this super-pixel
 
-print '|'
+print ('|')
 
 # Mask regions
 for mask_index in range(len(maskX)):
@@ -273,11 +272,11 @@ for mask_index in range(len(maskX)):
   is_good[iy,ix] = 0
   full_info[iy,ix,:] = 0 # wipe out this super-pixel
 
-print full_info.shape
-print 'Number of good regions =', numpy.sum(is_good)
+print (full_info.shape)
+print ('Number of good regions =', numpy.sum(is_good))
 mean_full_info = numpy.mean(numpy.mean(full_info, axis=0), axis=0)/numpy.mean(is_good)
-print 'Mean info from good regions =', mean_full_info
-print ''
+print ('Mean info from good regions =', mean_full_info)
+print ('')
 
 # Non-linearity cube
 ntSub = tslices[-1]
@@ -360,18 +359,18 @@ plt.close(F)
 #
 used_2a = False
 if len(tslicesM2a)!=4 or tslicesM2a[-1]<=tslicesM2a[-2]:
-  print 'Error: tslicesM2a =',tslicesM2a,'does not have length 4 or has insufficient span.'
-  print 'Skipping Method 2a ...'
+  print ('Error: tslicesM2a =',tslicesM2a,'does not have length 4 or has insufficient span.')
+  print ('Skipping Method 2a ...')
 else:
   # Proceed to implement Method 2a
   used_2a = True
-  print 'Alt. time slices (Method 2a): ',tslicesM2a
+  print ('Alt. time slices (Method 2a): ',tslicesM2a)
   tfmin = tslicesM2a[2]; tfmax = tslicesM2a[3]
   ntM2a = tfmax-tfmin+1
-  print 'Method 2a, progress of calculation:'
+  print ('Method 2a, progress of calculation:')
   sys.stdout.write('|')
   for iy in range(ny): sys.stdout.write(' ')
-  print '| <- 100%'
+  print ('| <- 100%')
   sys.stdout.write('|')
   Method2a_slopes = numpy.zeros((ny,nx))
   Method2a_vals = numpy.zeros((ny,nx,ntM2a))
@@ -394,9 +393,9 @@ else:
         # Build least squares fit
         mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM2a)), numpy.ones(ntM2a)]).T, lngraw)[0]
         Method2a_slopes[iy,ix] = mS/full_info[iy,ix,pyirc.swi.I]
-  print '|'
-  print 'Mean slope d[ln graw]/d[I td] at fixed ta,tb =', numpy.mean(is_good*Method2a_slopes)/numpy.mean(is_good)
-  print ''
+  print ('|')
+  print ('Mean slope d[ln graw]/d[I td] at fixed ta,tb =', numpy.mean(is_good*Method2a_slopes)/numpy.mean(is_good))
+  print ('')
   # Predicted slopes
   slope_2a_BFE = 3*mean_full_info[pyirc.swi.beta] - (1+4*mean_full_info[pyirc.swi.alphaH]
                  +4*mean_full_info[pyirc.swi.alphaV])*mean_full_info[pyirc.swi.ker0]
@@ -407,18 +406,18 @@ else:
 #
 used_2b = False
 if len(tslicesM2b)!=4 or tslicesM2b[-1]<=tslicesM2b[-2]:
-  print 'Error: tslicesM2b =',tslicesM2b,'does not have length 4 or has insufficient span.'
-  print 'Skipping Method 2b ...'
+  print ('Error: tslicesM2b =',tslicesM2b,'does not have length 4 or has insufficient span.')
+  print ('Skipping Method 2b ...')
 else:
   # Proceed to implement Method 2b
   used_2b = True
-  print 'Alt. time slices (Method 2b): ',tslicesM2b
+  print ('Alt. time slices (Method 2b): ',tslicesM2b)
   tfminB = tslicesM2b[2]; tfmaxB = tslicesM2b[3]
   ntM2b = tfmaxB-tfminB+1
-  print 'Method 2b, progress of calculation:'
+  print ('Method 2b, progress of calculation:')
   sys.stdout.write('|')
   for iy in range(ny): sys.stdout.write(' ')
-  print '| <- 100%'
+  print ('| <- 100%')
   sys.stdout.write('|')
   Method2b_slopes = numpy.zeros((ny,nx))
   Method2b_vals = numpy.zeros((ny,nx,ntM2b))
@@ -441,9 +440,9 @@ else:
         # Build least squares fit
         mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM2b)), numpy.ones(ntM2b)]).T, lngraw)[0]
         Method2b_slopes[iy,ix] = mS/full_info[iy,ix,pyirc.swi.I]
-  print '|'
-  print 'Mean slope d[ln graw]/d[I tb] at fixed tab,tad =', numpy.mean(is_good*Method2b_slopes)/numpy.mean(is_good)
-  print ''
+  print ('|')
+  print ('Mean slope d[ln graw]/d[I tb] at fixed tab,tad =', numpy.mean(is_good*Method2b_slopes)/numpy.mean(is_good))
+  print ('')
   # Predicted slopes
   slope_2b_BFE = 2*mean_full_info[pyirc.swi.beta]
   slope_2b_NLIPC = 2*mean_full_info[pyirc.swi.beta] + 2*(1+4*mean_full_info[pyirc.swi.alphaH]
@@ -453,18 +452,18 @@ else:
 #
 used_3 = False
 if len(tslicesM3)!=4 or tslicesM3[-1]<=tslicesM3[-2]:
-  print 'Error: tslicesM3 =',tslicesM3,'does not have length 4 or has insufficient span.'
-  print 'Skipping Method 3 ...'
+  print ('Error: tslicesM3 =',tslicesM3,'does not have length 4 or has insufficient span.')
+  print ('Skipping Method 3 ...')
 else:
   # Proceed to implement Method 3
   used_3 = True
-  print 'Alt. time slices (Method 3): ',tslicesM3
+  print ('Alt. time slices (Method 3): ',tslicesM3)
   tfmin3 = tslicesM3[2]; tfmax3 = tslicesM3[3]
   ntM3 = tfmax3-tfmin3+1
-  print 'Method 3, progress of calculation:'
+  print ('Method 3, progress of calculation:')
   sys.stdout.write('|')
   for iy in range(ny): sys.stdout.write(' ')
-  print '| <- 100%'
+  print ('| <- 100%')
   sys.stdout.write('|')
   Method3_slopes = numpy.zeros((ny,nx))
   Method3_vals = numpy.zeros((ny,nx,ntM3))
@@ -490,9 +489,9 @@ else:
         # Build least squares fit
         mS, cS = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(ntM3)), numpy.ones(ntM3)]).T, CCraw)[0]
         Method3_slopes[iy,ix] = mS/full_info[iy,ix,pyirc.swi.I]
-  print '|'
-  print 'Mean slope d[g^2/(Itad) Cadj,ad]/d[I td] at fixed ta,tb =', numpy.mean(is_good*Method3_slopes)/numpy.mean(is_good)
-  print ''
+  print ('|')
+  print ('Mean slope d[g^2/(Itad) Cadj,ad]/d[I td] at fixed ta,tb =', numpy.mean(is_good*Method3_slopes)/numpy.mean(is_good))
+  print ('')
   # Predicted slopes
   ave = (mean_full_info[pyirc.swi.ker0-1]+mean_full_info[pyirc.swi.ker0+1]+mean_full_info[pyirc.swi.ker0-(2*pyirc.swi.s+1)]
         +mean_full_info[pyirc.swi.ker0+(2*pyirc.swi.s+1)])/4.
@@ -504,37 +503,37 @@ else:
 #
 # I have commented out the outputs for this section. We may put them back as needed.
 #for it in range(ntSub): 
-#  print '{:2d} {:8.2f} {:8.2f} {:8.2f}'.format(it+1, nlMean[it], nlFit[it], nlMeanDer[it])
-print 'Non-linearity correction tables:'
+#  print ('{:2d} {:8.2f} {:8.2f} {:8.2f}'.format(it+1, nlMean[it], nlFit[it], nlMeanDer[it]))
+print ('Non-linearity correction tables:')
 if used_2a:
-  print '2a:'
+  print ('2a:')
   vec = []
   for t in range(tslicesM2a[2], tslicesM2a[3]+1):
     offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,pyirc.swi.I]*full_info[:,:,pyirc.swi.beta], [tslicesM2a[0],tslicesM2a[1],t], basicpar[3], is_good)
-    print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
+    print (t, numpy.mean(offsets*is_good)/numpy.mean(is_good))
     vec += [numpy.mean(offsets*is_good)/numpy.mean(is_good)]
-  PV2a = max(vec)-min(vec); print 'PV: ', PV2a
+  PV2a = max(vec)-min(vec); print ('PV: ', PV2a)
 if used_2b:
-  print '2b:'
+  print ('2b:')
   vec = []
   dt1 = tslicesM2b[1] - tslicesM2b[0]
   dt2 = tslicesM2b[2] - tslicesM2b[0]
   for t in range(tslicesM2b[0], tslicesM2b[3]-tslicesM2b[2]+1):
     offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,pyirc.swi.I]*full_info[:,:,pyirc.swi.beta], [t,t+dt1,t+dt2], basicpar[3], is_good)
-    print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
+    print (t, numpy.mean(offsets*is_good)/numpy.mean(is_good))
     vec += [numpy.mean(offsets*is_good)/numpy.mean(is_good)]
-  PV2b = max(vec)-min(vec); print 'PV: ', PV2b
+  PV2b = max(vec)-min(vec); print ('PV: ', PV2b)
 if used_3:
-  print '3:'
+  print ('3:')
   vec = []
   for t in range(tslicesM3[2], tslicesM3[3]+1):
     offsets = pyirc.compute_xc_corr_many(nlfit, nlder, full_info[:,:,pyirc.swi.I]*full_info[:,:,pyirc.swi.beta], [tslicesM3[0],t], basicpar[3], is_good)
     alpha3 = (full_info[:,:,pyirc.swi.alphaH]+full_info[:,:,pyirc.swi.alphaV])/2.
     offsets *= 2. * alpha3 * (1.-4*alpha3)
-    print t, numpy.mean(offsets*is_good)/numpy.mean(is_good)
+    print (t, numpy.mean(offsets*is_good)/numpy.mean(is_good))
     vec += [numpy.mean(offsets*is_good)/numpy.mean(is_good)]
-  PV3 = max(vec)-min(vec); print 'PV: ', PV3
-print ''
+  PV3 = max(vec)-min(vec); print ('PV: ', PV3)
+print ('')
 
 # Method 2 and 3 characterization
 # Multi-panel figure showing basic characterization
@@ -603,27 +602,7 @@ if used_3:
   S.plot(xr, yc+(xr-xc)*slope_3_NLIPC*1e3, 'b-', label='pure NL-IPC')
   S.plot(xr, yc+(xr-xc)*slope_3_beta*1e3, 'k:', label='beta only')
   S.legend(loc=2)
-  print 'Method 3 implied slopes =', slope_3_beta, slope_3_BFE, slope_3_NLIPC
-  #for i in range(len(SX)):
-  #  print '{:9.6f} {:9.6f} {:9.6f}'.format(SX[i], SY[i], SS[i])
-  #
-  #S = F.add_subplot(2,2,4)
-  #S.set_title(r'Fitted $\alpha$ vs. signal')
-  #S.set_xlabel(r'Signal level $It_{'+'{:d}'.format(tslicesM3[0])+r',d}$ [ke]')
-  #S.set_ylabel(r'Fitted $\alpha$ [%]')
-  #SX = [numpy.mean(is_good*full_info[:,:,pyirc.swi.I]*myt)/numpy.mean(is_good)/1.0e3 for myt in range(tfmin3-tslicesM3[0], tfmax3+1-tslicesM3[0])]
-  #SY = [numpy.mean(is_good*Method3_alphas[:,:,t])/numpy.mean(is_good)/1.0e-2 for t in range(ntM3)]
-  #SS = [] # std. dev. on the mean
-  #for t in range(ntM3):
-  #  SS += [ numpy.sqrt((numpy.mean(is_good*Method3_alphas[:,:,t]**2)/numpy.mean(is_good)/1.0e-4-SY[t]**2)/(numpy.sum(is_good)-1)) ]
-  #xc = numpy.mean(numpy.array(SX))
-  #yc = numpy.mean(numpy.array(SY))
-  #S.set_xlim(min(SX)-.05*(max(SX)-min(SX)), max(SX)+.05*(max(SX)-min(SX)))
-  #xr = numpy.arange(min(SX), max(SX), (max(SX)-min(SX))/256.)
-  #S.errorbar(SX, SY, yerr=SS, marker='x', color='r', ls='None')
-  #S.plot(xr, yc+(xr-xc)*ave/2./(1.-.08*yc)*1.0e3/1.0e-2, 'g--', label='pure BFE')
-  #S.plot(xr, yc+(xr-xc)*ave/(1.-.08*yc)*1.0e3/1.0e-2, 'b-', label='pure NL-IPC')
-  #S.legend(loc=2)
+  print ('Method 3 implied slopes =', slope_3_beta, slope_3_BFE, slope_3_NLIPC)
 F.set_tight_layout(True)
 F.savefig(outstem+'_m23.pdf')
 plt.close(F)
@@ -713,9 +692,9 @@ for iy in range(ny):
 thisOut.close()
 
 if hotpix:
-  print 'Start hot pixels ...'
+  print ('Start hot pixels ...')
   hotY, hotX = pyirc.hotpix(darkfiles, formatpars, range(1,NTMAX), hotpix_ADU_range, True)
-  print 'Number of pixels selected:', len(hotX) # only printed for de-bugging -> , len(hotY)
+  print ('Number of pixels selected:', len(hotX)) # only printed for de-bugging -> , len(hotY)
   dtstep = 5 # <-- right now this is hard coded
   htsteps = range(1,NTMAX,dtstep)
   if hotpix_logtspace:
@@ -729,10 +708,10 @@ if hotpix:
         if 7*2**(k-2)<NTMAX-1: htsteps += [7*2**(k-2)]
     htsteps += [NTMAX-1]
   beta_gain = full_info[:,:,pyirc.swi.beta]*full_info[:,:,pyirc.swi.g]
-  print beta_gain
+  print (beta_gain)
   hotcube = pyirc.hotpix_ipc(hotY, hotX, darkfiles, formatpars, htsteps, [beta_gain, False], True)
   nhstep = len(htsteps)
-  print 'number of time steps ->', nhstep
+  print ('number of time steps ->', nhstep)
   fromcorr_alpha = numpy.zeros((len(hotX)))
   hotpix_alpha = numpy.zeros((len(hotX), nhstep))
   hotpix_alpha_num = numpy.zeros((len(hotX), nhstep))
@@ -761,7 +740,7 @@ if hotpix:
   thisOut.close()
 
   # report median levels
-  print 'IPC relative to nominal (signal, median, uncert):'
+  print ('IPC relative to nominal (signal, median, uncert):')
   ipcmed_x = numpy.zeros((nhstep))
   ipcmed_y = numpy.zeros((nhstep))
   ipcmed_yerr = numpy.zeros((nhstep))
@@ -779,10 +758,10 @@ if hotpix:
     else:
       ipcmed_y[t] = numpy.nanpercentile(my_y, 50.)
       ipcmed_yerr[t] = (numpy.nanpercentile(my_y, 50.+100*delta)-numpy.nanpercentile(my_y, 50.-100*delta))/2.
-    print '{:10.2f} {:9.6f} {:9.6f}'.format(ipcmed_x[t], ipcmed_y[t], ipcmed_yerr[t])
-  print ''
-  print 'median alphaD:', '{:9.6f} {:9.6f}'.format(numpy.nanpercentile(hotpix_alphaD[:,-1], 50.),
-    (numpy.nanpercentile(hotpix_alphaD[:,-1], 50.+100*delta)-numpy.nanpercentile(hotpix_alphaD[:,-1], 50.-100*delta))/2.)
+    print ('{:10.2f} {:9.6f} {:9.6f}'.format(ipcmed_x[t], ipcmed_y[t], ipcmed_yerr[t]))
+  print ('')
+  print ('median alphaD:', '{:9.6f} {:9.6f}'.format(numpy.nanpercentile(hotpix_alphaD[:,-1], 50.),
+    (numpy.nanpercentile(hotpix_alphaD[:,-1], 50.+100*delta)-numpy.nanpercentile(hotpix_alphaD[:,-1], 50.-100*delta))/2.))
 
   # bigger grid for IPC comparisons
   NG=4
@@ -808,7 +787,7 @@ if hotpix:
           grid_alphaHot[iy,ix] = numpy.nanpercentile(u,50)
           delta = .5/numpy.sqrt(u.size)
           grid_alphaHotErr[iy,ix] = (numpy.nanpercentile(u, 50.+100*delta)-numpy.nanpercentile(u, 50.-100*delta))/2.
-  print grid_alphaCorr, grid_alphaCorrErr, grid_alphaHot, grid_alphaHotErr
+  print (grid_alphaCorr, grid_alphaCorrErr, grid_alphaHot, grid_alphaHotErr)
 
   # hot pixel plots
   matplotlib.rcParams.update({'font.size': 8})
@@ -852,7 +831,7 @@ if hotpix:
       if t==1:
         SX = SXa; SY = SYa
       else:
-        print t, numpy.shape(SX), numpy.shape(SXa)
+        print (t, numpy.shape(SX), numpy.shape(SXa))
         SX = numpy.concatenate((SX,SXa)); SY = numpy.concatenate((SY,SYa))
     S.set_title(r'IPC signal dependence $\Delta\alpha$')
     S.set_xlim(0., hotpix_ADU_range[1])

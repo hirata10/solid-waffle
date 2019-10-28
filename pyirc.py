@@ -12,7 +12,7 @@ from fitsio import FITS,FITSHDR
 
 # Version number of script
 def get_version():
-  return 15
+  return 16
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -41,7 +41,7 @@ def get_num_slices(formatpars, filename):
     ntslice = int(hdus[1].header['NAXIS3'])
     hdus.close()
   else:
-    print 'Error! Invalid formatpars =', formatpars
+    print ('Error! Invalid formatpars =', formatpars)
     exit()
   return ntslice
 
@@ -57,7 +57,7 @@ def get_num_slices(formatpars, filename):
 # Returns a 3D array of dimension number tslices, ymax-ymin, xmax-xmin
 #
 def load_segment(filename, formatpars, xyrange, tslices, verbose):
-  if verbose: print 'Reading:', filename
+  if verbose: print ('Reading:', filename)
 
   # Recommended True (False defaults to astropy tools, which work but are slow because of the way this script works)
   use_fitsio = True
@@ -82,8 +82,8 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
       in_hdu = hdus[0]
       ntslice = in_hdu.data.shape[0]
       if verbose:
-        print 'input shape -> ', in_hdu.data.shape
-        print 'number of slices =', ntslice, ', used =', ntslice_use
+        print ('input shape -> ', in_hdu.data.shape)
+        print ('number of slices =', ntslice, ', used =', ntslice_use)
       for ts in range(ntslice_use):
         t = tslices[ts]
         output_cube[ts,:,:] = 65535 - in_hdu.data[t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]]
@@ -97,7 +97,7 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
         output_cube[ts,:,:] = numpy.array(fileh[t][xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
       fileh.close()
     else:
-      print 'Error: non-fitsio methods not yet supported for formatpars=3'
+      print ('Error: non-fitsio methods not yet supported for formatpars=3')
       exit()
   elif formatpars==4:
     if use_fitsio:
@@ -108,10 +108,10 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
         output_cube[ts,:,:] = numpy.array(fileh[1][0, t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
       fileh.close()
     else:
-      print 'Error: non-fitsio methods not yet supported for formatpars=4'
+      print ('Error: non-fitsio methods not yet supported for formatpars=4')
       exit()
   else:
-    print 'Error! Invalid formatpars =', formatpars
+    print ('Error! Invalid formatpars =', formatpars)
     exit()
 
   return output_cube
@@ -202,7 +202,7 @@ def ref_corr(filename, formatpars, yrange, tslices, verbose):
   my_array_L = load_segment(filename, formatpars, [0,4]+yrange, tslices, False)
   my_array_R = load_segment(filename, formatpars, [N-4,N]+yrange, tslices, False)
   my_array_LR = numpy.concatenate((my_array_L, my_array_R), axis=2)
-  if verbose: print N, my_array_LR.shape
+  if verbose: print (N, my_array_LR.shape)
 
   for ts in range(ntslice_use):
     output_ref.append(numpy.median(my_array_LR[ts,:,:]))
@@ -244,8 +244,8 @@ def ref_array(filelist, formatpars, ny, tslices, verbose):
       ymax = ymin+dy
       output_array[ifile, iy, :] = numpy.asarray(ref_corr(filelist[ifile], formatpars, [ymin,ymax], tslices, False))
       if verbose:
-        print ifile, iy
-        print output_array[ifile, iy, :]
+        print (ifile, iy)
+        print (output_array[ifile, iy, :])
 
   return(output_array)
 #
@@ -261,8 +261,8 @@ def ref_array_onerow(filelist, formatpars, iy, ny, tslices, verbose):
     ymax = ymin+dy
     output_array[ifile, iy, :] = numpy.asarray(ref_corr(filelist[ifile], formatpars, [ymin,ymax], tslices, False))
     if verbose:
-      print ifile, iy
-      print output_array[ifile, iy, :]
+      print (ifile, iy)
+      print (output_array[ifile, iy, :])
   return(output_array)
 #
 # similar but uses a user-specified range of y-values, and output lacks the 'iy' index
@@ -274,15 +274,15 @@ def ref_array_block(filelist, formatpars, yrange, tslices, verbose):
   output_array = numpy.zeros((num_files, 2*ntslice_use+1))
 
   if len(yrange)<2:
-    print 'Error in ref_array_block: yrange =', yrange
+    print ('Error in ref_array_block: yrange =', yrange)
     exit()
   for ifile in range(num_files):
     ymin = yrange[0]
     ymax = yrange[1]
     output_array[ifile, :] = numpy.asarray(ref_corr(filelist[ifile], formatpars, [ymin,ymax], tslices, False))
     if verbose:
-      print ifile
-      print output_array[ifile, :]
+      print (ifile)
+      print (output_array[ifile, :])
 
   return(output_array)
 
@@ -329,9 +329,9 @@ def pixel_data(filelist, formatpars, xyrange, tslices, maskinfo, verbose):
     for t in range(ntslice_use):
       goodmap *= numpy.where(output_array[f,t,:,:]>0,1,0)
   if verbose:
-    print 'Median =', mCDS_med, 'cut_offset =', cut_offset
-    print goodmap
-    print goodmap.shape
+    print ('Median =', mCDS_med, 'cut_offset =', cut_offset)
+    print (goodmap)
+    print (goodmap.shape)
   # Copy map of good pixels into the output
   for t in range(ntslice_use):
     output_array[num_files,t,:,:] = goodmap
@@ -383,7 +383,7 @@ def gen_nl_cube(filelist, formatpars, timeslice, ngrid, Ib, usemode, verbose):
   if usemode=='abs': my_order = swi.p
 
   if verbose:
-    print 'Nonlinear cube:'
+    print ('Nonlinear cube:')
     sys.stdout.write('  reference pixel extraction ...'); sys.stdout.flush()
 
   # Extract reference information
@@ -391,7 +391,7 @@ def gen_nl_cube(filelist, formatpars, timeslice, ngrid, Ib, usemode, verbose):
   ref_signal = ref_array(filelist, formatpars, ny, range(tmin,tmax+1), False)
 
   if verbose:
-    print '  done.'
+    print ('  done.')
     sys.stdout.write('Time slices:'); sys.stdout.flush()
 
   # Now loop over times
@@ -409,7 +409,7 @@ def gen_nl_cube(filelist, formatpars, timeslice, ngrid, Ib, usemode, verbose):
     output_array[t-tmin,:,:] = -numpy.mean(temp_array,axis=0)
     # <-- note: we flipped the sign so that the signal is positive
 
-  if verbose: print ''
+  if verbose: print ('')
 
   # Make fit and derivatives
   coefs_array = numpy.zeros((my_order+1, ny, nx))
@@ -575,9 +575,9 @@ def gain_alphabetacorr(graw, CH, CV, signal, frac_dslope, times):
   for numIter in range(100):
     g = graw * ((1-4*alpha)**2+2*(alphaH**2+alphaV**2)) / (1+beta*I*(3*(times[1]+times[3])-4*times[0]))
     if g<1e-3:
-      print 'Gain did not converge'
-      print 'IN:', graw, CH, CV, signal, frac_dslope, times
-      print 'STATUS:', g, alphaH, alphaV, alpha, I, beta
+      print ('Gain did not converge')
+      print ('IN:', graw, CH, CV, signal, frac_dslope, times)
+      print ('STATUS:', g, alphaH, alphaV, alpha, I, beta)
       exit()
     temp = (1-4*alpha-4*beta*I*times[3])*2*I*(times[3]-times[0])/g**2
     alphaH = CH/temp
@@ -634,9 +634,9 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   dx = region_cube.shape[3]
   npix = dx*dy
   if nt!=len(tslices):
-    print 'Error in pyirc.basic: incompatible number of time slices'
+    print ('Error in pyirc.basic: incompatible number of time slices')
     exit()
-  if verbose: print 'nfiles = ',num_files,', ntimes = ',nt,', dx,dy=',dx,dy
+  if verbose: print ('nfiles = ',num_files,', ntimes = ',nt,', dx,dy=',dx,dy)
   treset = 0
   if len(ctrl_pars)>=4: treset = ctrl_pars[3]
 
@@ -647,7 +647,7 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   if len(ctrl_pars)>=2: subtr_corr = ctrl_pars[1]
   noise_corr = True
   if len(ctrl_pars)>=3: noise_corr = ctrl_pars[2]
-  if verbose: print 'corr pars =', epsilon, subtr_corr, noise_corr
+  if verbose: print ('corr pars =', epsilon, subtr_corr, noise_corr)
   #
 
   # Reference pixel subtraction?
@@ -673,7 +673,7 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
   #
   if subtr_href:
     for f in range(num_files):
-      if verbose: print 'lightref.shape=',lightref.shape, 'subtr ->', lightref[f,nt+1], lightref[f,2*nt-1], darkref[f,2*nt-1]
+      if verbose: print ('lightref.shape=',lightref.shape, 'subtr ->', lightref[f,nt+1], lightref[f,2*nt-1], darkref[f,2*nt-1])
       box1[f,:,:] -= lightref[f,nt+1]
       box2[f,:,:] -= lightref[f,2*nt-1]
       box2Noise[f,:,:] -= darkref[f,2*nt-1]
@@ -692,7 +692,7 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
       iqr2 = pyIRC_percentile(temp_box,corr_mask,g_ptile) - pyIRC_percentile(temp_box,corr_mask,100-g_ptile)
       var1 += (iqr1/gauss_iqr_in_sigmas)**2/2.
       var2 += (iqr2/gauss_iqr_in_sigmas)**2/2.
-      if verbose: print 'Inner loop,', if1, if2, temp_box.shape
+      if verbose: print ('Inner loop,', if1, if2, temp_box.shape)
   var1 /= num_files*(num_files-1)/2.
   var2 /= num_files*(num_files-1)/2.
   if var2<=var1 and tslices[1]<tslices[-1]: return [] # FAIL!
@@ -783,8 +783,8 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
           tCD += CD * (1 if icorr==0 else -1)
 
         if verbose:
-          print 'pos =', if1, if2, 'iteration', icorr, 'cmin,cmax =', cmin, cmax
-          print 'Mask size', numpy.sum(this_mask), 'correlations =', maskCH, maskCV, 'data:', CH, CV
+          print ('pos =', if1, if2, 'iteration', icorr, 'cmin,cmax =', cmin, cmax)
+          print ('Mask size', numpy.sum(this_mask), 'correlations =', maskCH, maskCV, 'data:', CH, CV)
 
         temp_box = box2Noise[if1,:,:] - box2Noise[if2,:,:]
         # end nested for loop
@@ -830,13 +830,13 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
     frac_dslope = fac0/fac1/((tslices[-1]-tslices[-2])/float(tslices[1]-tslices[0]))
   else:
     frac_dslope = 0.
-  if verbose: print 'frac_dslope =', frac_dslope
+  if verbose: print ('frac_dslope =', frac_dslope)
 
   if verbose:
-    print 'Group 1 ->', med1, var1
-    print 'Group 2 ->', med2, var2
-    print 'correlations in Group 2:', tCH, tCV
-    print 'factors used: xi =', xi, ', cov_clip_corr =', cov_clip_corr
+    print ('Group 1 ->', med1, var1)
+    print ('Group 2 ->', med2, var2)
+    print ('correlations in Group 2:', tCH, tCV)
+    print ('factors used: xi =', xi, ', cov_clip_corr =', cov_clip_corr)
 
   # Get alpha-corrected gains
   out = gain_alphacorr(gain_raw, tCH, tCV, med2)
@@ -907,7 +907,7 @@ def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_sprea
         dark_cube[-1,:,:,:] = region_cube_X[-1,:,:,:]
         B = basic(region_cube, dark_cube, tarray, lightref, darkref, ctrl_pars2, False)
         if len(B)==6: data[ti,tj,:] = numpy.asarray(B)
-        # print t1, t2, data[ti,tj,:], len(B)
+        # print (t1, t2, data[ti,tj,:], len(B))
 
   return data
 
@@ -930,10 +930,10 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
 
   # Check time range
   if len(tslices)<4:
-    print 'Error: polychar: not enough data', tslices
+    print ('Error: polychar: not enough data', tslices)
     return []
   if tslices[2]>=tslices[3] or tslices[3]>=tslices[1]-tslices[0] or tslices[1]-tslices[0]<3:
-    print 'Error: polychar: invalid slices range', tslices
+    print ('Error: polychar: invalid slices range', tslices)
     return []
 
   # Get correlation function data (including adjacent steps))
@@ -1058,9 +1058,9 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
   dx = region_cube.shape[3]
   npix = dx*dy
   if (nt!=len(tslices)):
-    print 'Error in basic: incompatible number of time slices'
+    print ('Error in basic: incompatible number of time slices')
     exit()
-  if verbose: print 'nfiles = ',num_files,', ntimes = ',nt,', dx,dy=',dx,dy
+  if verbose: print ('nfiles = ',num_files,', ntimes = ',nt,', dx,dy=',dx,dy)
   treset = 0
   if len(ctrl_pars_bfe)>=2: treset = ctrl_pars_bfe[1]
 
@@ -1108,7 +1108,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
       this_file_mask = numpy.where(numpy.logical_and(slice_ab>ab_min, numpy.logical_and(slice_ab<ab_max,
         numpy.logical_and(slice_cd>cd_min, slice_cd<cd_max))), corr_mask, 0)
       if verbose:
-        print if1, if2, slice_ab.shape, slice_cd.shape, this_file_mask.shape, numpy.sum(this_file_mask)
+        print (if1, if2, slice_ab.shape, slice_cd.shape, this_file_mask.shape, numpy.sum(this_file_mask))
 
       # Mean subtraction
       slice_ab -= pyIRC_mean(slice_ab, this_file_mask)
@@ -1185,16 +1185,16 @@ def hotpix(darkfiles, formatpars, tslices, pars, verbose):
   ave_cube = numpy.mean(cube, axis=0)
   d_cube = numpy.max(cube, axis=0) - numpy.min(cube, axis=0)
   if verbose:
-    print 'time slices for hot pixel analysis ->', tslices
-    print ave_cube
-    print '->', ave_cube.shape
-    print d_cube
-    print '->', d_cube.shape
+    print ('time slices for hot pixel analysis ->', tslices)
+    print (ave_cube)
+    print ('->', ave_cube.shape)
+    print (d_cube)
+    print ('->', d_cube.shape)
 
   this_hot = numpy.where(numpy.logical_and(ave_cube>=pars[0], ave_cube<=pars[1]), 1, 0)
 
   # Isolation cut
-  if verbose: print 'Start with', numpy.sum(this_hot), 'pixels before isolation cut'
+  if verbose: print ('Start with', numpy.sum(this_hot), 'pixels before isolation cut')
   if pars[3]>0:
     C = 2
     M = numpy.ones((2*C+1,2*C+1))
@@ -1207,14 +1207,14 @@ def hotpix(darkfiles, formatpars, tslices, pars, verbose):
     this_hot[:,-(4+C):] = 0
     this_hot *= numpy.where(isolation_mask<=pars[3]*ave_cube, 1, 0)
 
-  if verbose: print 'Start with', numpy.sum(this_hot), 'pixels'
+  if verbose: print ('Start with', numpy.sum(this_hot), 'pixels')
   for t in tslices[1:]:
     for f in range(ndarks):
       CDS = load_segment(darkfiles[f], formatpars, [0,N,0,N], [1,t], False)
       cube[f,:,:] = CDS[0,:,:] - CDS[1,:,:]
     d_cube = numpy.max(cube, axis=0) - numpy.min(cube, axis=0)
     this_hot *= numpy.where(d_cube<=pars[2]*ave_cube, 1, 0)
-  if verbose: print numpy.sum(this_hot)
+  if verbose: print (numpy.sum(this_hot))
 
   return numpy.where(this_hot>0)
 
@@ -1263,7 +1263,7 @@ def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
         for j in range(ny1):
           beta_gain[ky1*j:ky1*(j+1),kx1*i:kx1*(i+1)] = m[j,i]
       # now beta_gain is an NxN map of beta*gain
-      if verbose: print 'beta*gain =', beta_gain
+      if verbose: print ('beta*gain =', beta_gain)
   # baseline for NL correction is median image?
   medbaseline_nonlin = False
   if len(pars)>=2:
@@ -1276,7 +1276,7 @@ def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
   if fourmask:
     bkmask[:,:]=0.
     bkmask[2,0] = bkmask[2,4] = bkmask[0,2] = bkmask[4,2] = 1.
-  if verbose: print 'bkmask =', bkmask
+  if verbose: print ('bkmask =', bkmask)
   # 16 ones and 9 zeros
 
   # now make data cube
@@ -1291,7 +1291,7 @@ def hotpix_ipc(y, x, darkfiles, formatpars, tslices, pars, verbose):
           cube_corr = 2*scipy.ndimage.median_filter(CDS[0,:,:],size=3) - CDS[0,:,:] - CDS[1,:,:]
         cube[f,:,:] = cube[f,:,:]*(1.+beta_gain*cube_corr)
     medframe = numpy.median(cube, axis=0)
-    if verbose: print 'med', numpy.shape(medframe), jt
+    if verbose: print ('med', numpy.shape(medframe), jt)
     for jpix in range(npix):
       for jpos in range(9):
         x_ = x[jpix] + dx[jpos]
