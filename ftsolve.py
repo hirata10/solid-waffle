@@ -103,7 +103,7 @@ if __name__=="__main__":
    avals_nl = [0,0,0]
 
    c_abcd = solve_corr(test_bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl)
-   print c_abcd
+   print (c_abcd)
    
    
    
