@@ -1035,10 +1035,9 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
 # tslices = list of time slices
 # basicinfo = output from basic (incl. gains, IPC, NL)
 # ctrl_pars_bfe = parameters to control BFE determination
-#   ctrl_pars_bfe[0] = cut fraction (default to 0.01)
-#   ctrl_pars_bfe[1] = reset frame (default to 0)
-#   ctrl_pars_bfe[2] = max range for BFE kernel estimation (default to 2)
-#   ctrl_pars_bfe[3] = baseline subtraction? (default to True)
+#   ctrl_pars_bfe.epsilon = cut fraction (default to 0.01)
+#   ctrl_pars_bfe.treset = reset frame (default to 0)
+#   ctrl_pars_bfe.BSub = baseline subtraction? (default to True)
 # verbose = True or False (recommend True only for debugging)
 #
 # output is a fsBFE x fsBFE (default: 5x5) BFE kernel in inverse electrons
@@ -1063,19 +1062,18 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     exit()
   if verbose: print ('nfiles = ',num_files,', ntimes = ',nt,', dx,dy=',dx,dy)
   treset = 0
-  if len(ctrl_pars_bfe)>=2: treset = ctrl_pars_bfe[1]
+  if hasattr(ctrl_pars_bfe,'treset'): treset = ctrl_pars_bfe.treset
 
   # BFE kernel size:
   # sBFE = range; fsBFE = full size
-  sBFE = 2
-  if len(ctrl_pars_bfe)>=3: sBFE = ctrl_pars_bfe[2]
+  sBFE = swi.s
   fsBFE = 2*sBFE+1
   sBFE_out = sBFE
   fsBFE_out = fsBFE
 
   # Baseline subtraction -- requires bigger box
   BSub = True
-  if len(ctrl_pars_bfe)>=4: BSub = ctrl_pars_bfe[3]
+  if hasattr(ctrl_pars_bfe,'BSub'): BSub = ctrl_pars_bfe.BSub
   if BSub:
     sBFE = max(sBFE_out, 10)
     fsBFE = 2*sBFE+1
@@ -1083,7 +1081,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
 
   # Cut fraction and correction
   epsilon = .01
-  if len(ctrl_pars_bfe)>=1: epsilon = ctrl_pars_bfe[0]
+  if hasattr(ctrl_pars_bfe,'epsilon'): epsilon = ctrl_pars_bfe.epsilon
   xi = scipy.stats.norm.ppf(1-epsilon)
   cov_clip_corr = (1. - numpy.sqrt(2./numpy.pi)*xi*numpy.exp(-xi*xi/2.)/(1.-2.*epsilon) )**2
 

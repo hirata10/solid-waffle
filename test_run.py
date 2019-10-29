@@ -48,7 +48,10 @@ basicpar.leadtrailSub = False
 basicpar.g_ptile = 75.
 
 # Parameters for BFE
-blsub = True
+bfepar = EmptyClass()
+bfepar.epsilon = .01
+bfepar.treset = 1
+bfepar.blsub = True
 
 # Plotting parameters
 narrowfig = False
@@ -258,11 +261,11 @@ for iy in range(ny):
     if len(info)>0:
       if mychar.lower()=='advanced':
         for iCycle in range(ncycle):
-          bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, pyirc.swi.s, blsub], False)
+          bfeCoefs = pyirc.bfe(region_cube, tslices, info, bfepar, False)
           Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)],
                  [tslices[0], tslices[-1]+1, tchar1, tchar2], sensitivity_spread_cut, basicpar, [ipnltype, bfeCoefs]) # 1,3 or 9,19
           info[pyirc.swi.ind1:pyirc.swi.ind2] = numpy.asarray(Cdata[pyirc.swi.indp1:pyirc.swi.indp2])
-      bfeCoefs = pyirc.bfe(region_cube, tslices, info, [.01, 1, pyirc.swi.s, blsub], False)
+      bfeCoefs = pyirc.bfe(region_cube, tslices, info, bfepar, False)
       info += bfeCoefs[0:2*pyirc.swi.s+1,0:2*pyirc.swi.s+1].flatten().tolist()
     else:
       info = numpy.zeros((pyirc.swi.Nbb)).tolist()
@@ -645,7 +648,7 @@ thisOut.write('# Lead-trail subtraction for IPC correlation = ' + str(basicpar.l
 thisOut.write('# Characterization type: '+mychar+'\n')
 if mychar.lower()=='advanced':
   thisOut.write('#   dt = {:d},{:d}, ncycle = {:d}\n'.format(tchar1,tchar2,ncycle))
-thisOut.write('# BFE Method 1\n#   Baseline subtraction = {:s}\n'.format(str(blsub)))
+thisOut.write('# BFE Method 1\n#   Baseline subtraction = {:s}\n'.format(str(bfepar.blsub)))
 thisOut.write('# BFE Method 2a\n#   Enabled = {:s}\n'.format(str(used_2a)))
 thisOut.write('# BFE Method 2b\n#   Enabled = {:s}\n'.format(str(used_2b)))
 thisOut.write('# BFE Method 3\n#   Enabled = {:s}\n'.format(str(used_3)))
