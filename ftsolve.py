@@ -60,13 +60,13 @@ def solve_corr(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0]):
     knl_sq = fft2(pad_to_N(knl,N))
     asq = (fft2(pad_to_N(bfek,N)) - ksq*knl_sq)/ksq**2
     a = ifft2(asq)
-    a_flipped = decenter(np.flip(center(a).flatten()).reshape(a.shape))
+    a_flipped = decenter(np.flip(center(a).flatten(),axis=0).reshape(a.shape))
     
     afsq = fft2(a_flipped)
     
-    afsq_p = decenter(np.flip(center(afsq).flatten()).reshape(afsq.shape))
-    ksq_p = decenter(np.flip(center(ksq).flatten()).reshape(ksq.shape))
-    knl_sq_p = decenter(np.flip(center(knl_sq).flatten()).reshape(knl_sq.shape))
+    afsq_p = decenter(np.flip(center(afsq).flatten(),axis=0).reshape(afsq.shape))
+    ksq_p = decenter(np.flip(center(ksq).flatten(),axis=0).reshape(ksq.shape))
+    knl_sq_p = decenter(np.flip(center(knl_sq).flatten(),axis=0).reshape(knl_sq.shape))
 
     # Calculate Cov(qsq(t),qsq(t')) (see eqn 38)
     qqs = []
@@ -75,8 +75,8 @@ def solve_corr(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0]):
         t1 = min(ts)
         t = max(ts)
         
-        qq = (1/(afsq+afsq_p+sigma_a) * np.exp(I*afsq*(t-t1)) *
-                                         (np.exp(I*(afsq+afsq_p)*t1)-np.exp(I*sigma_a*t1)))
+        qq = (1/(afsq+afsq_p+sigma_a) * np.exp(I*afsq*(t-t1),dtype=np.longdouble) *
+                (np.exp(I*(afsq+afsq_p)*t1,dtype=np.longdouble)-np.exp(I*sigma_a*t1,dtype=np.longdouble)))
         qqs.append(qq)
         
     
@@ -93,14 +93,35 @@ def solve_corr(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0]):
 if __name__=="__main__":
    test_bfek = np.load('test_bfek.npy')
    
+   # Test against configuration-space corrfn generated from known inputs/simulated flats
    N = 21
-   I = 1.37
-   g = 2.26
-   beta = 5.98e-7
-   sigma_a = 1.0
+   I = 1487
+   g = 2.06
+   beta = 0
    tslices = [3, 11, 13, 21]
-   avals = [0.014,0.023,0]
-   avals_nl = [0,0,0]
+   avals = [0,0,0]
+   avals_nl = [0,0,0]   
+
+   input_bfe = 1.E-6*np.array(
+    	[[-0.01, 0.0020, -0.0210, -0.019, 0.028],
+     	[0.0040, 0.0490, 0.2480, 0.01, -0.0240],
+     	[-0.0170, 0.2990, -1.372, 0.2840, 0.0150],
+     	[0.0130, 0.0560, 0.2890, 0.0390, 0.02],
+     	[0.035, 0.0070, 0.0380, 0.0010, 0.026]])
+
+
+   test_bfek = np.load('/users/PCON0003/cond0088/Projects/detectors/solid-waffle/testBFEK_flatsim_matcheddark_bfeonly18237sim_10files_sub20.npy')
+   sigma_a = np.sum(input_bfe)
+
+   # Test against BFEK values in run of test_run.py with input config.18237.sample1
+   #N = 21
+   #I = 1378
+   #g = 2.26
+   #beta = 5.98e-7
+   #sigma_a = 1.0
+   #tslices = [3, 11, 13, 21]
+   #avals = [0.014,0.023,0]
+   #avals_nl = [0,0,0]
 
    c_abcd = solve_corr(test_bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl)
    print c_abcd
