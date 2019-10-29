@@ -46,12 +46,15 @@ basicpar.subtr_href = True
 basicpar.full_corr = True
 basicpar.leadtrailSub = False
 basicpar.g_ptile = 75.
+basicpar.fullnl = False
+basicpar.use_allorder = False
 
 # Parameters for BFE
 bfepar = EmptyClass()
 bfepar.epsilon = .01
 bfepar.treset = 1
 bfepar.blsub = True
+bfepar.fullnl = False
 
 # Plotting parameters
 narrowfig = False
@@ -153,6 +156,12 @@ for line in content:
     p_order = int(m.group(1))
     nlfit_ts = int(m.group(2))
     nlfit_te = int(m.group(3))
+
+  m = re.search(r'^FUNNLN:\s*(\S+)\s+(\S+)\s+(\S+)', line)
+  if m:
+    basicpar.fullnl = m.group(1).lower() in ['true', 'yes']
+    bfepar.fullnl = m.group(2).lower() in ['true', 'yes']
+    basicpar.use_allorder = m.group(3).lower() in ['true', 'yes']
 
   # Hot pixels
   # (adu min, adu max, cut stability, cut isolation)
@@ -648,6 +657,8 @@ thisOut.write('# Lead-trail subtraction for IPC correlation = ' + str(basicpar.l
 thisOut.write('# Characterization type: '+mychar+'\n')
 if mychar.lower()=='advanced':
   thisOut.write('#   dt = {:d},{:d}, ncycle = {:d}\n'.format(tchar1,tchar2,ncycle))
+thisOut.write('# Non-linearity settings: basicpar.fullnl={:s} bfepar.fullnl={:s} basicpar.use_allorder={:s}\n'.format(
+  str(basicpar.fullnl), str(bfepar.fullnl), str(basicpar.use_allorder) ))
 thisOut.write('# BFE Method 1\n#   Baseline subtraction = {:s}\n'.format(str(bfepar.blsub)))
 thisOut.write('# BFE Method 2a\n#   Enabled = {:s}\n'.format(str(used_2a)))
 thisOut.write('# BFE Method 2b\n#   Enabled = {:s}\n'.format(str(used_2b)))

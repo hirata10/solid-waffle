@@ -14,7 +14,7 @@ from ftsolve import center,decenter,solve_corr
 
 # Version number of script
 def get_version():
-  return 17
+  return 18
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -1152,7 +1152,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
       BFEK[j,:] -= rowBL
 
   # Implement cr_converge. We have to update this with center/decenter
-  if False:
+  if ctrl_pars_bfe.fullnl:
     N = 21
     avals = [alphaV,alphaH,alphaD]
     avals_nl = [0,0,0]
