@@ -6,6 +6,9 @@ import pyirc
 import matplotlib
 import matplotlib.pyplot as plt
 
+class EmptyClass:
+  pass
+
 outstem = 'default_output'
 use_cmap = 'gnuplot'
 
@@ -34,7 +37,15 @@ p_order = 0   # non-linearity polynomial table coefficients (table at end goes t
               # set to zero to turn this off
 
 # Parameters for basic characterization
-basicpar = [.01, True, True, 1, True, True, False, 75.]
+basicpar = EmptyClass()
+basicpar.epsilon = .01
+basicpar.subtr_corr = True
+basicpar.noise_corr = True
+basicpar.reset_frame = 1
+basicpar.subtr_href = True
+basicpar.full_corr = True
+basicpar.leadtrailSub = False
+basicpar.g_ptile = 75.
 
 # Parameters for BFE
 blsub = True
@@ -108,7 +119,7 @@ for line in content:
   #
   # reference time slice
   m = re.search(r'^TIMEREF:\s*(\d+)', line)
-  if m: basicpar[3] = int(m.group(1))
+  if m: basicpar.reset_frame = int(m.group(1))
 
   # reference pixel subtraction
   m = re.search(r'^REF\s+OFF', line)
@@ -120,12 +131,12 @@ for line in content:
 
   # variance parameters
   m = re.search(r'^QUANTILE:\s*(\S+)', line)
-  if m: basicpar[7] = float(m.group(1))
+  if m: basicpar.g_ptile = float(m.group(1))
   # correlation parameters
   m = re.search(r'^EPSILON:\s*(\S+)', line)
-  if m: basicpar[0] = float(m.group(1))
+  if m: basicpar.epsilon = float(m.group(1))
   m = re.search(r'^IPCSUB:\s*(\S+)', line)
-  if m: basicpar[6] = m.group(1).lower() in ['true', 'yes']
+  if m: basicpar.leadtrailSub = m.group(1).lower() in ['true', 'yes']
 
   # Other parameters
   m = re.search(r'^DETECTOR:\s*(\S+)', line)
@@ -204,7 +215,7 @@ if fullref:
 else:
   lightref = numpy.zeros((len(lightfiles), ny, 2*len(tslices)+1))
   darkref = numpy.zeros((len(darkfiles), ny, 2*len(tslices)+1))
-basicpar[4] = fullref
+basicpar.subtr_href = fullref
 
 # more allocations
 my_dim = pyirc.swi.N
@@ -216,7 +227,7 @@ if p_order>0:
   # note that in 'abs' mode, the full_info[:,:,0] grid is not actually used, it
   #   is just there for consistency of the format
   # I moved this up here since we want to have these coefficients before the main program runs
-  nlcubeX, nlfitX, nlderX, pcoefX = pyirc.gen_nl_cube(lightfiles, formatpars, [basicpar[3], nlfit_ts, nlfit_te], [ny,nx],
+  nlcubeX, nlfitX, nlderX, pcoefX = pyirc.gen_nl_cube(lightfiles, formatpars, [basicpar.reset_frame, nlfit_ts, nlfit_te], [ny,nx],
     full_info[:,:,0], 'abs', False)
   # fill in
   for iy in range(ny):
@@ -509,7 +520,7 @@ if used_2a:
   print ('2a:')
   vec = []
   for t in range(tslicesM2a[2], tslicesM2a[3]+1):
-    offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,pyirc.swi.I]*full_info[:,:,pyirc.swi.beta], [tslicesM2a[0],tslicesM2a[1],t], basicpar[3], is_good)
+    offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,pyirc.swi.I]*full_info[:,:,pyirc.swi.beta], [tslicesM2a[0],tslicesM2a[1],t], basicpar.reset_frame, is_good)
     print (t, numpy.mean(offsets*is_good)/numpy.mean(is_good))
     vec += [numpy.mean(offsets*is_good)/numpy.mean(is_good)]
   PV2a = max(vec)-min(vec); print ('PV: ', PV2a)
@@ -519,7 +530,7 @@ if used_2b:
   dt1 = tslicesM2b[1] - tslicesM2b[0]
   dt2 = tslicesM2b[2] - tslicesM2b[0]
   for t in range(tslicesM2b[0], tslicesM2b[3]-tslicesM2b[2]+1):
-    offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,pyirc.swi.I]*full_info[:,:,pyirc.swi.beta], [t,t+dt1,t+dt2], basicpar[3], is_good)
+    offsets = pyirc.compute_gain_corr_many(nlfit, nlder, full_info[:,:,pyirc.swi.I]*full_info[:,:,pyirc.swi.beta], [t,t+dt1,t+dt2], basicpar.reset_frame, is_good)
     print (t, numpy.mean(offsets*is_good)/numpy.mean(is_good))
     vec += [numpy.mean(offsets*is_good)/numpy.mean(is_good)]
   PV2b = max(vec)-min(vec); print ('PV: ', PV2b)
@@ -527,7 +538,7 @@ if used_3:
   print ('3:')
   vec = []
   for t in range(tslicesM3[2], tslicesM3[3]+1):
-    offsets = pyirc.compute_xc_corr_many(nlfit, nlder, full_info[:,:,pyirc.swi.I]*full_info[:,:,pyirc.swi.beta], [tslicesM3[0],t], basicpar[3], is_good)
+    offsets = pyirc.compute_xc_corr_many(nlfit, nlder, full_info[:,:,pyirc.swi.I]*full_info[:,:,pyirc.swi.beta], [tslicesM3[0],t], basicpar.reset_frame, is_good)
     alpha3 = (full_info[:,:,pyirc.swi.alphaH]+full_info[:,:,pyirc.swi.alphaV])/2.
     offsets *= 2. * alpha3 * (1.-4*alpha3)
     print (t, numpy.mean(offsets*is_good)/numpy.mean(is_good))
@@ -626,11 +637,11 @@ thisOut.write('# Mask: ' + str(maskX) + ',' + str(maskY) + '\n')
 thisOut.write('#\n')
 thisOut.write('# Cut on good pixels {:7.4f}% deviation from median\n'.format(100*sensitivity_spread_cut))
 thisOut.write('# Dimensions: {:3d}(x) x {:3d}(y) super-pixels, {:4d} good\n'.format(nx,ny,int(numpy.sum(is_good))))
-thisOut.write('# Frame number corresponding to reset: {:d}\n'.format(basicpar[3]))
+thisOut.write('# Frame number corresponding to reset: {:d}\n'.format(basicpar.reset_frame))
 thisOut.write('# Reference pixel subtraction for linearity: {:s}\n'.format(str(fullref)))
-thisOut.write('# Quantile for variance computation = {:9.6f}%\n'.format(basicpar[7]))
-thisOut.write('# Clipping fraction epsilon = {:9.7f}\n'.format(basicpar[0]))
-thisOut.write('# Lead-trail subtraction for IPC correlation = ' + str(basicpar[6]) + '\n')
+thisOut.write('# Quantile for variance computation = {:9.6f}%\n'.format(basicpar.g_ptile))
+thisOut.write('# Clipping fraction epsilon = {:9.7f}\n'.format(basicpar.epsilon))
+thisOut.write('# Lead-trail subtraction for IPC correlation = ' + str(basicpar.leadtrailSub) + '\n')
 thisOut.write('# Characterization type: '+mychar+'\n')
 if mychar.lower()=='advanced':
   thisOut.write('#   dt = {:d},{:d}, ncycle = {:d}\n'.format(tchar1,tchar2,ncycle))
