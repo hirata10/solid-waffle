@@ -103,6 +103,22 @@ This takes more time, but fits gain, non-linearity, and IPC to a stack of CDS im
 
 The type of IPNL characterization can be: 'none' or 'bfe'. If 'none' is selected, then IPNL is ignored during fits to gain, non-linearity, and IPC. If 'bfe' is selected, then the IPNL obtained from the non-overlapping correlation function is assumed to be due entirely to the BFE, and the resulting correction is applied to the statistical properties of the CDS images.
 
+-- FULLNL --
+
+** Note that FULLNL is under development and not yet fully implemented. **
+
+Controls the use of fully non-linear predictions for the flat correlation functions instead of the lowest order contributions in Hirata & Choi (2019).
+
+FULLNL: True True False
+
+The 1st field will control use of the fully non-linear correlation function for the gain/IPC determination in advanced characterization (if on).
+
+The 2nd field will control use of the fully non-linear correlation function for the IPNL kernel.
+
+The 3rd field will control use of the full non-linearity curve instead of beta.
+
+The default is all False.
+
 -- TIME --
 
 Determines which time slices to use for initial characterization and IPNL correlations.

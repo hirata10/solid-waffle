@@ -6,13 +6,15 @@ from astropy.io import fits
 import scipy.stats
 import scipy.ndimage
 import fitsio
+import copy
 from fitsio import FITS,FITSHDR
+from ftsolve import center,decenter,solve_corr
 
 # <== THESE FUNCTIONS DEPEND ON THE FORMAT OF THE INPUT FILES ==>
 
 # Version number of script
 def get_version():
-  return 16
+  return 18
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -599,18 +601,18 @@ def gain_alphabetacorr(graw, CH, CV, signal, frac_dslope, times):
 #   size is num_files, 2*ntslice_use+1 (assumes we are taking the correct y-slice)
 # darkref = same as for lightref
 # ctrl_pars = control parameter list
-#   ctrl_pars[0] = cut fraction (default to 0.01)
-#   ctrl_pars[1] = mean subtraction for the IPC correlation? (default to True)
-#   ctrl_pars[2] = noise subtraction for the IPC correlation? (default to True)
-#   ctrl_pars[3] = reset frame (default to 0)
-#   ctrl_pars[4] = reference pixel subtraction? (default to True)
-#   ctrl_pars[5] = which parameters to report (default to True = standard basic pars; False = correlation data instead)
-#   ctrl_pars[6] = lead-trail subtraction? (default to False)
-#   ctrl_pars[7] = percentile for inter-quantile range (default to 75)
+#   ctrl_pars.epsilon = cut fraction (default to 0.01)
+#   ctrl_pars.subtr_corr = mean subtraction for the IPC correlation? (default to True)
+#   ctrl_pars.noise_corr = noise subtraction for the IPC correlation? (default to True)
+#   ctrl_pars.reset_frame = reset frame (default to 0)
+#   ctrl_pars.subtr_href = reference pixel subtraction? (default to True)
+#   ctrl_pars.full_corr = which parameters to report (default to True = standard basic pars; False = correlation data instead)
+#   ctrl_pars.leadtrailSub = lead-trail subtraction? (default to False)
+#   ctrl_pars.g_ptile = percentile for inter-quantile range (default to 75)
 # verbose = True or False  (recommend True only for de-bugging)
 #
 # Returns a list of basic calibration parameters.
-# if ctrl_pars[5] is True
+# if ctrl_pars.full_corr is True
 #   [number of good pixels, gain_raw, gain_acorr, gain_abcorr, aH, aV, beta, I, 0., tCH, tCV]
 # if False:
 #   [number of good pixels, median, variance, tCH, tCV, tCD]
@@ -638,31 +640,31 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
     exit()
   if verbose: print ('nfiles = ',num_files,', ntimes = ',nt,', dx,dy=',dx,dy)
   treset = 0
-  if len(ctrl_pars)>=4: treset = ctrl_pars[3]
+  if hasattr(ctrl_pars,'reset_frame'): treset = ctrl_pars.reset_frame
 
   # First get correlation parameters
   epsilon = .01
-  if len(ctrl_pars)>=1: epsilon = ctrl_pars[0]
+  if hasattr(ctrl_pars,'epsilon'): epsilon = ctrl_pars.epsilon
   subtr_corr = True
-  if len(ctrl_pars)>=2: subtr_corr = ctrl_pars[1]
+  if hasattr(ctrl_pars,'subtr_corr'): subtr_corr = ctrl_pars.subtr_corr
   noise_corr = True
-  if len(ctrl_pars)>=3: noise_corr = ctrl_pars[2]
+  if hasattr(ctrl_pars,'noise_corr'): noise_corr = ctrl_pars.noise_corr
   if verbose: print ('corr pars =', epsilon, subtr_corr, noise_corr)
   #
 
   # Reference pixel subtraction?
   subtr_href = True
-  if len(ctrl_pars)>=5: subtr_href = ctrl_pars[4]
+  if hasattr(ctrl_pars,'subtr_href'): subtr_href = ctrl_pars.subtr_href
 
   # return full correlation information?
   full_corr = True
-  if len(ctrl_pars)>=6: full_corr = ctrl_pars[5]
+  if hasattr(ctrl_pars,'full_corr'): full_corr = ctrl_pars.full_corr
 
   # lead-trail subtraction for IPC correlations?
-  if len(ctrl_pars)>=7: leadtrailSub = ctrl_pars[6]
+  if hasattr(ctrl_pars,'leadtrailSub'): leadtrailSub = ctrl_pars.leadtrailSub
 
   # quantile for variance?
-  if len(ctrl_pars)>=8: g_ptile = ctrl_pars[7]
+  if hasattr(ctrl_pars,'g_ptile'): g_ptile = ctrl_pars.g_ptile
 
   # Get means and variances at the early and last slices
   # (i.e. 1-point information)
@@ -878,9 +880,8 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
 def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars):
 
   # make copy of ctrl_pars, but force 5th element to be False
-  ctrl_pars2 = ctrl_pars[:]
-  if len(ctrl_pars2)<6: ctrl_pars2.append(False)
-  ctrl_pars2[5] = False
+  ctrl_pars2 = copy.copy(ctrl_pars)
+  ctrl_pars2.full_corr = False
 
   tmin = tslices[0]; tmax = tslices[1]; nt = tmax-tmin
   # build cube of good pixels, medians, variances, correlations
@@ -897,7 +898,7 @@ def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_sprea
         tarray = [t1,t2,t2,t2]
         lightref = ref_array_block(lightfiles, formatpars, box[2:4], tarray, False)
         darkref = ref_array_block(darkfiles, formatpars, box[2:4], tarray, False)
-        if not ctrl_pars[4]:
+        if not ctrl_pars.subtr_href:
           lightref[:,:] = 0.
           darkref[:,:] = 0.
         region_cube = pixel_data(lightfiles, formatpars, box[:4], tarray, [sensitivity_spread_cut, False], False)
@@ -961,7 +962,7 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
   diff_frames = numpy.zeros((npts))
   for j in range(npts):
     diff_frames[j] = data[j,j+1,1] # median from frame tslices[0]+j -> tslices[0]+j+1
-  slopemed, icpt = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(npts)) + tslices[0]-ctrl_pars[3],
+  slopemed, icpt = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(npts)) + tslices[0]-ctrl_pars.reset_frame,
                    numpy.ones(npts)]).T, diff_frames, rcond=-1)[0]
 
   # Difference of correlation functions
@@ -992,7 +993,7 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
     alphaH_old = alphaH; alphaV_old = alphaV # to track convergence
 
     # Get combination of I and gain from difference of correlation functions
-    tbrack = tslices[3]*(tslices[0]+tslices[3]-ctrl_pars[3]) - tslices[2]*(tslices[0]+tslices[2]-ctrl_pars[3])\
+    tbrack = tslices[3]*(tslices[0]+tslices[3]-ctrl_pars.reset_frame) - tslices[2]*(tslices[0]+tslices[2]-ctrl_pars.reset_frame)\
              + (npts2-1)/2.0*(tslices[3]-tslices[2])
     I__g2 = (Cdiff - Cdiffcorr + 4.*(1.-8.*alpha)*beta*I**2/g**2*tbrack) / (tslices[3]-tslices[2]) / ( (1.-4*alpha-4*alphaD)**2 + 2*alphaH**2+2*alphaV**2 + 4*alphaD**2 )
 
@@ -1017,7 +1018,7 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
         Cdiffcorr = ipnl[sBFE,sBFE] * (I/g)**2*( (tslices[0]+tslices[3])*tslices[3] - (tslices[0]+tslices[2])*tslices[2]
                       + (tslices[3]-tslices[2])*(npts2-1)*0.5)
 
-    factor = 2.*I__g2*tslices[3] * ( 1.-4.*alpha - 4.*alphaD - 4.*beta*( I*(tslices[0]+tslices[3]-ctrl_pars[3]+(npts2-1.)/2.) +0.5) )
+    factor = 2.*I__g2*tslices[3] * ( 1.-4.*alpha - 4.*alphaD - 4.*beta*( I*(tslices[0]+tslices[3]-ctrl_pars.reset_frame+(npts2-1.)/2.) +0.5) )
     factor_raw = 2.*I__g2*tslices[3]
     alphaH = (CH - CHcorr - 2.*alphaV*alphaD*factor_raw)/factor
     alphaV = (CV - CVcorr - 2.*alphaH*alphaD*factor_raw)/factor
@@ -1034,10 +1035,9 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
 # tslices = list of time slices
 # basicinfo = output from basic (incl. gains, IPC, NL)
 # ctrl_pars_bfe = parameters to control BFE determination
-#   ctrl_pars_bfe[0] = cut fraction (default to 0.01)
-#   ctrl_pars_bfe[1] = reset frame (default to 0)
-#   ctrl_pars_bfe[2] = max range for BFE kernel estimation (default to 2)
-#   ctrl_pars_bfe[3] = baseline subtraction? (default to True)
+#   ctrl_pars_bfe.epsilon = cut fraction (default to 0.01)
+#   ctrl_pars_bfe.treset = reset frame (default to 0)
+#   ctrl_pars_bfe.BSub = baseline subtraction? (default to True)
 # verbose = True or False (recommend True only for debugging)
 #
 # output is a fsBFE x fsBFE (default: 5x5) BFE kernel in inverse electrons
@@ -1062,19 +1062,18 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     exit()
   if verbose: print ('nfiles = ',num_files,', ntimes = ',nt,', dx,dy=',dx,dy)
   treset = 0
-  if len(ctrl_pars_bfe)>=2: treset = ctrl_pars_bfe[1]
+  if hasattr(ctrl_pars_bfe,'treset'): treset = ctrl_pars_bfe.treset
 
   # BFE kernel size:
   # sBFE = range; fsBFE = full size
-  sBFE = 2
-  if len(ctrl_pars_bfe)>=3: sBFE = ctrl_pars_bfe[2]
+  sBFE = swi.s
   fsBFE = 2*sBFE+1
   sBFE_out = sBFE
   fsBFE_out = fsBFE
 
   # Baseline subtraction -- requires bigger box
   BSub = True
-  if len(ctrl_pars_bfe)>=4: BSub = ctrl_pars_bfe[3]
+  if hasattr(ctrl_pars_bfe,'BSub'): BSub = ctrl_pars_bfe.BSub
   if BSub:
     sBFE = max(sBFE_out, 10)
     fsBFE = 2*sBFE+1
@@ -1082,7 +1081,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
 
   # Cut fraction and correction
   epsilon = .01
-  if len(ctrl_pars_bfe)>=1: epsilon = ctrl_pars_bfe[0]
+  if hasattr(ctrl_pars_bfe,'epsilon'): epsilon = ctrl_pars_bfe.epsilon
   xi = scipy.stats.norm.ppf(1-epsilon)
   cov_clip_corr = (1. - numpy.sqrt(2./numpy.pi)*xi*numpy.exp(-xi*xi/2.)/(1.-2.*epsilon) )**2
 
@@ -1151,6 +1150,24 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     for j in range(fsBFE):
       rowBL = ( numpy.mean(BFEK[j,0:pad]) + numpy.mean(BFEK[j,-pad:]) )/2.
       BFEK[j,:] -= rowBL
+
+  # Implement cr_converge. We have to update this with center/decenter
+  if ctrl_pars_bfe.fullnl:
+    N = 21
+    avals = [alphaV,alphaH,alphaD]
+    avals_nl = [0,0,0]
+    sigma_a = 0
+    tol = 1.e-11 #Pick a tolerance below which the two Crs are considered equal
+    fsBFE_out = 2*sBFE_out+1
+    BFEK_model = numpy.zeros((fsBFE_out,fsBFE_out))
+    element_diff = 10
+    while element_diff > tol:
+        theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,tslices,avals,avals_nl)\
+        *((g**2)/(I**2*(tb-ta)*(td-tc)))
+        observed_Cr = BFEK
+        difference = theory_Cr - observed_Cr
+        element_diff = numpy.amax(abs(difference))
+        BFEK_model -= difference
 
   # Corrections for classical non-linearity
   BFEK[sBFE,sBFE] += 2*(1-4*(aH+aV))*beta
