@@ -1160,7 +1160,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     sigma_a = 0
     tol = 1.e-11 #Pick a tolerance below which the two Crs are considered equal
     fsBFE_out = 2*sBFE_out+1
-    observed_Cr = decenter(BFEK)
+    observed_Cr = decenter(BFEK[sBFE-sBFE_out:sBFE+sBFE_out+1, sBFE-sBFE_out:sBFE+sBFE_out+1])
     BFEK_model = numpy.zeros((fsBFE_out,fsBFE_out))
     element_diff = 10
     iters = 0
@@ -1174,7 +1174,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
         iters += 1
         if iters>99:
            warnings.warn("WARNING: NL loop has iterated 100 times")
-    print('iter {:d}, difference {:11.5e}'.format(iter,difference))
+    print('iter {:d}, diff {:11.5E}'.format(iters,element_diff))
     return center(BFEK_model)
 
   else:
