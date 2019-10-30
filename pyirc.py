@@ -1155,7 +1155,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
   # Implement cr_converge. We have to update this with center/decenter
   if ctrl_pars_bfe.fullnl:
     N = 21
-    avals = [alphaV,alphaH,alphaD]
+    avals = [basicinfo[swi.alphaV], basicinfo[swi.alphaH], basicinfo[swi.alphaD]]
     avals_nl = [0,0,0]
     sigma_a = 0
     tol = 1.e-11 #Pick a tolerance below which the two Crs are considered equal
@@ -1166,7 +1166,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     iters = 0
     while element_diff > tol and iters<=100:
         theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,tslices,avals,avals_nl)\
-        *((g**2)/(I**2*(tb-ta)*(td-tc)))
+          *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
         theory_Cr = decenter(center(theory_Cr)[N//2-sBFE_out:N//2+sBFE_out+1, N//2-sBFE_out:N//2+sBFE_out+1])
         difference = theory_Cr - observed_Cr
         element_diff = numpy.amax(abs(difference))
@@ -1174,6 +1174,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
         iters += 1
         if iters>99:
            warnings.warn("WARNING: NL loop has iterated 100 times")
+    print('iter {:d}, difference {:11.5e}'.format(iter,difference))
     return center(BFEK_model)
 
   else:

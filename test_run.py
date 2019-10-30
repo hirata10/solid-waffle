@@ -157,7 +157,7 @@ for line in content:
     nlfit_ts = int(m.group(2))
     nlfit_te = int(m.group(3))
 
-  m = re.search(r'^FUNNLN:\s*(\S+)\s+(\S+)\s+(\S+)', line)
+  m = re.search(r'^FULLNL:\s*(\S+)\s+(\S+)\s+(\S+)', line)
   if m:
     basicpar.fullnl = m.group(1).lower() in ['true', 'yes']
     bfepar.fullnl = m.group(2).lower() in ['true', 'yes']
