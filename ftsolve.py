@@ -96,7 +96,7 @@ def solve_corr(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0]):
 def solve_corr_many(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0]):
    this_t = tslices[:-1]
    cf = solve_corr(bfek,N,I,g,beta,sigma_a,this_t,avals,avals_nl)
-   for j in range(tn):
+   for j in range(tn-1):
      for k in range(4): this_t[k] += 1
      cf += solve_corr(bfek,N,I,g,beta,sigma_a,this_t,avals,avals_nl)
    cf /= tn+0.0
