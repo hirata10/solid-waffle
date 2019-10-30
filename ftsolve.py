@@ -89,7 +89,18 @@ def solve_corr(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0]):
                )
     
     return np.real(ifft2(csq_abcd))
-    
+
+# same as solve_corr *except* that we have tslice [ta,tb,tc,td,tn],
+# where tn >= 1 is the number of similar steps to use -- i.e., we have
+# (C_{ta,tb,tc,td} + C_{ta+1,tb+1,tc+1,td+1} + ... + C_{ta+tn-1,tb+tn-1,tc+tn-1,td+tn-1} )/tn
+def solve_corr_many(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0]):
+   this_t = tslices[:-1]
+   cf = solve_corr(bfek,N,I,g,beta,sigma_a,this_t,avals,avals_nl)
+   for j in range(tn):
+     for k in range(4): this_t[k] += 1
+     cf += solve_corr(bfek,N,I,g,beta,sigma_a,this_t,avals,avals_nl)
+   cf /= tn+0.0
+
 if __name__=="__main__":
    test_bfek = np.load('test_bfek.npy')
    
