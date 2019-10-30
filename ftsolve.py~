@@ -91,6 +91,7 @@ def solve_corr(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0]):
     return np.real(ifft2(csq_abcd))
     
 if __name__=="__main__":
+   test_bfek = np.load('test_bfek.npy')
    
    # Test against configuration-space corrfn generated from known inputs/simulated flats
    N = 21
@@ -117,11 +118,10 @@ if __name__=="__main__":
    #I = 1378
    #g = 2.26
    #beta = 5.98e-7
-   #sigma_a = 0.0
+   #sigma_a = 1.0
    #tslices = [3, 11, 13, 21]
    #avals = [0.014,0.023,0]
    #avals_nl = [0,0,0]
-   #test_bfek = np.load('test_bfek.npy')
 
    c_abcd = solve_corr(test_bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl)
    print (c_abcd)
