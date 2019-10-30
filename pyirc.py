@@ -1167,6 +1167,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     while element_diff > tol and iters<=100:
         theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,tslices,avals,avals_nl)\
           *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
+        if iters<4: print(theory_Cr)
         theory_Cr = decenter(center(theory_Cr)[N//2-sBFE_out:N//2+sBFE_out+1, N//2-sBFE_out:N//2+sBFE_out+1])
         difference = theory_Cr - observed_Cr
         element_diff = numpy.amax(abs(difference))
@@ -1174,7 +1175,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
         iters += 1
         if iters>99:
            warnings.warn("WARNING: NL loop has iterated 100 times")
-    print('iter {:d}, diff {:11.5E}'.format(iters,element_diff))
+        print('iter {:d}, diff {:11.5E}'.format(iters,element_diff))
     return center(BFEK_model)
 
   else:
