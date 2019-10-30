@@ -8,7 +8,7 @@ import scipy.ndimage
 import fitsio
 import copy
 from fitsio import FITS,FITSHDR
-from ftsolve import center,decenter,solve_corr
+from ftsolve import center,decenter,solve_corr,solve_corr_many
 
 # <== THESE FUNCTIONS DEPEND ON THE FORMAT OF THE INPUT FILES ==>
 
