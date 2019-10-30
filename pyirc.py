@@ -7,6 +7,7 @@ import scipy.stats
 import scipy.ndimage
 import fitsio
 import copy
+import warnings
 from fitsio import FITS,FITSHDR
 from ftsolve import center,decenter,solve_corr,solve_corr_many
 
@@ -1159,24 +1160,31 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     sigma_a = 0
     tol = 1.e-11 #Pick a tolerance below which the two Crs are considered equal
     fsBFE_out = 2*sBFE_out+1
+    observed_Cr = decenter(BFEK)
     BFEK_model = numpy.zeros((fsBFE_out,fsBFE_out))
     element_diff = 10
-    while element_diff > tol:
+    iters = 0
+    while element_diff > tol and iters<=100:
         theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,tslices,avals,avals_nl)\
         *((g**2)/(I**2*(tb-ta)*(td-tc)))
-        observed_Cr = BFEK
+        theory_Cr = decenter(center(theory_Cr)[N//2-sBFE_out:N//2+sBFE_out+1, N//2-sBFE_out:N//2+sBFE_out+1])
         difference = theory_Cr - observed_Cr
         element_diff = numpy.amax(abs(difference))
         BFEK_model -= difference
+        iters += 1
+        if iters>99:
+           warnings.warn("WARNING: NL loop has iterated 100 times")
+    return center(BFEK_model)
 
-  # Corrections for classical non-linearity
-  BFEK[sBFE,sBFE] += 2*(1-4*(aH+aV))*beta
-  if sBFE>=1:
-    BFEK[sBFE,sBFE+1] += 4*aH*beta
-    BFEK[sBFE,sBFE-1] += 4*aH*beta
-    BFEK[sBFE+1,sBFE] += 4*aV*beta
-    BFEK[sBFE-1,sBFE] += 4*aV*beta
-  return BFEK[sBFE-sBFE_out:sBFE+sBFE_out+1, sBFE-sBFE_out:sBFE+sBFE_out+1]
+  else:
+     # Corrections for classical non-linearity
+     BFEK[sBFE,sBFE] += 2*(1-4*(aH+aV))*beta
+     if sBFE>=1:
+       BFEK[sBFE,sBFE+1] += 4*aH*beta
+       BFEK[sBFE,sBFE-1] += 4*aH*beta
+       BFEK[sBFE+1,sBFE] += 4*aV*beta
+       BFEK[sBFE-1,sBFE] += 4*aV*beta
+     return BFEK[sBFE-sBFE_out:sBFE+sBFE_out+1, sBFE-sBFE_out:sBFE+sBFE_out+1]
 
 # Hot pixel identification
 # Returns a tuple of hot pixels in the array that meet the following criteria:
