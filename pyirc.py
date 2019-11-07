@@ -1152,7 +1152,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
       rowBL = ( numpy.mean(BFEK[j,0:pad]) + numpy.mean(BFEK[j,-pad:]) )/2.
       BFEK[j,:] -= rowBL
 
-  # Implement cr_converge. We have to update this with center/decenter
+  # Implement cr_converge.
   if ctrl_pars_bfe.fullnl:
     N = 21
     avals = [basicinfo[swi.alphaV], basicinfo[swi.alphaH], basicinfo[swi.alphaD]]
@@ -1161,17 +1161,16 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     tol = 1.e-11 #Pick a tolerance below which the two Crs are considered equal
     fsBFE_out = 2*sBFE_out+1
     observed_Cr = BFEK[sBFE-sBFE_out:sBFE+sBFE_out+1, sBFE-sBFE_out:sBFE+sBFE_out+1]
-    BFEK_model = observed_Cr#numpy.zeros((fsBFE_out,fsBFE_out))
+    BFEK_model = observed_Cr #numpy.zeros((fsBFE_out,fsBFE_out))
     element_diff = 10
     iters = 0
     while element_diff > tol and iters<=100:
+	# Note: solve_corr takes centered things, decenters/calculates internally
         theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,tslices,avals,avals_nl)\
           *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
 	if numpy.isnan(theory_Cr).any():
 	    import pdb
 	    pdb.set_trace()
-        #if iters<4: print(theory_Cr)
-        #theory_Cr = decenter(center(theory_Cr)[N//2-sBFE_out:N//2+sBFE_out+1, N//2-sBFE_out:N//2+sBFE_out+1])
         difference = theory_Cr - observed_Cr
         element_diff = numpy.amax(abs(difference))
         BFEK_model -= difference
