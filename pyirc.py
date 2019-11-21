@@ -1161,7 +1161,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     tol = 1.e-11 #Pick a tolerance below which the two Crs are considered equal
     fsBFE_out = 2*sBFE_out+1
     observed_Cr = BFEK[sBFE-sBFE_out:sBFE+sBFE_out+1, sBFE-sBFE_out:sBFE+sBFE_out+1]
-    BFEK_model = observed_Cr #numpy.zeros((fsBFE_out,fsBFE_out))
+    BFEK_model = numpy.zeros((fsBFE_out,fsBFE_out))+1e-15
     element_diff = 10
     iters = 0
     while element_diff > tol and iters<=100:
@@ -1172,7 +1172,16 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
 	    import pdb
 	    pdb.set_trace()
         difference = theory_Cr - observed_Cr
-        element_diff = numpy.amax(abs(difference))
+	element_diff = difference.flat[numpy.abs(difference).argmax()]
+        #element_diff = numpy.amax(abs(difference))
+        ##### Testing
+	from iteration_test import perturb_test
+	dydx_max = perturb_test(BFEK_model,element_diff,N,I,gain,beta,
+						sigma_a,tslices,avals,avals_nl)
+	numpy.set_printoptions(precision=3)	
+	print 'Max d(solve_corr)/d(element):'	
+	print dydx_max
+	#####
         BFEK_model -= difference
         iters += 1
         if iters>99:
