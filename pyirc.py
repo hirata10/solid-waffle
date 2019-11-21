@@ -1165,28 +1165,29 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     element_diff = 10
     iters = 0
     while element_diff > tol and iters<=100:
-	# Note: solve_corr takes centered things, decenters/calculates internally
+        # Note: solve_corr takes centered things, decenters/calculates internally
         theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,tslices,avals,avals_nl)\
           *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
-	if numpy.isnan(theory_Cr).any():
-	    import pdb
-	    pdb.set_trace()
+        if numpy.isnan(theory_Cr).any():
+            import pdb
+            pdb.set_trace()
         difference = theory_Cr - observed_Cr
-	element_diff = difference.flat[numpy.abs(difference).argmax()]
-        #element_diff = numpy.amax(abs(difference))
+        #element_diff = difference.flat[numpy.abs(difference).argmax()]
+        element_diff = numpy.amax(abs(difference))
         ##### Testing
-	from iteration_test import perturb_test
-	dydx_max = perturb_test(BFEK_model,element_diff,N,I,gain,beta,
-						sigma_a,tslices,avals,avals_nl)
-	numpy.set_printoptions(precision=3)	
-	print 'Max d(solve_corr)/d(element):'	
-	print dydx_max
-	#####
-        BFEK_model -= difference
+        from iteration_test import perturb_test
+        dydx_max = perturb_test(BFEK_model,element_diff,N,I,gain,beta,
+          sigma_a,tslices,avals,avals_nl)
+        numpy.set_printoptions(precision=3)	
+        print ('Max d(solve_corr)/d(element):')
+        print (dydx_max)
+        #####
+        BFEK_model -= difference[::-1,::-1]
         iters += 1
         if iters>99:
            warnings.warn("WARNING: NL loop has iterated 100 times")
         print('iter {:d}, diff {:11.5E}'.format(iters,element_diff))
+    print('end iter {:d}, diff {:11.5E}'.format(iters,element_diff))
     return BFEK_model
 
   else:
