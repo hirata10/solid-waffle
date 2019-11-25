@@ -1176,18 +1176,18 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
         element_diff = numpy.amax(abs(difference))
         ##### Testing
         from iteration_test import perturb_test
-        dydx_max = perturb_test(BFEK_model,element_diff,N,I,gain,beta,
-          sigma_a,tslices,avals,avals_nl)
-        numpy.set_printoptions(precision=3)	
-        print ('Max d(solve_corr)/d(element):')
-        print (dydx_max)
+        #dydx_max = perturb_test(BFEK_model,element_diff,N,I,gain,beta,
+        #  sigma_a,tslices,avals,avals_nl)
+        #numpy.set_printoptions(precision=3)	
+        #print ('Max d(solve_corr)/d(element):')
+        #print (dydx_max)
         #####
         BFEK_model -= difference[::-1,::-1]
         iters += 1
         if iters>99:
            warnings.warn("WARNING: NL loop has iterated 100 times")
-        print('iter {:d}, diff {:11.5E}'.format(iters,element_diff))
-    print('end iter {:d}, diff {:11.5E}'.format(iters,element_diff))
+        #print('iter {:d}, diff {:11.5E}'.format(iters,element_diff))
+    #print('end iter {:d}, diff {:11.5E}'.format(iters,element_diff))
     return BFEK_model
 
   else:
