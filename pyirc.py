@@ -1018,6 +1018,23 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
         CDcorr = (ipnl[sBFE+1,sBFE+1]+ipnl[sBFE+1,sBFE-1]+ipnl[sBFE-1,sBFE+1]+ipnl[sBFE-1,sBFE-1])/4. * (I/g)**2*tslices[3]*(tslices[0]+tslices[3]+(npts2-1)*0.5)*2
         Cdiffcorr = ipnl[sBFE,sBFE] * (I/g)**2*( (tslices[0]+tslices[3])*tslices[3] - (tslices[0]+tslices[2])*tslices[2]
                       + (tslices[3]-tslices[2])*(npts2-1)*0.5)
+      
+      # apply corrections from ftsolve
+      if ctrl_pars.fullnl and typeCorr.lower() == 'bfe':
+        t0 = tslices[0]-ctrl_pars.reset_frame
+        CF_BigStep = solve_corr_many(ipnl, 21, I, g, beta, 0., [t0, t0+tslices[3], t0, t0+tslices[3], npts2],
+          [alphaV, alphaH, alphaD], [0.,0.,0.], sBFE)
+        CF_SmallStep = solve_corr_many(ipnl, 21, I, g, beta, 0., [t0, t0+tslices[2], t0, t0+tslices[2], npts2],
+          [alphaV, alphaH, alphaD], [0.,0.,0.], sBFE)
+        Cdiffcorr = CF_BigStep[sBFE,sBFE] - CF_SmallStep[sBFE,sBFE] - (
+          I/g**2*((1-4*alpha)**2+2*alphaH**2+2*alphaV**2)*(tslices[3]-tslices[2])
+          -4*(1-8*alpha)*beta*I**2/g**2*( tslices[3]*(t0+tslices[3]) - tslices[2]*(t0+tslices[2]) + (npts2-1)*0.5*(tslices[3]-tslices[2]) ))
+        CHcorr = (CF_BigStep[sBFE,sBFE+1]+CF_BigStep[sBFE,sBFE-1])/2. - (
+          2.*I/g**2*tslices[3]*(1.-4*alpha-4*alphaD-4*beta*((npts2-1)*0.5*I+0.5))*alphaH + 4.*I/g**2*tslices[3]*alphaV*alphaD)
+        CVcorr = (CF_BigStep[sBFE+1,sBFE]+CF_BigStep[sBFE-1,sBFE])/2. - (
+          2.*I/g**2*tslices[3]*(1.-4*alpha-4*alphaD-4*beta*((npts2-1)*0.5*I+0.5))*alphaV + 4.*I/g**2*tslices[3]*alphaH*alphaD)
+        CDcorr = (CF_BigStep[sBFE+1,sBFE+1]+CF_BigStep[sBFE-1,sBFE+1]+CF_BigStep[sBFE+1,sBFE-1]+CF_BigStep[sBFE-1,sBFE-1])/4. - (
+          2.*I/g**2*tslices[3]*(1.-4*alpha-4*alphaD)*alphaD )
 
     factor = 2.*I__g2*tslices[3] * ( 1.-4.*alpha - 4.*alphaD - 4.*beta*( I*(tslices[0]+tslices[3]-ctrl_pars.reset_frame+(npts2-1.)/2.) +0.5) )
     factor_raw = 2.*I__g2*tslices[3]
