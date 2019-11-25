@@ -90,7 +90,7 @@ def solve_corr(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2)
          #   (np.exp(I*(afsq+afsq_p)*t1)-np.exp(I*sigma_a*t1)))
         
         X = I*t1*(afsq+afsq_p-sigma_a)
-        qq = (numpy.where(numpy.abs(X)>1e-4, (numpy.exp(X)-1)/numpy.where(numpy.abs(X)>1e-5,X,X+1),
+        qq = (np.where(np.abs(X)>1e-4, (np.exp(X)-1)/np.where(np.abs(X)>1e-5,X,X+1),
                           1+X/2.+X**2/6.+X**3/24.))*I*t1*np.exp(I*afsq*(t-t1))*np.exp(I*sigma_a*t1)                          
 
         qqs.append(qq)
