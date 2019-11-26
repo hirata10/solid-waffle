@@ -96,3 +96,68 @@ def calc_area_defect(ap, Q, npad=2):
   extra_dim = (2*npad+ap.shape[0]-1)/2
   return W[extra_dim:-extra_dim,extra_dim:-extra_dim]
 
+def ipc_invkernel_HV(alpha_H=0.01,alpha_V=0.01):
+  """ Return an inverse 3x3 kernel with horizontal and vertical alpha,
+  which can be different.
+
+  """
+  kernel = np.zeros((3, 3))
+  kernel[0,1] = kernel[2,1] = -2.*alpha_H
+  kernel[1,0] = kernel[1,2] = -2.*alpha_V
+  kernel[1,1] = 1+4*alpha_H+4*alpha_V
+  return kernel
+
+def auto_convolve_kernel(kern1):
+  """ Return the auto-convolution of the kernel
+  """
+  kern_autoconv = signal.convolve(kern1, kern1)
+  return kern_autoconv
+
+def K2a(ipc_kernel2, bfe_a):
+  """ Return the convolution of the BFE a coefficients with the IPC kernel
+  """
+  # First need to pad the BFE coefficients (compare to case without)
+  npad = 2
+  bfe_a_pad = np.pad(bfe_a, pad_width=(npad,npad), mode='symmetric')
+  #ipc2_bfe = signal.convolve(ipc_kernel2, bfe_a_pad)
+  ipc2_bfe = signal.convolve(bfe_a_pad, ipc_kernel2)
+  extra_dim = (2*npad+ipc_kernel2.shape[0]-1)/2
+  ipc2_bfe_out = np.around(
+      ipc2_bfe[extra_dim:-extra_dim, extra_dim:-extra_dim],4)
+  return ipc2_bfe_out
+
+def a_symmetric_avg(coeffs):
+  """ Return the symmetric averages over a given 5x5 matrix of coefficients
+  i.e. <1,0>, <1,1>, <2,0>, <2,1>, <2,2>
+  """
+  zerozero1 = coeffs[2,2]
+  onezero1 = np.mean((coeffs[2,3], coeffs[2,1], coeffs[3,2],
+                      coeffs[1,2]))
+  oneone1 = np.mean((coeffs[1,1], coeffs[3,1], coeffs[3,3],
+                     coeffs[1,3]))
+
+  twozero1 = np.mean((coeffs[2,0], coeffs[0,2], coeffs[4,2],
+                      coeffs[2,4]))
+  twoone1 = np.mean((coeffs[4,3], coeffs[3,4], coeffs[1,4],
+                     coeffs[0,3], coeffs[0,1], coeffs[1,0],
+                     coeffs[3,0], coeffs[4,1]))
+  twotwo1 = np.mean((coeffs[0,0], coeffs[0,4], coeffs[4,0],
+                     coeffs[4,4]))
+
+  means = np.array((zerozero1, onezero1, oneone1, twozero1, twoone1,
+                    twotwo1))
+  return np.around(means, 4)
+
+if __name__=="__main__":
+  # Print out the K^2 a coefficients (symmetrically averaged) for the
+  # simulated input
+  # First get the IPC kernel
+  kern = ipc_kernel_HV(0.0169,0.0169) # alphah,alphav for the sims
+  # Convolve to get K^2
+  kern2 = auto_convolve_kernel(kern)
+  # Some of this flipping might not be quite right, but since these are
+  # symmetric averages it's ok for now
+  input_bfe_a = 1.E6*np.fliplr(get_bfe_kernel_5x5())
+  K2a_out = K2a(kern2, input_bfe_a)
+  print "<0,0>, <1,0>, <1,1>, <2,0>, <2,1>, <2,2>:"
+  print a_symmetric_avg(K2a_out)
