@@ -110,11 +110,13 @@ def solve_corr(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2)
 # (C_{ta,tb,tc,td} + C_{ta+1,tb+1,tc+1,td+1} + ... + C_{ta+tn-1,tb+tn-1,tc+tn-1,td+tn-1} )/tn
 def solve_corr_many(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2):
    this_t = tslices[:-1]
+   tn = tslices[-1]
    cf = solve_corr(bfek,N,I,g,beta,sigma_a,this_t,avals,avals_nl,outsize)
    for j in range(tn-1):
      for k in range(4): this_t[k] += 1
      cf += solve_corr(bfek,N,I,g,beta,sigma_a,this_t,avals,avals_nl,outsize)
    cf /= tn+0.0
+   return(cf)
 
 if __name__=="__main__":
    
