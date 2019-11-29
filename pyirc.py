@@ -15,7 +15,7 @@ from ftsolve import center,decenter,solve_corr,solve_corr_many
 
 # Version number of script
 def get_version():
-  return 18
+  return 19
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -78,7 +78,10 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
       N = get_nside(formatpars)
       for ts in range(ntslice_use):
         t = tslices[ts]
-        output_cube[ts,:,:] = 65535 - numpy.array(fileh[0][t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
+        if ts>0 and tslices[ts]==tslices[ts-1]:
+          output_cube[ts,:,:] = output_cube[ts-1,:,:] # don't read this slice again
+        else:
+          output_cube[ts,:,:] = 65535 - numpy.array(fileh[0][t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
       fileh.close()
     else:
       hdus = fits.open(filename)
@@ -990,8 +993,9 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
   # dummy initializations; these get over-written before they are used
   I = g = 1.
   Cdiffcorr = 0.
-  for iCycle in range(100):
-    alphaH_old = alphaH; alphaV_old = alphaV # to track convergence
+  iCycle = 0; nCycle=100
+  while iCycle<nCycle:
+    alphaH_old = alphaH; alphaV_old = alphaV; alphaD_old=alphaD; g_old=g # to track convergence
 
     # Get combination of I and gain from difference of correlation functions
     tbrack = tslices[3]*(tslices[0]+tslices[3]-ctrl_pars.reset_frame) - tslices[2]*(tslices[0]+tslices[2]-ctrl_pars.reset_frame)\
@@ -1042,7 +1046,10 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
     alphaV = (CV - CVcorr - 2.*alphaH*alphaD*factor_raw)/factor
     alphaD = ( (CD - CDcorr)/factor_raw - alphaH*alphaV) / (1.-4.*alpha-4.*alphaD)
     alpha = (alphaH+alphaV)/2.
-    da = numpy.abs(alphaH_old-alphaH) + numpy.abs(alphaV_old-alphaV)
+    da = numpy.abs(alphaH_old-alphaH) + numpy.abs(alphaV_old-alphaV) + numpy.abs(alphaD_old-alphaD)
+    dg = numpy.abs(g_old-g)
+    iCycle+=1
+    if iCycle<nCycle-2 and da<1e-8 and dg<1e-8: iCycle=nCycle-2 # fast exit from loop
 
   return [1, g, alphaH, alphaV, beta, I, alphaD, da]
 
