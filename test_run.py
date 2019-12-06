@@ -52,7 +52,7 @@ basicpar.use_allorder = False
 # Parameters for BFE
 bfepar = EmptyClass()
 bfepar.epsilon = .01
-bfepar.treset = 1
+bfepar.treset = basicpar.reset_frame
 bfepar.blsub = True
 bfepar.fullnl = False
 
@@ -125,7 +125,7 @@ for line in content:
   #
   # reference time slice
   m = re.search(r'^TIMEREF:\s*(\d+)', line)
-  if m: basicpar.reset_frame = int(m.group(1))
+  if m: bfepar.treset = basicpar.reset_frame = int(m.group(1))
 
   # reference pixel subtraction
   m = re.search(r'^REF\s+OFF', line)

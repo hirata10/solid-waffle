@@ -15,7 +15,7 @@ from ftsolve import center,decenter,solve_corr,solve_corr_many
 
 # Version number of script
 def get_version():
-  return 19
+  return 20
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -1031,12 +1031,13 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
         CF_SmallStep = solve_corr_many(ipnl, 21, I, g, beta, 0., [t0, t0+tslices[2], t0, t0+tslices[2], npts2],
           [alphaV, alphaH, alphaD], [0.,0.,0.], sBFE)
         Cdiffcorr = CF_BigStep[sBFE,sBFE] - CF_SmallStep[sBFE,sBFE] - (
-          I/g**2*((1-4*alpha)**2+2*alphaH**2+2*alphaV**2)*(tslices[3]-tslices[2])
-          -4*(1-8*alpha)*beta*I**2/g**2*( tslices[3]*(t0+tslices[3]) - tslices[2]*(t0+tslices[2]) + (npts2-1)*0.5*(tslices[3]-tslices[2]) ))
+          I/g**2*((1-4*alpha-4*alphaD)**2+2*alphaH**2+2*alphaV**2+4*alphaD**2)*(tslices[3]-tslices[2])
+          -4*(1-8*alpha)*beta*I**2/g**2*tbrack)
+        ad3 = tslices[0]+tslices[3]-ctrl_pars.reset_frame
         CHcorr = (CF_BigStep[sBFE,sBFE+1]+CF_BigStep[sBFE,sBFE-1])/2. - (
-          2.*I/g**2*tslices[3]*(1.-4*alpha-4*alphaD-4*beta*((npts2-1)*0.5*I+0.5))*alphaH + 4.*I/g**2*tslices[3]*alphaV*alphaD)
+          2.*I/g**2*tslices[3]*(1.-4*alpha-4*alphaD-4*beta*(I*ad3+(npts2-1)*0.5*I+0.5))*alphaH + 4.*I/g**2*tslices[3]*alphaV*alphaD)
         CVcorr = (CF_BigStep[sBFE+1,sBFE]+CF_BigStep[sBFE-1,sBFE])/2. - (
-          2.*I/g**2*tslices[3]*(1.-4*alpha-4*alphaD-4*beta*((npts2-1)*0.5*I+0.5))*alphaV + 4.*I/g**2*tslices[3]*alphaH*alphaD)
+          2.*I/g**2*tslices[3]*(1.-4*alpha-4*alphaD-4*beta*(I*ad3+(npts2-1)*0.5*I+0.5))*alphaV + 4.*I/g**2*tslices[3]*alphaH*alphaD)
         CDcorr = (CF_BigStep[sBFE+1,sBFE+1]+CF_BigStep[sBFE-1,sBFE+1]+CF_BigStep[sBFE+1,sBFE-1]+CF_BigStep[sBFE-1,sBFE-1])/4. - (
           2.*I/g**2*tslices[3]*(1.-4*alpha-4*alphaD)*alphaD + 2.*I/g**2*tslices[3]*alphaH*alphaV)
 
@@ -1070,11 +1071,11 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
 def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
 
   # Extract parameters from basicinfo
-  gain =   basicinfo[3]
-  aH =     basicinfo[4]
-  aV =     basicinfo[5]
-  beta =   basicinfo[6]
-  I =      basicinfo[7]
+  gain =   basicinfo[swi.g]
+  aH =     basicinfo[swi.alphaH]
+  aV =     basicinfo[swi.alphaV]
+  beta =   basicinfo[swi.beta]
+  I =      basicinfo[swi.I]
 
   # Extract basic parameters
   num_files = region_cube.shape[0]-1
@@ -1190,7 +1191,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     iters = 0
     while element_diff > tol and iters<=100:
         # Note: solve_corr takes centered things, decenters/calculates internally
-        theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,tslices,avals,avals_nl)\
+        theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,[t-treset for t in tslices],avals,avals_nl)\
           *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
         if numpy.isnan(theory_Cr).any():
             import pdb
@@ -1212,6 +1213,20 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
            warnings.warn("WARNING: NL loop has iterated 100 times")
         #print('iter {:d}, diff {:11.5E}'.format(iters,element_diff))
     #print('end iter {:d}, diff {:11.5E}'.format(iters,element_diff))
+    #x1 = (BFEK_model[2,3]+BFEK_model[3,2]+BFEK_model[2,1]+BFEK_model[1,2])/4.
+    #BFEK_model2 = numpy.zeros_like(BFEK_model) #; BFEK_model2[1:-1,1:-1] = BFEK_model[1:-1,1:-1]
+    #BFEK_model2[2,2] -= numpy.sum(BFEK_model2)
+    #theory_Cr = solve_corr(BFEK_model2,N,I,gain,beta,sigma_a,[t-treset for t in tslices],avals,avals_nl)\
+    #      *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
+    #x2 = (theory_Cr[2,3]+theory_Cr[3,2]+theory_Cr[2,1]+theory_Cr[2,3])/4.
+    #theory_CrB = solve_corr(BFEK_model2,N,I,gain,0,sigma_a,[t-treset for t in tslices],avals,avals_nl)\
+    #      *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
+    #x2B = (theory_CrB[2,3]+theory_CrB[3,2]+theory_CrB[2,1]+theory_CrB[2,3])/4.
+    #x3 = (observed_Cr[2,3]+observed_Cr[3,2]+observed_Cr[2,1]+observed_Cr[2,3])/4.
+    #print('{:11.5E} {:11.5E} {:11.5E} {:11.5E}; {:11.5E} {:11.5E} {:11.5E} [{:11.5E}]'.format(gain,(aH+aV)/2.,beta,I,x1,x2,x3,x2-x2B))
+    #print([t-treset for t in tslices])
+    #numpy.set_printoptions(precision=4)
+    #print(avals); print(BFEK_model2[1:-1,1:-1]); print(theory_Cr-theory_CrB)
     return BFEK_model
 
   else:
