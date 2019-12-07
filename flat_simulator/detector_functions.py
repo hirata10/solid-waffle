@@ -70,7 +70,7 @@ def get_bfe_kernel_3x3():
 
 def get_bfe_kernel_5x5():
   """ Returns an arbitrary bfe 5x5 kernel
-  units of 10&-6 per electron
+  units of 10^-6 per electron
   """
   bfe_kernel_5x5 = 1.E-6*np.array(
     [[-0.01, 0.0020, -0.0210, -0.019, 0.028],
@@ -78,6 +78,18 @@ def get_bfe_kernel_5x5():
      [-0.0170, 0.2990, -1.372, 0.2840, 0.0150],
      [0.0130, 0.0560, 0.2890, 0.0390, 0.02],
      [0.035, 0.0070, 0.0380, 0.0010, 0.026]])
+  return np.fliplr(bfe_kernel_5x5)
+
+def get_bfe_kernel_5x5_symm():
+  """ Returns a symmetric bfe 5x5 kernel
+  units of 10^-6 per electron
+  """
+  bfe_kernel_5x5 = 1.E-6*np.array(
+    [[0.0802, 0.0020, 0.002, 0.002, 0.002],
+     [0.002, 0.01, 0.2840, 0.01, 0.002],
+     [0.002, 0.2840, -1.372, 0.2840, 0.002],
+     [0.002, 0.01, 0.2840, 0.01, 0.002],
+     [0.002, 0.002, 0.002, 0.0020, 0.0878]])
   return np.fliplr(bfe_kernel_5x5)
 
 def calc_area_defect(ap, Q, npad=2):
