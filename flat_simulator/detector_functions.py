@@ -92,6 +92,12 @@ def get_bfe_kernel_5x5_symm():
      [0.002, 0.002, 0.002, 0.0020, 0.0878]])
   return np.fliplr(bfe_kernel_5x5)
 
+def get_bfe_kernel_zeros():
+  """ Returns a 5x5 matrix of 0s for testing
+  """
+  nobfe_kernel_5x5 = np.zeros((5,5))
+  return nobfe_kernel_5x5
+
 def calc_area_defect(ap, Q, npad=2):
   """ ap is the a_deltaideltaj coefficient matrix
   Q is the charge going from xmin:xmax and ymin:ymax
@@ -173,3 +179,5 @@ if __name__=="__main__":
   K2a_out = K2a(kern2, input_bfe_a)
   print "<0,0>, <1,0>, <1,1>, <2,0>, <2,1>, <2,2>:"
   print a_symmetric_avg(K2a_out)
+  print np.around(np.fliplr(input_bfe_a), 4)
+
