@@ -15,7 +15,7 @@ from ftsolve import center,decenter,solve_corr,solve_corr_many
 
 # Version number of script
 def get_version():
-  return 20
+  return 21
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -1130,17 +1130,17 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
       ab_max = pyIRC_percentile(slice_ab, corr_mask, 100*(1-epsilon))
       cd_min = pyIRC_percentile(slice_cd, corr_mask, 100*epsilon)
       cd_max = pyIRC_percentile(slice_cd, corr_mask, 100*(1-epsilon))
-      this_file_mask = numpy.where(numpy.logical_and(slice_ab>ab_min, numpy.logical_and(slice_ab<ab_max,
-        numpy.logical_and(slice_cd>cd_min, slice_cd<cd_max))), corr_mask, 0)
+      this_file_mask_ab = numpy.where(numpy.logical_and(slice_ab>ab_min, slice_ab<ab_max), corr_mask, 0)
+      this_file_mask_cd = numpy.where(numpy.logical_and(slice_cd>cd_min, slice_cd<cd_max), corr_mask, 0)
       if verbose:
-        print (if1, if2, slice_ab.shape, slice_cd.shape, this_file_mask.shape, numpy.sum(this_file_mask))
+        print (if1, if2, slice_ab.shape, slice_cd.shape, numpy.sum(this_file_mask_ab), numpy.sum(this_file_mask_cd))
 
       # Mean subtraction
-      slice_ab -= pyIRC_mean(slice_ab, this_file_mask)
-      slice_cd -= pyIRC_mean(slice_cd, this_file_mask)
+      slice_ab -= pyIRC_mean(slice_ab, this_file_mask_ab)
+      slice_cd -= pyIRC_mean(slice_cd, this_file_mask_cd)
       # Set masked values to zero
-      slice_ab *= this_file_mask
-      slice_cd *= this_file_mask
+      slice_ab *= this_file_mask_ab
+      slice_cd *= this_file_mask_cd
 
       # Now get the correlation function ...
       # format is: numerator and denominator of C_{abcd}(2*sBFE-i,2*sBFE-j)
@@ -1164,7 +1164,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
           cdmaxY = abmaxY + j - sBFE
 
           # Add up contributions to the correlation function
-          denBFE[j,i] += numpy.sum(this_file_mask[abminY:abmaxY,abminX:abmaxX]*this_file_mask[cdminY:cdmaxY,cdminX:cdmaxX])
+          denBFE[j,i] += numpy.sum(this_file_mask_ab[abminY:abmaxY,abminX:abmaxX]*this_file_mask_cd[cdminY:cdmaxY,cdminX:cdmaxX])
           numBFE[j,i] += numpy.sum(slice_ab[abminY:abmaxY,abminX:abmaxX]*slice_cd[cdminY:cdmaxY,cdminX:cdmaxX])/2.
           # division by 2 since differencing two images doubles the answer
 
@@ -1197,36 +1197,11 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
             import pdb
             pdb.set_trace()
         difference = theory_Cr - observed_Cr
-        #element_diff = difference.flat[numpy.abs(difference).argmax()]
         element_diff = numpy.amax(abs(difference))
-        ##### Testing
-        from iteration_test import perturb_test
-        #dydx_max = perturb_test(BFEK_model,element_diff,N,I,gain,beta,
-        #  sigma_a,tslices,avals,avals_nl)
-        #numpy.set_printoptions(precision=3)	
-        #print ('Max d(solve_corr)/d(element):')
-        #print (dydx_max)
-        #####
         BFEK_model -= difference[::-1,::-1]
         iters += 1
         if iters>99:
            warnings.warn("WARNING: NL loop has iterated 100 times")
-        #print('iter {:d}, diff {:11.5E}'.format(iters,element_diff))
-    #print('end iter {:d}, diff {:11.5E}'.format(iters,element_diff))
-    #x1 = (BFEK_model[2,3]+BFEK_model[3,2]+BFEK_model[2,1]+BFEK_model[1,2])/4.
-    #BFEK_model2 = numpy.zeros_like(BFEK_model) #; BFEK_model2[1:-1,1:-1] = BFEK_model[1:-1,1:-1]
-    #BFEK_model2[2,2] -= numpy.sum(BFEK_model2)
-    #theory_Cr = solve_corr(BFEK_model2,N,I,gain,beta,sigma_a,[t-treset for t in tslices],avals,avals_nl)\
-    #      *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
-    #x2 = (theory_Cr[2,3]+theory_Cr[3,2]+theory_Cr[2,1]+theory_Cr[2,3])/4.
-    #theory_CrB = solve_corr(BFEK_model2,N,I,gain,0,sigma_a,[t-treset for t in tslices],avals,avals_nl)\
-    #      *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
-    #x2B = (theory_CrB[2,3]+theory_CrB[3,2]+theory_CrB[2,1]+theory_CrB[2,3])/4.
-    #x3 = (observed_Cr[2,3]+observed_Cr[3,2]+observed_Cr[2,1]+observed_Cr[2,3])/4.
-    #print('{:11.5E} {:11.5E} {:11.5E} {:11.5E}; {:11.5E} {:11.5E} {:11.5E} [{:11.5E}]'.format(gain,(aH+aV)/2.,beta,I,x1,x2,x3,x2-x2B))
-    #print([t-treset for t in tslices])
-    #numpy.set_printoptions(precision=4)
-    #print(avals); print(BFEK_model2[1:-1,1:-1]); print(theory_Cr-theory_CrB)
     return BFEK_model
 
   else:

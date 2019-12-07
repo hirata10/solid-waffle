@@ -140,7 +140,7 @@ for line in content:
   if m: basicpar.g_ptile = float(m.group(1))
   # correlation parameters
   m = re.search(r'^EPSILON:\s*(\S+)', line)
-  if m: basicpar.epsilon = float(m.group(1))
+  if m: bfepar.epsilon = basicpar.epsilon = float(m.group(1))
   m = re.search(r'^IPCSUB:\s*(\S+)', line)
   if m: basicpar.leadtrailSub = m.group(1).lower() in ['true', 'yes']
 
