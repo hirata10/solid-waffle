@@ -4,7 +4,9 @@ import re
 import numpy
 import pyirc
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 
 class EmptyClass:
   pass
