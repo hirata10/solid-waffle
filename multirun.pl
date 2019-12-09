@@ -13,6 +13,13 @@ $N = scalar(@info);
 
 print "$N runs\n";
 
+for $i (0..$N-1) {
+  if (-e "tempresults-$info[$i]") {
+    print "Error: need to write to tempresults-$info[$i], but file already exists.\n";
+    exit;
+  }
+}
+
 my $i=0;
 for $i (0..$N-1) {
   my $pid=fork;
