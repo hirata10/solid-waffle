@@ -40,7 +40,7 @@ my $k;
 for $k (1..$N) {wait();}
 
 for $i (0..$N-1) {
-  print "=== Results from filte $i/$N -> $info[$i] ===\n";
+  print "=== Results from configuration file $i/$N -> $info[$i] ===\n";
   system "cat tempresults-$info[$i]";
   print "\n";
   system "rm tempresults-$info[$i]";
