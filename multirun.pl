@@ -14,8 +14,8 @@ $N = scalar(@info);
 print "$N runs\n";
 
 for $i (0..$N-1) {
-  if (-e "tempresults-$info[$i]") {
-    print "Error: need to write to tempresults-$info[$i], but file already exists.\n";
+  if (-e "$info[$i].temp") {
+    print "Error: need to write to $info[$i].temp, but file already exists.\n";
     exit;
   }
 }
@@ -28,9 +28,9 @@ for $i (0..$N-1) {
     exit;
   }
   if (not $pid) {
-    system "date > tempresults-$info[$i]";
-    system "python test_run.py $info[$i] >> tempresults-$info[$i]";
-    system "date >> tempresults-$info[$i]";
+    system "date > $info[$i].temp";
+    system "python test_run.py $info[$i] >> $info[$i].temp";
+    system "date >> $info[$i].temp";
     exit;
   }
 }
@@ -41,7 +41,7 @@ for $k (1..$N) {wait();}
 
 for $i (0..$N-1) {
   print "=== Results from configuration file $i/$N -> $info[$i] ===\n";
-  system "cat tempresults-$info[$i]";
+  system "cat $info[$i].temp";
   print "\n";
-  system "rm tempresults-$info[$i]";
+  system "rm $info[$i].temp";
 }
