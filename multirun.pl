@@ -14,6 +14,10 @@ $N = scalar(@info);
 print "$N runs\n";
 
 for $i (0..$N-1) {
+  if ($info[$i] =~ m/\s/) {
+    print "Error: config file contains a space.\n";
+    exit;
+  }
   if (-e "$info[$i].temp") {
     print "Error: need to write to $info[$i].temp, but file already exists.\n";
     exit;
