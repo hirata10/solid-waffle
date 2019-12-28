@@ -270,21 +270,28 @@ for iy in range(ny):
                   [sensitivity_spread_cut, False], False)
     info = pyirc.basic(region_cube, dark_cube, tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
     if len(info)>0:
+      is_good[iy,ix] = 1
       if mychar.lower()=='advanced':
         for iCycle in range(ncycle):
           bfeCoefs = pyirc.bfe(region_cube, tslices, info, bfepar, False)
+          if numpy.isnan(bfeCoefs).any():
+            bfeCoefs = numpy.zeros((2*pyirc.swi.s+1,2*pyirc.swi.s+1))
+            is_good[iy,ix] = 0
           Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)],
                  [tslices[0], tslices[-1]+1, tchar1, tchar2], sensitivity_spread_cut, basicpar, [ipnltype, bfeCoefs]) # 1,3 or 9,19
           info[pyirc.swi.ind1:pyirc.swi.ind2] = numpy.asarray(Cdata[pyirc.swi.indp1:pyirc.swi.indp2])
       bfeCoefs = pyirc.bfe(region_cube, tslices, info, bfepar, False)
+      if numpy.isnan(bfeCoefs).any():
+        bfeCoefs = numpy.zeros((2*pyirc.swi.s+1,2*pyirc.swi.s+1))
+        is_good[iy,ix] = 0
       info += bfeCoefs[0:2*pyirc.swi.s+1,0:2*pyirc.swi.s+1].flatten().tolist()
     else:
       info = numpy.zeros((pyirc.swi.Nbb)).tolist()
 
     if len(info)==pyirc.swi.Nbb:
       full_info[iy,ix,0:pyirc.swi.Nbb] = numpy.array(info)
-    if info[0]>=npix*critfrac:
-      is_good[iy,ix] = 1
+    if info[0]<npix*critfrac:
+      is_good[iy,ix] = 0
     else:
       full_info[iy,ix,1:] = 0 # wipe out this super-pixel
 
