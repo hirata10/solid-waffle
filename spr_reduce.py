@@ -5,7 +5,7 @@ import re
 import pyirc
 import time
 
-thisversion = 1
+thisversion = 2
 
 Narg = len(sys.argv)
 if Narg<3:
@@ -20,6 +20,7 @@ if Narg<3:
   print('  -sca=<scanum> -> SCA number (for output)')
   print('  -sd -> subtract dark (not recommended at this time, hasn\'t worked as well as we had hoped)')
   print('  -i -> interpolate masked pixels')
+  print('  -a=<parameter> -> alternate file naming scheme')
   exit()
 
 nfile = 1
@@ -31,6 +32,7 @@ usedark = False; ndark = 1; darkfile = ''
 subtr_dark = False
 interp_alpha = False
 sca = 'xxxxx'
+name_scheme = 1
 
 for k in range(3,Narg):
   m = re.search(r'^-f=(\d+)$', sys.argv[k])
@@ -49,8 +51,10 @@ for k in range(3,Narg):
   if m: subtr_dark = True
   m = re.search(r'^-i$', sys.argv[k])
   if m: interp_alpha = True
-  m = re.search(r'^sca=(\d+)', sys.argv[k])
+  m = re.search(r'^-sca=(\d+)', sys.argv[k])
   if m: sca = m.group(1)
+  m = re.search(r'^-a=(\d+)', sys.argv[k])
+  if m: name_scheme = int(m.group(1))
 
 N = pyirc.get_nside(formatpars)
 dmap = numpy.zeros((nfile,N,N))
@@ -108,13 +112,21 @@ if usedark:
 for j in range(nfile):
   thisfile = sys.argv[1]
   if j>0:
-    m = re.search(r'(.+_)(\d+)\.fits$', sys.argv[1])
-    if m:
-      new_index = int(m.group(2)) + j
-      thisfile = m.group(1) + '{:03d}.fits'.format(new_index)
-    else:
-      print('Error: can\'t construct new file name.')
-      exit()
+    if name_scheme==1:
+      m = re.search(r'(.+_)(\d+)\.fits$', sys.argv[1])
+      if m:
+        new_index = int(m.group(2)) + j
+        thisfile = m.group(1) + '{:03d}.fits'.format(new_index)
+      else:
+        print('Error: can\'t construct new file name.')
+        exit()
+    if name_scheme==2:
+      m = re.search(r'(.+_)_1_(.+\.fits)$', sys.argv[1])
+      if m:
+        thisfile = m.group(1) + '{:d}'.format(j+1) + m.group(2)
+      else:
+        print('Error: can\'t construct new file name.')
+        exit()
 
   thisframe = pyirc.load_segment(thisfile, formatpars, [0,N,0,N], [1,2], True)
   dmap[j,:,:] = thisframe[0,:,:] - thisframe[1,:,:]
