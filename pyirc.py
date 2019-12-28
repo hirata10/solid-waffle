@@ -15,7 +15,7 @@ from ftsolve import center,decenter,solve_corr,solve_corr_many
 
 # Version number of script
 def get_version():
-  return 21
+  return 22
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -1194,14 +1194,15 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
         theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,[t-treset for t in tslices],avals,avals_nl)\
           *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
         if numpy.isnan(theory_Cr).any():
-            import pdb
-            pdb.set_trace()
+            warnings.warn('BFE loop diverged, generated NaN')
+            return numpy.zeros((fsBFE_out,fsBFE_out)) + numpy.nan
         difference = theory_Cr - observed_Cr
         element_diff = numpy.amax(abs(difference))
         BFEK_model -= difference[::-1,::-1]
         iters += 1
         if iters>99:
            warnings.warn("WARNING: NL loop has iterated 100 times")
+           return numpy.zeros((fsBFE_out,fsBFE_out)) + numpy.nan
     return BFEK_model
 
   else:
