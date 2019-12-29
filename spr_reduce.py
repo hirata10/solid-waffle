@@ -121,9 +121,9 @@ for j in range(nfile):
         print('Error: can\'t construct new file name.')
         exit()
     if name_scheme==2:
-      m = re.search(r'(.+_)_1_(.+\.fits)$', sys.argv[1])
+      m = re.search(r'(.+)_1_(.+\.fits)$', sys.argv[1])
       if m:
-        thisfile = m.group(1) + '{:d}'.format(j+1) + m.group(2)
+        thisfile = m.group(1) + '_{:d}_'.format(j+1) + m.group(2)
       else:
         print('Error: can\'t construct new file name.')
         exit()
