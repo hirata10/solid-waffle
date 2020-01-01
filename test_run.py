@@ -292,7 +292,6 @@ for iy in range(ny):
       full_info[iy,ix,0:pyirc.swi.Nbb] = numpy.array(info)
     if info[0]<npix*critfrac:
       is_good[iy,ix] = 0
-    else:
       full_info[iy,ix,1:] = 0 # wipe out this super-pixel
 
 print ('|')
