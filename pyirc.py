@@ -15,7 +15,7 @@ from ftsolve import center,decenter,solve_corr,solve_corr_many
 
 # Version number of script
 def get_version():
-  return 22
+  return 23
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
