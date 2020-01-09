@@ -44,8 +44,8 @@ lipcmode = 'false'
 lipc_alpha = [0.01]
 nlmode = 'false'
 nlbeta = 1.5 # (ppm/e-)
-# nlcoeffs_arr are [c_2,c_3,c_4] with c_j in units of electrons^(1-j) 
-nlcoeffs_arr = [-1.5725e-6,1.9307e-11,-1.4099e-16]
+# nlcoeffs_arr are [c_2,c_3,c_4] with c_j in units of ppm electrons^(1-j) 
+nlcoeffs_arr = [-1.5725,1.9307e-5,-1.4099e-10]
 reset_frames = [0]
 
 # Read in information
@@ -105,9 +105,11 @@ for line in content:
   m = re.search(r'^NL:\s*(\S+)\s+(\S+)', line)
   if m:
     nlmode = m.group(1)
-    if nlmode == 'true':
+    if nlmode == 'quadratic':
       nlbeta = float(m.group(2))
-
+    elif nlmode == 'quartic':
+      nlcoeffs_str = m.group(2).split(" ")
+      nlcoeffs_arr = [ float(nlcoeffs_str[x] for x in range(len(nlcoeffs_str)) ]
   # Reset level (in e)
   m = re.search(r'^RESET_E:\s*(\S+)', line)
   if m: resetlevel = float(m.group(1))
