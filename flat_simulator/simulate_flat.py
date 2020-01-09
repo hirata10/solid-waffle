@@ -102,7 +102,7 @@ for line in content:
       lipc_alpha = [ float(lipc_alpha_str[x]) for x in range(len(lipc_alpha_str)) ]
 
   # non-linearity beta
-  m = re.search(r'^NL:\s*(\S+)\s+(\S+)', line)
+  m = re.search(r'^NL:\s*(\S+)\s+(\S.*)', line)
   if m:
     nlmode = m.group(1)
     if nlmode == 'quadratic':
