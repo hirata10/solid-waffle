@@ -109,7 +109,7 @@ for line in content:
       nlbeta = float(m.group(2))
     elif nlmode == 'quartic':
       nlcoeffs_str = m.group(2).split(" ")
-      nlcoeffs_arr = [ float(nlcoeffs_str[x] for x in range(len(nlcoeffs_str)) ]
+      nlcoeffs_arr = [ float(nlcoeffs_str[x]) for x in range(len(nlcoeffs_str)) ]
   # Reset level (in e)
   m = re.search(r'^RESET_E:\s*(\S+)', line)
   if m: resetlevel = float(m.group(1))
@@ -199,9 +199,9 @@ if (nlmode=='quadratic'):
       data_cube_Q[:,xmin:xmax,ymin:ymax]**2
   print "Applying non-linearity at leading order coefficient (quadratic term)"
 elif (nlmode=='quartic'):
-  data_cube_Q[:,xmin:xmax,ymin:ymax] += nlcoeffs_arr[0] * \
-      data_cube_Q[:,xmin:xmax,ymin:ymax]**2 + nlcoeffs_arr[1] * \
-      data_cube_Q[:,xmin:xmax,ymin:ymax]**3 + nlcoeffs_arr[2] * \
+  data_cube_Q[:,xmin:xmax,ymin:ymax] += 1.E-6*nlcoeffs_arr[0] * \
+      data_cube_Q[:,xmin:xmax,ymin:ymax]**2 + 1.E-6*nlcoeffs_arr[1] * \
+      data_cube_Q[:,xmin:xmax,ymin:ymax]**3 + 1.E-6*nlcoeffs_arr[2] * \
       data_cube_Q[:,xmin:xmax,ymin:ymax]**4
   print "Applying non-linearity polynomial to quartic term"
 else:
