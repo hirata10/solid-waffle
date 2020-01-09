@@ -44,6 +44,8 @@ lipcmode = 'false'
 lipc_alpha = [0.01]
 nlmode = 'false'
 nlbeta = 1.5 # (ppm/e-)
+# nlcoeffs_arr are [c_2,c_3,c_4] with c_j in units of electrons^(1-j) 
+nlcoeffs_arr = [-1.5725e-6,1.9307e-11,-1.4099e-16]
 reset_frames = [0]
 
 # Read in information
@@ -190,10 +192,16 @@ else:
   pass
 
 # Apply non-linearity if mode turned on; assumed to act after IPC
-if (nlmode=='true'):
+if (nlmode=='quadratic'):
   data_cube_Q[:,xmin:xmax,ymin:ymax] -= (1.E-6*nlbeta) * \
       data_cube_Q[:,xmin:xmax,ymin:ymax]**2
-  print "Applying non-linearity"
+  print "Applying non-linearity at leading order coefficient (quadratic term)"
+elif (nlmode=='quartic'):
+  data_cube_Q[:,xmin:xmax,ymin:ymax] += nlcoeffs_arr[0] * \
+      data_cube_Q[:,xmin:xmax,ymin:ymax]**2 + nlcoeffs_arr[1] * \
+      data_cube_Q[:,xmin:xmax,ymin:ymax]**3 + nlcoeffs_arr[2] * \
+      data_cube_Q[:,xmin:xmax,ymin:ymax]**4
+  print "Applying non-linearity polynomial to quartic term"
 else:
   print "No additional non-linearity (Beta) applied"
   pass
@@ -220,8 +228,12 @@ hdr['QE'] = QE
 hdr['RNGSEED'] = rngseed
 if (lipcmode=='true'):
   hdr['LINIPC'] = lipc_alpha[0]
-if (nlmode=='true'):
+if (nlmode=='quadratic'):
   hdr['BETA'] = nlbeta
+if (nlmode=='quartic'):
+  hdr['NLCOEFFS_c2'] = nlcoeffs_arr[0]
+  hdr['NLCOEFFS_c3'] = nlcoeffs_arr[1]
+  hdr['NLCOEFFS_c4'] = nlcoeffs_arr[2]
 if (bfemode=='true'):
   hdr['BFE_A00'] = a_coeff[2][2]  # Hard-coded to expect 5x5 a coeffs
 
