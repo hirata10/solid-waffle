@@ -31,13 +31,13 @@ def pad_to_N(arr,N):
     else:
         return arr
 
-def solve_corr(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2):
+def solve_corr(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2):
     # INPUT: 
     # bfek     <- compound kernel [K^2 a+KK*](assumed to be centered)
     # N        <- detector size (assumed odd for now)
     # I        <- current
     # g        <- gain (assuming no higher order fitting for now)
-    # beta     <- classical non-linearity
+    # betas    <- array of classical non-linearity coefficients [beta_2...beta_n]
     # sigma_a  <- sum of the BFE kernel
     # tslices  <- list of time slices (ta, tb, tc, td)  
     # avals    <- list of alpha values for linear IPC kernel (aV, aH, aD)
@@ -97,48 +97,53 @@ def solve_corr(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2)
     
 # Plug into correlation function (see eqn 51)
     csq_abcd =(1/g**2
-           *((1-2*beta*I*ta)*(1-2*beta*I*tc)*(ksq+knl_sq*I*ta)*(ksq_p+knl_sq_p*I*tc)*qqs[0] 
-           - (1-2*beta*I*ta)*(1-2*beta*I*td)*(ksq+knl_sq*I*ta)*(ksq_p+knl_sq_p*I*td)*qqs[1] 
-           - (1-2*beta*I*tb)*(1-2*beta*I*tc)*(ksq+knl_sq*I*tb)*(ksq_p+knl_sq_p*I*tc)*qqs[2] 
-           + (1-2*beta*I*tb)*(1-2*beta*I*td)*(ksq+knl_sq*I*tb)*(ksq_p+knl_sq_p*I*td)*qqs[3])
+           *(eval_cnl(betas,I,ta)*eval_cnl(betas,I,tc)*(ksq+knl_sq*I*ta)*(ksq_p+knl_sq_p*I*tc)*qqs[0] 
+           - eval_cnl(betas,I,ta)*eval_cnl(betas,I,td)*(ksq+knl_sq*I*ta)*(ksq_p+knl_sq_p*I*td)*qqs[1] 
+           - eval_cnl(betas,I,tb)*eval_cnl(betas,I,tc)*(ksq+knl_sq*I*tb)*(ksq_p+knl_sq_p*I*tc)*qqs[2] 
+           + eval_cnl(betas,I,tb)*eval_cnl(betas,I,td)*(ksq+knl_sq*I*tb)*(ksq_p+knl_sq_p*I*td)*qqs[3])
            )
     
     return center(np.real(ifft2(csq_abcd)))[cent][:,cent]
 
+def eval_cnl(betas,I,t):
+    nu = np.arange(2,len(betas)+2)
+    return 1-np.sum(nu*betas*(I*t)**(nu-1))
+
+
 # same as solve_corr *except* that we have tslice [ta,tb,tc,td,tn],
 # where tn >= 1 is the number of similar steps to use -- i.e., we have
 # (C_{ta,tb,tc,td} + C_{ta+1,tb+1,tc+1,td+1} + ... + C_{ta+tn-1,tb+tn-1,tc+tn-1,td+tn-1} )/tn
-def solve_corr_many(bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2):
+def solve_corr_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2):
    this_t = tslices[:-1]
    tn = tslices[-1]
-   cf = solve_corr(bfek,N,I,g,beta,sigma_a,this_t,avals,avals_nl,outsize)
+   cf = solve_corr(bfek,N,I,g,betas,sigma_a,this_t,avals,avals_nl,outsize)
    for j in range(tn-1):
      for k in range(4): this_t[k] += 1
-     cf += solve_corr(bfek,N,I,g,beta,sigma_a,this_t,avals,avals_nl,outsize)
+     cf += solve_corr(bfek,N,I,g,betas,sigma_a,this_t,avals,avals_nl,outsize)
    cf /= tn+0.0
    return(cf)
 
-if __name__=="__main__":
+#if __name__=="__main__":
    
    # Test against configuration-space corrfn generated from known inputs/simulated flats
-   N = 21
-   I = 1487
-   g = 2.06
-   beta = 0
-   tslices = [3, 11, 13, 21]
-   avals = [0,0,0]
-   avals_nl = [0,0,0]   
+#   N = 21
+#   I = 1487
+#   g = 2.06
+#   beta = 0
+#   tslices = [3, 11, 13, 21]
+#   avals = [0,0,0]
+#   avals_nl = [0,0,0]   
 
-   test_bfek = 1.E-6*np.array(
-    	[[-0.01, 0.0020, -0.0210, -0.019, 0.028],
-     	[0.0040, 0.0490, 0.2480, 0.01, -0.0240],
-     	[-0.0170, 0.2990, -1.372, 0.2840, 0.0150],
-     	[0.0130, 0.0560, 0.2890, 0.0390, 0.02],
-     	[0.035, 0.0070, 0.0380, 0.0010, 0.026]])
+#   test_bfek = 1.E-6*np.array(
+#    	[[-0.01, 0.0020, -0.0210, -0.019, 0.028],
+#     	[0.0040, 0.0490, 0.2480, 0.01, -0.0240],
+#     	[-0.0170, 0.2990, -1.372, 0.2840, 0.0150],
+#     	[0.0130, 0.0560, 0.2890, 0.0390, 0.02],
+#     	[0.035, 0.0070, 0.0380, 0.0010, 0.026]])
 
 
    #test_bfek = np.load('/users/PCON0003/cond0088/Projects/detectors/solid-waffle/testBFEK_flatsim_matcheddark_bfeonly18237sim_10files_sub20.npy')
-   sigma_a = np.sum(test_bfek)
+#   sigma_a = np.sum(test_bfek)
 
    # Test against BFEK values in run of test_run.py with input config.18237.sample1
    #N = 21
@@ -151,6 +156,6 @@ if __name__=="__main__":
    #avals_nl = [0,0,0]
    #test_bfek = np.load('test_bfek.npy')
 
-   c_abcd = solve_corr(test_bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl)
-   print (c_abcd)
+#   c_abcd = solve_corr(test_bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl)
+#   print (c_abcd)
 
