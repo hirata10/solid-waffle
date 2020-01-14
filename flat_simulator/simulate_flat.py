@@ -44,6 +44,8 @@ lipcmode = 'false'
 lipc_alpha = [0.01]
 nlmode = 'false'
 nlbeta = 1.5 # (ppm/e-)
+# nlcoeffs_arr are [c_2,c_3,c_4] with c_j in units of ppm electrons^(1-j) 
+nlcoeffs_arr = [-1.5725,1.9307e-5,-1.4099e-10]
 reset_frames = [0]
 
 # Read in information
@@ -100,12 +102,14 @@ for line in content:
       lipc_alpha = [ float(lipc_alpha_str[x]) for x in range(len(lipc_alpha_str)) ]
 
   # non-linearity beta
-  m = re.search(r'^NL:\s*(\S+)\s+(\S+)', line)
+  m = re.search(r'^NL:\s*(\S+)\s+(\S.*)', line)
   if m:
     nlmode = m.group(1)
-    if nlmode == 'true':
+    if nlmode == 'quadratic':
       nlbeta = float(m.group(2))
-
+    elif nlmode == 'quartic':
+      nlcoeffs_str = m.group(2).split(" ")
+      nlcoeffs_arr = [ float(nlcoeffs_str[x]) for x in range(len(nlcoeffs_str)) ]
   # Reset level (in e)
   m = re.search(r'^RESET_E:\s*(\S+)', line)
   if m: resetlevel = float(m.group(1))
@@ -190,10 +194,16 @@ else:
   pass
 
 # Apply non-linearity if mode turned on; assumed to act after IPC
-if (nlmode=='true'):
+if (nlmode=='quadratic'):
   data_cube_Q[:,xmin:xmax,ymin:ymax] -= (1.E-6*nlbeta) * \
       data_cube_Q[:,xmin:xmax,ymin:ymax]**2
-  print "Applying non-linearity"
+  print "Applying non-linearity at leading order coefficient (quadratic term)"
+elif (nlmode=='quartic'):
+  data_cube_Q[:,xmin:xmax,ymin:ymax] += 1.E-6*nlcoeffs_arr[0] * \
+      data_cube_Q[:,xmin:xmax,ymin:ymax]**2 + 1.E-6*nlcoeffs_arr[1] * \
+      data_cube_Q[:,xmin:xmax,ymin:ymax]**3 + 1.E-6*nlcoeffs_arr[2] * \
+      data_cube_Q[:,xmin:xmax,ymin:ymax]**4
+  print "Applying non-linearity polynomial to quartic term"
 else:
   print "No additional non-linearity (Beta) applied"
   pass
@@ -220,8 +230,12 @@ hdr['QE'] = QE
 hdr['RNGSEED'] = rngseed
 if (lipcmode=='true'):
   hdr['LINIPC'] = lipc_alpha[0]
-if (nlmode=='true'):
+if (nlmode=='quadratic'):
   hdr['BETA'] = nlbeta
+if (nlmode=='quartic'):
+  hdr['NLCOEFFS_c2'] = nlcoeffs_arr[0]
+  hdr['NLCOEFFS_c3'] = nlcoeffs_arr[1]
+  hdr['NLCOEFFS_c4'] = nlcoeffs_arr[2]
 if (bfemode=='true'):
   hdr['BFE_A00'] = a_coeff[2][2]  # Hard-coded to expect 5x5 a coeffs
 
