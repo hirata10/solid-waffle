@@ -38,8 +38,11 @@ BFE: true
 L_IPC: true 0.01
 
 # Non-linearity mode NL can be 'false'
-# or 'true' followed by a floating point value for beta,
-# in units of ppm/e-;  default is false
-NL: true 1.4
+# or 'quadratic' followed by a floating point value for beta,
+# in units of ppm/e-;  or 'quartic' followed by coeffs 
+# separated by single spaces in the order
+# c2 c3 c4 in units of ppm e-^(1-j), j=2,3,4;  default is false
+#NL: quartic -1.6 1.9E-5 -1.4E-10
+NL: quadratic 1.4
 
 OUTPUT: test1.fits

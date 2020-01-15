@@ -11,11 +11,17 @@ import warnings
 from fitsio import FITS,FITSHDR
 from ftsolve import center,decenter,solve_corr,solve_corr_many
 
+# <== TESTING PARAMETERS ONLY ==>
+#
+# [these are false and should only be set to true for debugging purposes]
+
+Test_SubBeta = False
+
 # <== THESE FUNCTIONS DEPEND ON THE FORMAT OF THE INPUT FILES ==>
 
 # Version number of script
 def get_version():
-  return 23
+  return 25
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -933,6 +939,12 @@ def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_sprea
 #
 def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars, addInfo):
 
+  # Check whether we have non-linearity information
+  if ctrl_pars.use_allorder:
+    if len(addInfo)<3:
+      print ('Error: polychar: not enough fields in addInfo')
+      return []
+
   # Check time range
   if len(tslices)<4:
     print ('Error: polychar: not enough data', tslices)
@@ -968,6 +980,23 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
     diff_frames[j] = data[j,j+1,1] # median from frame tslices[0]+j -> tslices[0]+j+1
   slopemed, icpt = numpy.linalg.lstsq(numpy.vstack([numpy.array(range(npts)) + tslices[0]-ctrl_pars.reset_frame,
                    numpy.ones(npts)]).T, diff_frames, rcond=-1)[0]
+  # If using 'allorder', let's subtract out the higher-order terms:
+  if ctrl_pars.use_allorder:
+    xr = numpy.array(range(npts)) + tslices[0]-ctrl_pars.reset_frame
+    i=100; err=10;
+    etarget = 1e-9*numpy.abs(icpt)
+    while i>=0 and err>etarget:
+      I__g = icpt - 0.5*slopemed
+      diff_frames_reduced = diff_frames.copy()
+      icpt_old = icpt
+      slopemed_old = slopemed
+      for j in range(3, swi.p+1):
+        diff_frames_reduced -= addInfo[2][j-2]*((xr+1)**j - xr**j) * (icpt-slopemed*.5)**j
+      slopemed, icpt = numpy.linalg.lstsq(numpy.vstack([xr, numpy.ones(npts)]).T, diff_frames_reduced, rcond=-1)[0]
+      err = numpy.sqrt( (icpt-icpt_old)**2 + (slopemed-slopemed_old)**2 )
+      if i==0:
+        print ('higher order loop failed to converge {:12.5E} vs {:12.5E} (target)', err, etarget)
+        return []
 
   # Difference of correlation functions
   #
@@ -1025,10 +1054,13 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
       
       # apply corrections from ftsolve
       if ctrl_pars.fullnl and typeCorr.lower() == 'bfe':
+        beta_cm = beta
+        if ctrl_pars.use_allorder: beta_cm = -addInfo[2]/g**numpy.linspace(1,swi.p-1,num=swi.p-1)
+        if Test_SubBeta: beta_cm = beta
         t0 = tslices[0]-ctrl_pars.reset_frame
-        CF_BigStep = solve_corr_many(ipnl, 21, I, g, beta, 0., [t0, t0+tslices[3], t0, t0+tslices[3], npts2],
+        CF_BigStep = solve_corr_many(ipnl, 21, I, g, beta_cm, 0., [t0, t0+tslices[3], t0, t0+tslices[3], npts2],
           [alphaV, alphaH, alphaD], [0.,0.,0.], sBFE)
-        CF_SmallStep = solve_corr_many(ipnl, 21, I, g, beta, 0., [t0, t0+tslices[2], t0, t0+tslices[2], npts2],
+        CF_SmallStep = solve_corr_many(ipnl, 21, I, g, beta_cm, 0., [t0, t0+tslices[2], t0, t0+tslices[2], npts2],
           [alphaV, alphaH, alphaD], [0.,0.,0.], sBFE)
         Cdiffcorr = CF_BigStep[sBFE,sBFE] - CF_SmallStep[sBFE,sBFE] - (
           I/g**2*((1-4*alpha-4*alphaD)**2+2*alphaH**2+2*alphaV**2+4*alphaD**2)*(tslices[3]-tslices[2])
@@ -1096,6 +1128,11 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
   fsBFE = 2*sBFE+1
   sBFE_out = sBFE
   fsBFE_out = fsBFE
+
+  # replace beta with a scalar value if necessary
+  # note beta[0] is now 2nd order coef (in DN^-1) is to be converted to beta (in e^-1) and has opposite sign
+  if ctrl_pars_bfe.fullnl and ctrl_pars_bfe.use_allorder: beta = -beta/gain**numpy.linspace(1,swi.p-1,num=swi.p-1)
+  if ctrl_pars_bfe.fullnl and ctrl_pars_bfe.use_allorder and Test_SubBeta: beta = beta[0]
 
   # Baseline subtraction -- requires bigger box
   BSub = True

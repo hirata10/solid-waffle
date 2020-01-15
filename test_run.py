@@ -203,6 +203,9 @@ for f in lightfiles+darkfiles:
   nt = pyirc.get_num_slices(formatpars, f)
   if nt<NTMAX: NTMAX=nt
 
+# Copy basicpar parameters to bfebar
+bfepar.use_allorder = basicpar.use_allorder
+
 print ('Output will be directed to {:s}*'.format(outstem))
 print ('Light files:', lightfiles)
 print ('Dark files:', darkfiles)
@@ -271,16 +274,23 @@ for iy in range(ny):
     info = pyirc.basic(region_cube, dark_cube, tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
     if len(info)>0:
       is_good[iy,ix] = 1
+      thisinfo = info.copy()
+      if basicpar.use_allorder:
+        thisinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p]
       if mychar.lower()=='advanced':
         for iCycle in range(ncycle):
-          bfeCoefs = pyirc.bfe(region_cube, tslices, info, bfepar, False)
+          bfeCoefs = pyirc.bfe(region_cube, tslices, thisinfo, bfepar, False)
           if numpy.isnan(bfeCoefs).any():
             bfeCoefs = numpy.zeros((2*pyirc.swi.s+1,2*pyirc.swi.s+1))
             is_good[iy,ix] = 0
           Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)],
-                 [tslices[0], tslices[-1]+1, tchar1, tchar2], sensitivity_spread_cut, basicpar, [ipnltype, bfeCoefs]) # 1,3 or 9,19
+                 [tslices[0], tslices[-1]+1, tchar1, tchar2], sensitivity_spread_cut, basicpar,
+                 [ipnltype, bfeCoefs, thisinfo[pyirc.swi.beta]])
           info[pyirc.swi.ind1:pyirc.swi.ind2] = numpy.asarray(Cdata[pyirc.swi.indp1:pyirc.swi.indp2])
-      bfeCoefs = pyirc.bfe(region_cube, tslices, info, bfepar, False)
+          thisinfo = info.copy()
+          if basicpar.use_allorder:
+            thisinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p]
+      bfeCoefs = pyirc.bfe(region_cube, tslices, thisinfo, bfepar, False)
       if numpy.isnan(bfeCoefs).any():
         bfeCoefs = numpy.zeros((2*pyirc.swi.s+1,2*pyirc.swi.s+1))
         is_good[iy,ix] = 0
