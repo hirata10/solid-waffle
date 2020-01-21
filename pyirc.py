@@ -15,13 +15,13 @@ from ftsolve import center,decenter,solve_corr,solve_corr_many
 #
 # [these are false and should only be set to true for debugging purposes]
 
-Test_SubBeta = True
+Test_SubBeta = False
 
 # <== THESE FUNCTIONS DEPEND ON THE FORMAT OF THE INPUT FILES ==>
 
 # Version number of script
 def get_version():
-  return 24
+  return 25
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to

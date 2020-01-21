@@ -49,6 +49,9 @@ def solve_corr(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2
     aV, aH, aD = avals
     aV_nl, aH_nl, aD_nl = avals_nl
     
+    # convert betas to an array if it isn't already
+    if not isinstance(betas, np.ndarray): betas = np.array([betas])
+
     if not bfek.shape[1]==bfek.shape[0]:
         warnings.warn("WARNING: convolved BFE kernel (BFEK) not square.")
 

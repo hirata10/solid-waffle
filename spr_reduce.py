@@ -5,7 +5,7 @@ import re
 import pyirc
 import time
 
-thisversion = 2
+thisversion = 3
 
 Narg = len(sys.argv)
 if Narg<3:
@@ -240,6 +240,7 @@ for k in range(Narg):
   keyword = 'ARGV{:02d}'.format(k)
   hdu.header[keyword] = sys.argv[k]
 hdu.header['MASKSIZE'] = '{:d}/{:d}'.format(int(numpy.sum(dmask)), nx*ny)
+hdu.header['MEDSIG'] = ('{:8.2f}'.format(numpy.median(medsignals[1,:,:])), 'Median signal in central pixel')
 hdul = fits.HDUList([hdu])
 hdul.writeto(outstem + '_alpha.fits', overwrite=True)
 
