@@ -21,6 +21,7 @@ if Narg<3:
   print('  -sd -> subtract dark (not recommended at this time, hasn\'t worked as well as we had hoped)')
   print('  -i -> interpolate masked pixels')
   print('  -a=<parameter> -> alternate file naming scheme')
+  print('  -nl=<summary file> -> summary file for NL information')
   exit()
 
 nfile = 1
@@ -33,6 +34,7 @@ subtr_dark = False
 interp_alpha = False
 sca = 'xxxxx'
 name_scheme = 1
+use_nl = False
 
 for k in range(3,Narg):
   m = re.search(r'^-f=(\d+)$', sys.argv[k])
@@ -55,9 +57,36 @@ for k in range(3,Narg):
   if m: sca = m.group(1)
   m = re.search(r'^-a=(\d+)', sys.argv[k])
   if m: name_scheme = int(m.group(1))
+  m = re.search(r'^-nl=(\S+)$', sys.argv[k])
+  if m:
+    use_nl = True
+    nlfile = m.group(1)
 
 N = pyirc.get_nside(formatpars)
 dmap = numpy.zeros((nfile,N,N))
+
+# Pull down information from NL file
+if use_nl:
+  summaryinfo = numpy.loadtxt(nlfile)
+  sum_nx = int(numpy.amax(summaryinfo[:,0]))+1
+  sum_ny = int(numpy.amax(summaryinfo[:,1]))+1
+  omax = 6; colindex = [0]*(omax+1)
+  nlcoefs = numpy.zeros((omax+1, sum_ny, sum_nx))
+  f = open(nlfile, 'r')
+  for x in f:
+    m = re.search('^\# +(\d+), additional non-linearity coefficient, order (\d+) ', x)
+    if m:
+      thiscol = int(m.group(1))
+      thisord = int(m.group(2))
+      colindex[thisord] = thiscol
+      if thisord>omax:
+        print('Error: increase omax={:d} to {:d}'.format(omax,thisord))
+        exit()
+  print('NL information ->', sum_ny, sum_nx, omax, colindex)
+  for p in range(1,omax+1):
+    if colindex[p]>0:
+      nlcoefs[p,:,:] = summaryinfo[:,colindex[p]-1].reshape(sum_ny,sum_nx)
+  f.close()
 
 # IPC patterns:
 #
@@ -131,6 +160,27 @@ for j in range(nfile):
   thisframe = pyirc.load_segment(thisfile, formatpars, [0,N,0,N], [1,2], True)
   dmap[j,:,:] = thisframe[0,:,:] - thisframe[1,:,:]
   if subtr_dark: dmap[j,:,:] -= darkframe
+
+  # Non-linearity correction, if used
+  if use_nl:
+    sys.stdout.write('Non-linearity corrections: super-rows (of {:d}): '.format(sum_ny)); sys.stdout.flush()
+    for iys in range(sum_ny):
+      sys.stdout.write('{:d} '.format(iys)); sys.stdout.flush()
+      ysmin = iys*(N//sum_ny)
+      ysmax = (iys+1)*(N//sum_ny)
+      for ixs in range(sum_nx):
+        xsmin = ixs*(N//sum_nx)
+        xsmax = (ixs+1)*(N//sum_nx)
+        S = dmap[j,ysmin:ysmax,xsmin:xsmax] # makes subarray
+        Sf = numpy.copy(S)
+        # want to solve Sf = S + c_2 S^2 + c_3 S^3 + ...
+        for k in range(20):
+          # iterative solution
+          Sp = numpy.copy(S)
+          for p in range(2,omax+1):
+            Sp += nlcoefs[p,iys,ixs]*S**p
+          S += Sf-Sp
+    print('Done.')
 
   # subtractions to get "signals" (background, center, horiz, vert, diag)
   for iy in range(ny):
