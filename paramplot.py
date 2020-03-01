@@ -1,21 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 import pandas as pd
-       
  
-sim_gain = 2.0639
-sim_alpha = 1.6877
-sim_alphaH = 1.6342
-sim_alphaV = 1.7411
-sim_alphaD = 0.1846
+sim_gain = 2.06
+sim_alpha = 1.69
+sim_alphaH = 1.69
+sim_alphaV = 1.69
 sim_beta2 = -1.5725*1e-6
 sim_beta3 = 1.9307e-5*1e-6
 sim_beta4 = -1.4099e-10*1e-6
 sim_ipnl = -1.1590
 sim_ipnlNN = 0.2034
 
-sim_truevals = [sim_alphaV,sim_alphaH,sim_beta2*sim_gain,
-		sim_beta3*sim_gain**2,sim_beta4*sim_gain**3,sim_gain,sim_ipnl,sim_ipnlNN]
+sim_truevals = [sim_alphaV,sim_alphaH,sim_beta2*sim_gain*-1e6,
+		sim_beta3*sim_gain**2*-1e10,sim_beta4*sim_gain**3*-1e15,sim_gain,sim_ipnl,sim_ipnlNN]
  
  
 def read_summary(fname):
@@ -39,7 +38,17 @@ def read_summary(fname):
     table['alphaH'] *= 100
     table['alphaV'] *= 100
     table['alphaD'] *= 100
+
+    table['beta2'] *= -1e6
+    table['beta3'] *= -1e10
+    table['beta4'] *= -1e15
     return table
+
+font = {'family' : 'normal',
+        'weight' : 'regular',
+        'size'   : 13}
+
+matplotlib.rc('font', **font)
 
 prefix = '/users/PCON0003/cond0088/Projects/detectors/sw_outputs/'
 files = [prefix+'chris_20663st_summary.txt',
@@ -61,19 +70,18 @@ files = [prefix+'chris_20663st_summary.txt',
 	 prefix+'chris_20829st-short_summary.txt',
 	 prefix+'chris_20829st-med_summary.txt',
 	 prefix+'full_quart_nl_paperI_JG_pyircv25_16by16_summary.txt',
-	 prefix+'full_quart_nl_paperI_JG_pyircv25_32by32_summary.txt',
-	 prefix+'ACredo_JG_paperI_sims_adv_fullnl_summary.txt']
+	 prefix+'full_quart_nl_paperI_JG_pyircv25_32by32_summary.txt']
 
 # Set up figure
 ylabels = ['SCA 20663, fiducial','SCA 20663, 128x16','SCA 20663, cubic CNL','SCA 20663, lo (1 3 4 6)','SCA 20663, short (5 7 8 10)','SCA 20663, med (3 6 7 10)',
 	   'SCA 20828, fiducial','SCA 20828, 128x16','SCA 20828, cubic CNL','SCA 20828, lo (1 3 4 6)','SCA 20828, short (5 7 8 10)','SCA 20828, med (3 6 7 10)',
 	   'SCA 20829, fiducial','SCA 20829, 128x16','SCA 20829, cubic CNL','SCA 20829, lo (1 3 4 6)','SCA 20829, short (5 7 8 10)','SCA 20829, med (3 6 7 10)']
-sim_ylabels = ['simulations, 16x16','simulations, 32x32','simulations, redo']
+sim_ylabels = ['simulations, 16x16','simulations, 32x32']
 divisions = [5,11,17]
 axis_names = [r'$\alpha_V$',r'$\alpha_H$',
               r'$\beta_2g$',r'$\beta_3g^2$',r'$\beta_4g^3$',
-              r'$g$',r'$[K^2a+KK\']_{0,0}$',r'$[K^2a+KK\']_{<1,0>}$']
-units = ['%','%',r'DN$^{-1}$',r'DN$^{-2}$',r'DN$^{-3}$','e/DN',r'ppm/e',r'ppm/e']
+              r'$g$',r'$[K^2a+KK^I]_{0,0}$',r'$[K^2a+KK^I]_{<1,0>}$']
+units = ['%','%',r'$10^6\times$DN$^{-1}$',r'$10^{10}\times$DN$^{-2}$',r'$10^{15}\times$DN$^{-3}$','e/DN',r'ppm/e',r'ppm/e']
 
 xdata_labels = ['alphaV','alphaH','beta2','beta3','beta4',
                 'gain_alphabeta','ipnl(0,0)','ipnlNN']
@@ -124,7 +132,7 @@ for i,ax in enumerate(axes):
             ax.fill_betweenx([j-0.5,j+divisions[1]-divisions[0]-0.5],[mean-error,mean-error],
                              [mean+error,mean+error], color = 'grey', alpha = 0.5)
             
-sim_tables = tables[-2:]
+sim_tables = tables[-1*len(sim_ylabels):]
 
 for i,sax in enumerate(sim_axes):
     sax.set_ylim(len(sim_ylabels)-0.5,-0.5)
