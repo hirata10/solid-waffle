@@ -177,7 +177,7 @@ if __name__=="__main__":
   # symmetric averages it's ok for now
   input_bfe_a = 1.E6*np.fliplr(get_bfe_kernel_5x5())
   K2a_out = K2a(kern2, input_bfe_a)
-  print "<0,0>, <1,0>, <1,1>, <2,0>, <2,1>, <2,2>:"
-  print a_symmetric_avg(K2a_out)
-  print np.around(np.fliplr(input_bfe_a), 4)
+  print("<0,0>, <1,0>, <1,1>, <2,0>, <2,1>, <2,2>:")
+  print(a_symmetric_avg(K2a_out))
+  print(np.around(np.fliplr(input_bfe_a), 4))
 
