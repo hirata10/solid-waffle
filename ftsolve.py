@@ -31,6 +31,59 @@ def pad_to_N(arr,N):
     else:
         return arr
 
+# p2kernel inputs:
+#   cov: covariance matrix (list or np array, length 3: xx, xy, yy)
+#   np2: kernel radius to generate
+#   N_integ: number of integration steps
+#
+# outputs: 2*np2+1 x 2*np2+1 array of p2
+#   (so that p2_output[np2+j, np2+i] is p2(i,j))
+def p2kernel(cov, np2, N_integ):
+
+  use_extrule = True # turn off only for de-bugging
+
+  NN_integ = 2*N_integ + 1 # dimension of integration region
+
+  # Integration weights -- 2D array
+  w = np.zeros((NN_integ))
+  if use_extrule:
+    if N_integ<8:
+      print('Error: N_integ in p2kernel must be at least 8.')
+      exit()
+    for i in range(1, N_integ+1):
+      w[i] = i/N_integ**2
+    w[N_integ] *= 3./4.
+    w[1] *= 7./6.; w[N_integ-1] *= 7./6.
+    w[2] *= 23./24.; w[N_integ-2] *= 23./24.
+    w[N_integ+1:] = np.flip(w[:N_integ])
+    w[N_integ+1:] = np.flip(w[:N_integ])
+  else:
+    for i in range(N_integ+1):
+      w[2*N_integ-i] = w[i] = i/N_integ**2
+
+  ww = np.outer(w,w)
+
+  # get inverse covariance
+  # note we actually want 2C
+  detC = 4*(cov[0]*cov[2]-cov[1]**2)
+  iCov_xx =  2*cov[2]/detC
+  iCov_xy = -2*cov[1]/detC
+  iCov_yy =  2*cov[0]/detC
+
+  p2_output = np.zeros((2*np2+1,2*np2+1))
+  for j in range(-np2,1):
+    z2 = np.tile(np.linspace(j-1,j+1,NN_integ), (NN_integ, 1)).transpose()
+    for i in range(-np2,np2+1):
+      z1 = np.tile(np.linspace(i-1,i+1,2*N_integ+1), (NN_integ, 1))
+      integrand = np.exp(-.5*iCov_xx*z1**2 - iCov_xy*z1*z2 - .5*iCov_yy*z2**2)
+      p2_output[np2+j,np2+i] = np.sum(integrand * ww)
+  # use symmetry to not re-do a calculation
+  for j in range(1,np2+1):
+    p2_output[np2+j,:] = np.flip(p2_output[np2-j,:])
+
+  p2_output /= 2*np.pi*np.sqrt(detC)
+  return(p2_output)
+
 def solve_corr(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2):
     # INPUT: 
     # bfek     <- compound kernel [K^2 a+KK*](assumed to be centered)
