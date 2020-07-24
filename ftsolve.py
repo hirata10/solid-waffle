@@ -126,27 +126,27 @@ def solve_corr_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outs
    cf /= tn+0.0
    return(cf)
 
-#if __name__=="__main__":
+if __name__=="__main__":
    
    # Test against configuration-space corrfn generated from known inputs/simulated flats
-#   N = 21
-#   I = 1487
-#   g = 2.06
-#   beta = 0
-#   tslices = [3, 11, 13, 21]
-#   avals = [0,0,0]
-#   avals_nl = [0,0,0]   
+   N = 21
+   I = 1487
+   g = 2.06
+   betas = np.array([1e-3,5e-4])
+   tslices = [3, 11, 13, 21]
+   avals = [0,0,0]
+   avals_nl = [0,0,0]   
 
-#   test_bfek = 1.E-6*np.array(
-#    	[[-0.01, 0.0020, -0.0210, -0.019, 0.028],
-#     	[0.0040, 0.0490, 0.2480, 0.01, -0.0240],
-#     	[-0.0170, 0.2990, -1.372, 0.2840, 0.0150],
-#     	[0.0130, 0.0560, 0.2890, 0.0390, 0.02],
-#     	[0.035, 0.0070, 0.0380, 0.0010, 0.026]])
+   test_bfek = 1.E-6*np.array(
+    	[[-0.01, 0.0020, -0.0210, -0.019, 0.028],
+     	[0.0040, 0.0490, 0.2480, 0.01, -0.0240],
+     	[-0.0170, 0.2990, -1.372, 0.2840, 0.0150],
+     	[0.0130, 0.0560, 0.2890, 0.0390, 0.02],
+     	[0.035, 0.0070, 0.0380, 0.0010, 0.026]])
 
 
    #test_bfek = np.load('/users/PCON0003/cond0088/Projects/detectors/solid-waffle/testBFEK_flatsim_matcheddark_bfeonly18237sim_10files_sub20.npy')
-#   sigma_a = np.sum(test_bfek)
+   sigma_a = np.sum(test_bfek)
 
    # Test against BFEK values in run of test_run.py with input config.18237.sample1
    #N = 21
@@ -159,6 +159,6 @@ def solve_corr_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outs
    #avals_nl = [0,0,0]
    #test_bfek = np.load('test_bfek.npy')
 
-#   c_abcd = solve_corr(test_bfek,N,I,g,beta,sigma_a,tslices,avals,avals_nl)
-#   print (c_abcd)
+   c_abcd = solve_corr(test_bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl)
+   print (c_abcd)
 

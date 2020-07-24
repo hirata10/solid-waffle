@@ -132,11 +132,11 @@ offset_frame = np.zeros((1, nx, ny))
 count = 1
 reset_count = 0
 
-print 'side length =',N
-print 'samples:', tsamp, 'x', delta_tsamp, 's; # substep =', substep
-print 'Illumination:', I, 'ph/s/pix; QE =', QE
+print('side length =',N)
+print('samples:', tsamp, 'x', delta_tsamp, 's; # substep =', substep)
+print('Illumination:', I, 'ph/s/pix; QE =', QE)
 
-print 'RNG seed ->', rngseed
+print('RNG seed ->', rngseed)
 numpy.random.seed(rngseed)
 
 # Reset first frame if needed
@@ -184,7 +184,7 @@ for tdx in range(1, nt_step):
       allQ[0,:,:] = data_cube_Q[count,:,:]
 
     count += 1
-    print "time: %d" %count
+    print("time: %d" %count)
     
 # Add in IPC before the noise if the mode is turned on
 if (lipcmode=='true'):
@@ -197,15 +197,15 @@ else:
 if (nlmode=='quadratic'):
   data_cube_Q[:,xmin:xmax,ymin:ymax] -= (1.E-6*nlbeta) * \
       data_cube_Q[:,xmin:xmax,ymin:ymax]**2
-  print "Applying non-linearity at leading order coefficient (quadratic term)"
+  print("Applying non-linearity at leading order coefficient (quadratic term)")
 elif (nlmode=='quartic'):
   data_cube_Q[:,xmin:xmax,ymin:ymax] += 1.E-6*nlcoeffs_arr[0] * \
       data_cube_Q[:,xmin:xmax,ymin:ymax]**2 + 1.E-6*nlcoeffs_arr[1] * \
       data_cube_Q[:,xmin:xmax,ymin:ymax]**3 + 1.E-6*nlcoeffs_arr[2] * \
       data_cube_Q[:,xmin:xmax,ymin:ymax]**4
-  print "Applying non-linearity polynomial to quartic term"
+  print("Applying non-linearity polynomial to quartic term")
 else:
-  print "No additional non-linearity (Beta) applied"
+  print("No additional non-linearity (Beta) applied")
   pass
 
 # Read in the read noise from a fits file generated with Bernie's ngxhrg
