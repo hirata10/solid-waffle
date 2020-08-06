@@ -1,0 +1,17 @@
+DETECTOR: H4RG-20829
+LIGHT:
+  /fs/scratch/PCON0003/cond0007/SCA20829-qy/20191016_95K_1p1m0p1_q_yield_1400nm_gr3_filt4_20829_001.fits
+  /fs/scratch/PCON0003/cond0007/SCA20829-qy/20191016_95K_1p1m0p1_q_yield_1400nm_gr3_filt4_20829_002.fits
+DARK:
+  /fs/scratch/PCON0003/cond0007/SCA20829/20191018_95K_1p1m0p1_ch0_1400nm_gr3_filt5_shutter_closed_20829_001.fits
+  /fs/scratch/PCON0003/cond0007/SCA20829/20191018_95K_1p1m0p1_ch0_1400nm_gr3_filt5_shutter_closed_20829_002.fits
+VISLIGHT:
+  /fs/scratch/PCON0003/cond0007/SCA20829-qy/20191016_95K_1p1m0p1_q_yield_480nm_gr3_filt6_20829_001.fits
+  /fs/scratch/PCON0003/cond0007/SCA20829-qy/20191016_95K_1p1m0p1_q_yield_480nm_gr3_filt6_20829_002.fits
+VISDARK:
+  /fs/scratch/PCON0003/cond0007/SCA20829/20191018_95K_1p1m0p1_ch0_1400nm_gr3_filt5_shutter_closed_20829_001.fits
+  /fs/scratch/PCON0003/cond0007/SCA20829/20191018_95K_1p1m0p1_ch0_1400nm_gr3_filt5_shutter_closed_20829_002.fits
+FORMAT: 4
+
+TIME:    3 11 13 21
+OUTPUT:		out/this_det12
