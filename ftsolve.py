@@ -178,7 +178,91 @@ def solve_corr_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outs
      cf += solve_corr(bfek,N,I,g,betas,sigma_a,this_t,avals,avals_nl,outsize)
    cf /= tn+0.0
    return(cf)
+   
+# Make a new function for visible wavelengths that returns the default
+# behavior of solve_corr if omega = 0. Otherwise, it takes in p2 and omega != 0.
+def solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2,omega=0,cov=[0,0,0],np2=0,N_integ=0):
+    if omega = 0:
+        return solve_corr(bfek,N,I,g,betas,sigma_a,this_t,avals,avals_nl,outsize)
+    else:
+        p2 = p2kernel(cov, np2, N_integ)
+        p2_sq = fft2(p2)
+        ta, tb, tc, td = tslices
+        aV, aH, aD = avals
+        aV_nl, aH_nl, aD_nl = avals_nl
+    
+        # convert betas to an array if it isn't already
+        if not isinstance(betas, np.ndarray): betas = np.array([betas])
 
+        if not bfek.shape[1]==bfek.shape[0]:
+            warnings.warn("WARNING: convolved BFE kernel (BFEK) not square.")
+
+        assert(N==2*(N//2)+1)
+    
+        # Calculate K and K* from given alphas
+        cent = slice(N//2-outsize,N//2+outsize+1)
+
+        k = decenter(pad_to_N(np.array([[aD,aV,aD],
+              [aH,1-4*aD-2*aV-2*aH,aH],
+              [aD,aV,aD]]),N))
+
+        knl = decenter(pad_to_N(np.array([[aD_nl,aV_nl,aD_nl],
+                [aH_nl,-4*aD_nl-2*aV_nl-2*aH_nl,aH_nl],
+                [aD_nl,aV_nl,aD_nl]]),N))
+
+        # solve Fourier version for asq: F(BFEK) = Ksq^2*asq + Ksq*Knl_sq  
+        bfek = decenter(pad_to_N(bfek,N))
+        ksq = fft2(k)
+        knl_sq = fft2(knl)
+        asq = (fft2(bfek)- ksq*knl_sq)/ksq**2
+        a = ifft2(asq)
+
+        a_flipped = flip(a)
+        afsq = fft2(a_flipped)
+        afsq_p = flip(afsq)
+
+        ksq_p = flip(ksq)
+        knl_sq_p = flip(knl_sq)
+
+        # Calculate Cov(qsq(t),qsq(t')) (see eqn 38)
+        qqs = []
+
+        for ts in [(ta,tc),(ta,td),(tb,tc),(tb,td)]:
+            t1 = min(ts)
+            t = max(ts)
+    
+            #qq = (1/(afsq+afsq_p-sigma_a) * np.exp(I*afsq*(t-t1)) *
+            #   (np.exp(I*(afsq+afsq_p)*t1)-np.exp(I*sigma_a*t1)))
+            # Incorporate visible parameters into charge correlation function
+            
+            X = I*t1*(afsq+afsq_p-sigma_a)
+            qq = ((2*omega*p2_sq+1+omega)/(1+omega))*(np.where(np.abs(X)>1e-4, (np.exp(X)-1)/np.where(np.abs(X)>1e-5,X,X+1),
+                          1+X/2.+X**2/6.+X**3/24.))*I*t1*np.exp(I*afsq*(t-t1))*np.exp(I*sigma_a*t1)                          
+
+            qqs.append(qq)
+            
+    
+        # Plug into correlation function (see eqn 51)
+        csq_abcd =(1/g**2
+           *(eval_cnl(betas,I,ta)*eval_cnl(betas,I,tc)*(ksq+knl_sq*I*ta)*(ksq_p+knl_sq_p*I*tc)*qqs[0] 
+           - eval_cnl(betas,I,ta)*eval_cnl(betas,I,td)*(ksq+knl_sq*I*ta)*(ksq_p+knl_sq_p*I*td)*qqs[1] 
+           - eval_cnl(betas,I,tb)*eval_cnl(betas,I,tc)*(ksq+knl_sq*I*tb)*(ksq_p+knl_sq_p*I*tc)*qqs[2] 
+           + eval_cnl(betas,I,tb)*eval_cnl(betas,I,td)*(ksq+knl_sq*I*tb)*(ksq_p+knl_sq_p*I*td)*qqs[3])
+           )
+    
+        return center(np.real(ifft2(csq_abcd)))[cent][:,cent]
+        
+# Like solve_corr_many but designed for handling charge diffusion
+def solve_corr_vis_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2,omega=0,cov=[0,0,0],np2=0,N_integ=0):
+   this_t = tslices[:-1]
+   tn = tslices[-1]
+   cf = solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize,omega,cov,np2,N_integ)
+   for j in range(tn-1):
+     for k in range(4): this_t[k] += 1
+     cf += solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize,omega,cov,np2,N_integ)
+   cf /= tn+0.0
+   return(cf)
+   
 if __name__=="__main__":
    
    # Test against configuration-space corrfn generated from known inputs/simulated flats
