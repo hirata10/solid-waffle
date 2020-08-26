@@ -182,7 +182,7 @@ def solve_corr_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outs
 # Make a new function for visible wavelengths that returns the default
 # behavior of solve_corr if omega = 0. Otherwise, it takes in p2 and omega != 0.
 def solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2,omega=0,cov=[0,0,0],np2=0,N_integ=0):
-    if omega = 0:
+    if omega == 0:
         return solve_corr(bfek,N,I,g,betas,sigma_a,this_t,avals,avals_nl,outsize)
     else:
         p2 = p2kernel(cov, np2, N_integ)

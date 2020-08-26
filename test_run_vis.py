@@ -17,6 +17,8 @@ use_cmap = 'gnuplot'
 mydet = ''
 lightfiles = []
 darkfiles = []
+vislightfiles = []
+visdarkfiles = []
 formatpars = 1
 nx = 32
 ny = 32
@@ -69,34 +71,55 @@ if len(sys.argv)>2:
   cmd='python test_run.py %s'%config_file
   os.system(cmd)
   #sys.exit()  # Probably we wil always want to continue.
+  # If this is run, we may want to read in resulting summary.txt files
+  # This is simply duplicating some commands below
+  with open(conf, 'r') as ifile: conf_content=conf.read().splitlines()
+  for line in content:
+    m=re.search(r'^[A-Z]+\:', line)
+    m = re.search(r'^OUTPUT\:\s*(\S*)', line)
+    if m: outstem = m.group(1)
+  # This part still being written
+    
 
 with open(config_file) as myf: content = myf.read().splitlines()
-is_in_light = is_in_dark = False
+is_in_light = is_in_dark = is_in_vislight = is_in_visdark = False
 maskX = [] # list of regions to mask
 maskY = []
 for line in content:
   # Cancellations
   m = re.search(r'^[A-Z]+\:', line)
-  if m: is_in_light = is_in_dark = False
+  if m: is_in_light = is_in_dark = is_in_vislight = is_in_visdark = False
 
   # Searches for files -- must be first given the structure of this script!
+  # The visible flats and darks must come after IR flats and darks
   if is_in_light:
     m = re.search(r'^\s*(\S.*)$', line)
     if m: lightfiles += [m.group(1)]
   if is_in_dark:
     m = re.search(r'^\s*(\S.*)$', line)
     if m: darkfiles += [m.group(1)]
-
+  if is_in_vislight:
+    m = re.search(r'^\s*(\S.*)$', line)
+    if m: vislightfiles += [m.group(1)]
+  if is_in_visdark:
+    m = re.search(r'^\s*(\S.*)$', line)
+    if m: visdarkfiles += [m.group(1)]
+        
   # -- Keywords go below here --
 
   # Search for outputs
   m = re.search(r'^OUTPUT\:\s*(\S*)', line)
   if m: outstem = m.group(1)
   # Search for input files
-  m = re.search(r'^VISLIGHT\:', line)
+  m = re.search(r'^LIGHT\:', line)
   if m: is_in_light = True
-  m = re.search(r'^VISDARK\:', line)
+  m = re.search(r'^DARK\:', line)
   if m: is_in_dark = True
+  m = re.search(r'^VISLIGHT\:', line)
+  if m: is_in_vislight = True
+  m = re.search(r'^VISDARK\:', line)
+  if m: is_in_visdark = True
+
   # Format
   m = re.search(r'^FORMAT:\s*(\d+)', line)
   if m: formatpars = int(m.group(1))
@@ -210,20 +233,24 @@ for f in lightfiles+darkfiles:
   nt = pyirc.get_num_slices(formatpars, f)
   if nt<NTMAX: NTMAX=nt
 
-# Copy basicpar parameters to bfebar
+# Copy basicpar parameters to bfepar
 bfepar.use_allorder = basicpar.use_allorder
 
 print ('Output will be directed to {:s}*'.format(outstem))
 print ('Light files:', lightfiles)
 print ('Dark files:', darkfiles)
+print ('Visible light files:', vislightfiles)
+print ('"Visible" dark files:', visdarkfiles)
 print ('Time slices:', tslices, 'max=',NTMAX)
 print ('Mask regions:', maskX, maskY)
 # 
 if len(lightfiles)!=len(darkfiles) or len(lightfiles)<2:
   print ('Failed: {:d} light files and {:d} dark files'.format(len(lightfiles), len(darkfiles)))
   exit()
+if len(vislightfiles)!=len(visdarkfiles) or len(vislightfiles)<2:
+  print ('Failed: {:d} visible light files and {:d} visible dark files'.format(len(vislightfiles), len(visdarkfiles)))
+  exit()
 
-exit()
 # Additional parameters
 # Size of a block
 N = pyirc.get_nside(formatpars)
@@ -234,12 +261,13 @@ dy = N//ny
 npix = dx*dy
 
 # Make table of reference pixel corrections for Method 1
+# This is only happening now on the visible files
 if fullref:
-  lightref = pyirc.ref_array(lightfiles, formatpars, ny, tslices, False)
-  darkref = pyirc.ref_array(lightfiles, formatpars, ny, tslices, False)
+  lightref = pyirc.ref_array(vislightfiles, formatpars, ny, tslices, False)
+  darkref = pyirc.ref_array(vislightfiles, formatpars, ny, tslices, False)
 else:
-  lightref = numpy.zeros((len(lightfiles), ny, 2*len(tslices)+1))
-  darkref = numpy.zeros((len(darkfiles), ny, 2*len(tslices)+1))
+  lightref = numpy.zeros((len(vislightfiles), ny, 2*len(tslices)+1))
+  darkref = numpy.zeros((len(visdarkfiles), ny, 2*len(tslices)+1))
 basicpar.subtr_href = fullref
 
 # more allocations
@@ -252,8 +280,9 @@ if p_order>0:
   # note that in 'abs' mode, the full_info[:,:,0] grid is not actually used, it
   #   is just there for consistency of the format
   # I moved this up here since we want to have these coefficients before the main program runs
-  nlcubeX, nlfitX, nlderX, pcoefX = pyirc.gen_nl_cube(lightfiles, formatpars, [basicpar.reset_frame, nlfit_ts, nlfit_te], [ny,nx],
-    full_info[:,:,0], 'abs', False)
+  nlcubeX, nlfitX, nlderX, pcoefX = pyirc.gen_nl_cube(
+          vislightfiles, formatpars, [basicpar.reset_frame, nlfit_ts, nlfit_te], [ny,nx],
+        full_info[:,:,0], 'abs', False)
   # fill in
   for iy in range(ny):
     for ix in range(nx):
@@ -275,9 +304,9 @@ sys.stdout.write('|')
 for iy in range(ny):
   sys.stdout.write('*'); sys.stdout.flush()
   for ix in range(nx):
-    region_cube = pyirc.pixel_data(lightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
+    region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
                   [sensitivity_spread_cut, True], False)
-    dark_cube = pyirc.pixel_data(darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
+    dark_cube = pyirc.pixel_data(visdarkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
                   [sensitivity_spread_cut, False], False)
     info = pyirc.basic(region_cube, dark_cube, tslices, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
     if len(info)>0:
@@ -291,7 +320,7 @@ for iy in range(ny):
           if numpy.isnan(bfeCoefs).any():
             bfeCoefs = numpy.zeros((2*pyirc.swi.s+1,2*pyirc.swi.s+1))
             is_good[iy,ix] = 0
-          Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)],
+          Cdata = pyirc.polychar(vislightfiles, visdarkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)],
                  [tslices[0], tslices[-1]+1, tchar1, tchar2], sensitivity_spread_cut, basicpar,
                  [ipnltype, bfeCoefs, thisinfo[pyirc.swi.beta]])
           info[pyirc.swi.ind1:pyirc.swi.ind2] = numpy.asarray(Cdata[pyirc.swi.indp1:pyirc.swi.indp2])
@@ -329,7 +358,7 @@ print ('')
 
 # Non-linearity cube
 ntSub = tslices[-1]
-nlcube, nlfit, nlder = pyirc.gen_nl_cube(lightfiles, formatpars, ntSub, [ny,nx],
+nlcube, nlfit, nlder = pyirc.gen_nl_cube(vislightfiles, formatpars, ntSub, [ny,nx],
   full_info[:,:,pyirc.swi.beta]*full_info[:,:,pyirc.swi.I], 'dev', False)
 thisOut = open(outstem+'_nl.txt', 'w')
 for iy in range(ny):
@@ -404,6 +433,7 @@ F.set_tight_layout(True)
 F.savefig(outstem+'_multi.pdf')
 plt.close(F)
 
+# I have not done anything with visible files below here!!
 # Method 2a
 #
 used_2a = False
@@ -663,10 +693,10 @@ thisOut.write('# This summary created at {:s}\n'.format(time.asctime(time.localt
 thisOut.write('# Uses pyirc v{:d}\n'.format(pyirc.get_version()))
 thisOut.write('# Detector: '+mydet+'\n')
 thisOut.write('#\n# Files used:\n')
-thisOut.write('# Light:\n')
-for f in lightfiles: thisOut.write('#   {:s}\n'.format(f))
+thisOut.write('# Visible Light:\n')
+for f in vislightfiles: thisOut.write('#   {:s}\n'.format(f))
 thisOut.write('# Dark:\n')
-for f in darkfiles: thisOut.write('#   {:s}\n'.format(f))
+for f in visdarkfiles: thisOut.write('#   {:s}\n'.format(f))
 thisOut.write('# Input format {:d}\n'.format(formatpars))
 thisOut.write('# Time slices:')
 for t in tslices: thisOut.write(' {:3d}'.format(t))
