@@ -133,6 +133,7 @@ primary_hdu.header['GENDATE'] = time.asctime(time.localtime(time.time()))
 primary_hdu.header['SR_NY'] = (ny, 'ny for summary file')
 primary_hdu.header['SR_NX'] = (nx, 'nx for summary file')
 primary_hdu.header['SR_NMASK'] = (nmask, 'number of masked super pixels')
+primary_hdu.header['ELECTR'] = ('Lab', 'bias/gain/cnl/noise from lab electronics, flight will be different')
 
 #
 # copy metadata
@@ -343,7 +344,7 @@ else:
 #
 for noisekey in noisefile['NOISE'].header.keys():
   this_metadata.append('Noise header:' + noisekey + '        ' + str(noisefile['NOISE'].header[noisekey]))
-noise_hdu = fits.ImageHDU(noisefile['NOISE'].data[noise_frame_pca0,:,:]) # pca0 in last slice
+noise_hdu = fits.ImageHDU(noisefile['NOISE'].data[noise_frame_pca0,:,:])
 noise_hdu.header['EXTNAME'] = 'READ'
 # additional keywords
 noise_hdu.header['NGNAXIS1'] = 4096
@@ -369,6 +370,10 @@ noise_hdu.header['REFPIXNR'] = med_cdsnoise_DN_ref/med_cdsnoise_DN
 noise_hdu.header['KTCNOISE'] = med_ktcnoise_DN*numpy.median(gain) # convert from DN --> e
 
 noise_hdu.header.add_comment('Noise properties in electrons, not DN')
+
+# Get the bias information
+bias_hdu = fits.ImageHDU(numpy.clip(noisefile['NOISE'].data[noise_frame_bias,:,:], 0, 65535).astype(numpy.uint16))
+bias_hdu.header['EXTNAME'] = 'BIAS'
 
 #######################################################################
 # Dark current HDU (uses some information from the noise for hot pixels)
@@ -694,7 +699,7 @@ this_metadata.append('')
 #######################################################################
 
 # Make gain map
-gain_hdu= fits.ImageHDU(gain)
+gain_hdu= fits.ImageHDU(gain.astype(numpy.float32))
 gain_hdu.header['EXTNAME'] = 'GAIN'
 
 print(numpy.shape(badpix), badpix.dtype)
@@ -713,5 +718,5 @@ src_hdu.header['EXTNAME'] = 'SOURCES'
 
 # Final output step
 hdul = fits.HDUList([primary_hdu, src_hdu, relqe1_hdu, bfe_hdu, dark_hdu, darkvar_hdu, persist_hdu,\
-  saturate_hdu, cnl_hdu, ipc_hdu, ipcflat_hdu, vtpe_hdu, badpix_hdu, noise_hdu, gain_hdu])
+  saturate_hdu, cnl_hdu, ipc_hdu, ipcflat_hdu, vtpe_hdu, badpix_hdu, noise_hdu, gain_hdu, bias_hdu])
 hdul.writeto(configInfo.OUT, overwrite=True)
