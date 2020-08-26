@@ -5,7 +5,7 @@ import re
 import pyirc
 import time
 
-thisversion = 3
+thisversion = 4
 
 Narg = len(sys.argv)
 if Narg<3:
@@ -138,6 +138,7 @@ if usedark:
   hdul = fits.HDUList([hdu])
   hdul.writeto(outstem + '_sprdark.fits', overwrite=True)
 
+filelist = []
 for j in range(nfile):
   thisfile = sys.argv[1]
   if j>0:
@@ -157,6 +158,7 @@ for j in range(nfile):
         print('Error: can\'t construct new file name.')
         exit()
 
+  filelist.append(thisfile)
   thisframe = pyirc.load_segment(thisfile, formatpars, [0,N,0,N], [1,2], True)
   dmap[j,:,:] = thisframe[0,:,:] - thisframe[1,:,:]
   if subtr_dark: dmap[j,:,:] -= darkframe
@@ -291,6 +293,9 @@ for k in range(Narg):
   hdu.header[keyword] = sys.argv[k]
 hdu.header['MASKSIZE'] = '{:d}/{:d}'.format(int(numpy.sum(dmask)), nx*ny)
 hdu.header['MEDSIG'] = ('{:8.2f}'.format(numpy.median(medsignals[1,:,:])), 'Median signal in central pixel')
+for k in range(len(filelist)):
+  keyword = 'INF{:02d}'.format(k)
+  hdu.header[keyword] = filelist[k]
 hdul = fits.HDUList([hdu])
 hdul.writeto(outstem + '_alpha.fits', overwrite=True)
 
