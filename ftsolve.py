@@ -181,11 +181,10 @@ def solve_corr_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outs
    
 # Make a new function for visible wavelengths that returns the default
 # behavior of solve_corr if omega = 0. Otherwise, it takes in p2 and omega != 0.
-def solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2,omega=0,cov=[0,0,0],np2=0,N_integ=0):
+def solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2,omega=0,p2=0):
     if omega == 0:
-        return solve_corr(bfek,N,I,g,betas,sigma_a,this_t,avals,avals_nl,outsize)
+        return solve_corr(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize)
     else:
-        p2 = p2kernel(cov, np2, N_integ)
         p2_sq = fft2(p2)
         ta, tb, tc, td = tslices
         aV, aH, aD = avals
@@ -253,13 +252,13 @@ def solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsi
         return center(np.real(ifft2(csq_abcd)))[cent][:,cent]
         
 # Like solve_corr_many but designed for handling charge diffusion
-def solve_corr_vis_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2,omega=0,cov=[0,0,0],np2=0,N_integ=0):
+def solve_corr_vis_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2,omega=0,p2=0):
    this_t = tslices[:-1]
    tn = tslices[-1]
-   cf = solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize,omega,cov,np2,N_integ)
+   cf = solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize,omega,p2)
    for j in range(tn-1):
      for k in range(4): this_t[k] += 1
-     cf += solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize,omega,cov,np2,N_integ)
+     cf += solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize,omega,p2)
    cf /= tn+0.0
    return(cf)
    
