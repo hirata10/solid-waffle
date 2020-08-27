@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import re
@@ -73,11 +74,11 @@ if len(sys.argv)>2:
   #sys.exit()  # Probably we wil always want to continue.
   # If this is run, we may want to read in resulting summary.txt files
   # This is simply duplicating some commands below
-  with open(conf, 'r') as ifile: conf_content=conf.read().splitlines()
-  for line in content:
-    m=re.search(r'^[A-Z]+\:', line)
-    m = re.search(r'^OUTPUT\:\s*(\S*)', line)
-    if m: outstem = m.group(1)
+  #with open(conf, 'r') as ifile: conf_content=conf.read().splitlines()
+  #for line in content:
+  #  m=re.search(r'^[A-Z]+\:', line)
+  #  m = re.search(r'^OUTPUT\:\s*(\S*)', line)
+  #  if m: outstem = m.group(1)
   # This part still being written
     
 
@@ -144,6 +145,14 @@ for line in content:
        else:
          print ('Error: insufficient arguments: ' + line + '\n')
          exit()
+
+  # Visible time stamp range
+  m = re.search(r'^VISTIME:\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
+  if m:
+     ts_vis = int(m.group(1))
+     te_vis = int(m.group(2))
+     tchar1_vis = int(m.group(3))
+     tchar2_vis = int(m.group(4))
 
   # Time slices
   m = re.search(r'^TIME:\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
@@ -275,23 +284,50 @@ my_dim = pyirc.swi.N
 full_info = numpy.zeros((ny,nx,my_dim))
 is_good = numpy.zeros((ny,nx))
 
-if p_order>0:
-  # now coefficients for the info table
-  # note that in 'abs' mode, the full_info[:,:,0] grid is not actually used, it
-  #   is just there for consistency of the format
-  # I moved this up here since we want to have these coefficients before the main program runs
-  nlcubeX, nlfitX, nlderX, pcoefX = pyirc.gen_nl_cube(
-          vislightfiles, formatpars, [basicpar.reset_frame, nlfit_ts, nlfit_te], [ny,nx],
-        full_info[:,:,0], 'abs', False)
-  # fill in
-  for iy in range(ny):
-    for ix in range(nx):
-      if pcoefX[1,iy,ix]!=0:
-        full_info[iy,ix,pyirc.swi.Nbb] = -pcoefX[0,iy,ix]/pcoefX[1,iy,ix]
-        for o in range(2,pyirc.swi.p+1):
-          full_info[iy,ix,pyirc.swi.Nbb+o-1] = pcoefX[o,iy,ix]/pcoefX[1,iy,ix]**o
-      else:
-        full_info[iy,ix,pyirc.swi.Nbb] = -1e49 # error code
+info_from_ir = numpy.loadtxt(outstem+'_summary.txt')
+for j in range(my_dim): full_info[:,:,j] = info_from_ir[:,j+2].reshape((ny,nx))
+is_good = numpy.where(full_info[:,:,pyirc.swi.g]>1e-49, 1, 0)
+
+print('Number of good regions =', numpy.sum(is_good))
+print('Lower-left corner ->', full_info[0,0,:])
+
+if p_order==0:
+  print('Error: did not include polynomial order')
+  exit()
+
+# Get Ie
+Ie = numpy.zeros((ny,nx))
+Ie_alt = numpy.zeros((ny,nx))
+
+print('computing Ie using', ts_vis, te_vis)
+nlcubeX, nlfitX, nlderX, pcoefX = pyirc.gen_nl_cube(
+  vislightfiles, formatpars, [basicpar.reset_frame, ts_vis, te_vis], [ny,nx],
+  full_info[:,:,0], 'abs', False)
+for iy in range(ny):
+  for ix in range(nx):
+    if pcoefX[1,iy,ix]!=0:
+      t = numpy.linspace(ts_vis-basicpar.reset_frame, te_vis-basicpar.reset_frame, te_vis-ts_vis+1)
+      Signal = numpy.zeros((te_vis-ts_vis+1))
+      for ae in range(pyirc.swi.p+1): Signal += pcoefX[ae,iy,ix]*t**ae
+      # iterative NL correction
+      LinSignal = numpy.copy(Signal)
+      for k in range(5):
+        LS2 = numpy.copy(LinSignal)
+        LinSignal = numpy.copy(Signal)
+        LS2 += (LinSignal[-1]-LinSignal[0])/(te_vis-ts_vis) * (ts_vis-basicpar.reset_frame)
+        for o in range(2,pyirc.swi.p+1): LinSignal -= full_info[iy,ix,pyirc.swi.Nbb+o-1]*LS2**o
+      Ie[iy,ix] = pcoefX[1,iy,ix] * full_info[iy,ix,pyirc.swi.g]
+      Ie_alt[iy,ix] = (LinSignal[-1]-LinSignal[0])/(te_vis-ts_vis) * full_info[iy,ix,pyirc.swi.g]
+    else:
+      is_good[iy,ix] = 0 # error
+
+for iy in range(ny):
+  for ix in range(nx):
+    print('{:3d} {:3d} {:12.5E} {:12.5E} {:12.5E}'.format(iy,ix,full_info[iy,ix,pyirc.swi.g],Ie[iy,ix],Ie_alt[iy,ix]))
+
+print('END')
+exit()
+
 
 # Detector characterization data in a cube (basic characterization + BFE Method 1)
 # Stdout calls are a progress indicator
