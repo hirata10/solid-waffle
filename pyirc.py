@@ -738,6 +738,8 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
         if maskCH<1 or maskCV<1: return []
         CH /= maskCH
         CV /= maskCV
+        CH2 /= maskCH2
+        CV2 /= maskCV2
 
         # diagonal directions
         if not full_corr:
@@ -875,6 +877,7 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
 # Under construction correlation functions for charge diffusion measurements
 # many parts drawn from basic, might want option to do the usual 3x3 vs 5x5 but
 # this could be done in principle just with the usual basic function?
+# There's probably a better way of 
 def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose):
 
   # Settings:
@@ -959,11 +962,18 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
         # Correlations in horizontal and vertical directions
         maskCV = numpy.sum(this_mask[:-1,:]*this_mask[1:,:])
         maskCH = numpy.sum(this_mask[:,:-1]*this_mask[:,1:])
+        maskCV2 = numpy.sum(this_mask[:-2,:]*this_mask[2:,:])
+        maskCH2 = numpy.sum(this_mask[:,:-2]*this_mask[:,2:])
         CV = numpy.sum(this_mask[:-1,:]*this_mask[1:,:]*temp_box[:-1,:]*temp_box[1:,:])
         CH = numpy.sum(this_mask[:,:-1]*this_mask[:,1:]*temp_box[:,:-1]*temp_box[:,1:])
+        CV2 = numpy.sum(this_mask[:-2,:]*this_mask[2:,:]*temp_box[:-2,:]*temp_box[2:,:])
+        CH2 = numpy.sum(this_mask[:,:-2]*this_mask[:,2:]*temp_box[:,:-2]*temp_box[:,2:])
         if maskCH<1 or maskCV<1: return []
         CH /= maskCH
         CV /= maskCV
+        CH2 /= maskCH2
+        CV2 /= maskCV2
+
 
         # diagonal directions
         maskCD1 = numpy.sum(this_mask[:-1,:-1]*this_mask[1:,1:])
@@ -974,7 +984,18 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
         CD1 /= maskCD1
         CD2 /= maskCD2
         CD = (CD1+CD2)/2.
+        # 2 diagonals away; the naming might need to be changed
+        maskCD2_1 = numpy.sum(this_mask[:-2,:-2]*this_mask[2:,2:])
+        maskCD2_2 = numpy.sum(this_mask[:-2,2:]*this_mask[2:,:-2])
+        CD2_1 = numpy.sum(this_mask[:-2,:-2]*this_mask[2:,2:]*temp_box[:-2,:-2]*temp_box[2:,2:])
+        CD2_2 = numpy.sum(this_mask[:-2,2:]*this_mask[2:,:-2]*temp_box[:-2,2:]*temp_box[2:,:-2])
+        if maskCD2_1<1 or maskCD2_2<1: return []
+        CD2_1 /= maskCD2_1
+        CD2_2 /= maskCD2_2
+        CD2 = (CD2_1+CD2_2)/2.
 
+        # Still have 4 more pairs of correlations to compute
+        
         if leadtrailSub:
           maskCVx1 = numpy.sum(this_mask[:-1,:-4]*this_mask[1:,4:])
           maskCHx1 = numpy.sum(this_mask[:,:-5]*this_mask[:,5:])
