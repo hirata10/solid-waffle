@@ -872,6 +872,170 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
 
   return [numpy.sum(this_mask), gain_raw, gain_acorr, gain_abcorr, aH, aV, beta, I, 0., tCH, tCV]
 
+# Under construction correlation functions for charge diffusion measurements
+# many parts drawn from basic, might want option to do the usual 3x3 vs 5x5 but
+# this could be done in principle just with the usual basic function?
+def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose):
+
+  # Settings:
+  newMeanSubMethod = True     # use False only for test/debug
+  leadtrailSub = True         # subtract leading & trailing (by +/-4 pix) from horiz & vert correlations
+
+  g_ptile = 75.               # percentile use for inter-quantile range for variance (default: 75, giving standard IQR)
+
+  # Extract basic parameters
+  num_files = region_cube.shape[0]-1
+  nt = region_cube.shape[1]
+  dy = region_cube.shape[2]
+  dx = region_cube.shape[3]
+  npix = dx*dy
+  if nt!=len(tslices):
+    print ('Error in pyirc.corr_5x5: incompatible number of time slices')
+    exit()
+  if verbose: print ('nfiles = ',num_files,', ntimes = ',nt,', dx,dy=',dx,dy)
+  treset = 0
+  if hasattr(ctrl_pars,'reset_frame'): treset = ctrl_pars.reset_frame
+
+  # First get correlation parameters
+  epsilon = .01
+  if hasattr(ctrl_pars,'epsilon'): epsilon = ctrl_pars.epsilon
+  subtr_corr = True
+  if hasattr(ctrl_pars,'subtr_corr'): subtr_corr = ctrl_pars.subtr_corr
+  noise_corr = True
+  if hasattr(ctrl_pars,'noise_corr'): noise_corr = ctrl_pars.noise_corr
+  if verbose: print ('corr pars =', epsilon, subtr_corr, noise_corr)
+  #
+
+  # Reference pixel subtraction?
+  subtr_href = True
+  if hasattr(ctrl_pars,'subtr_href'): subtr_href = ctrl_pars.subtr_href
+
+  # lead-trail subtraction for IPC correlations?
+  if hasattr(ctrl_pars,'leadtrailSub'): leadtrailSub = ctrl_pars.leadtrailSub
+
+  # quantile for variance?
+  if hasattr(ctrl_pars,'g_ptile'): g_ptile = ctrl_pars.g_ptile
+
+  # Get means and variances at the early and last slices
+  # (i.e. 1-point information)
+  gauss_iqr_in_sigmas = scipy.stats.norm.ppf(g_ptile/100.)*2  # about 1.349 for g_ptile=75.
+  box1 = region_cube[0:num_files,0,:,:] - region_cube[0:num_files,1,:,:]
+  box2 = region_cube[0:num_files,0,:,:] - region_cube[0:num_files,-1,:,:]
+  box2Noise = dark_cube[0:num_files,0,:,:] - dark_cube[0:num_files,-1,:,:]
+  #
+  if subtr_href:
+    for f in range(num_files):
+      if verbose: print ('lightref.shape=',lightref.shape, 'subtr ->', lightref[f,nt+1], lightref[f,2*nt-1], darkref[f,2*nt-1])
+      box1[f,:,:] -= lightref[f,nt+1]
+      box2[f,:,:] -= lightref[f,2*nt-1]
+      box2Noise[f,:,:] -= darkref[f,2*nt-1]
+  mean1 = numpy.mean(box1, axis=0)
+  mean2 = numpy.mean(box2, axis=0)
+  med1 = numpy.median(mean1)
+  med2 = numpy.median(mean2)
+  var1 = 0
+  var2 = 0
+  corr_mask = region_cube[-1,0,:,:]
+
+  # Correlations of neighboring pixels, in DN^2
+  #
+  tCH = tCV = tCD = 0
+  for if1 in range(1,num_files):
+    for if2 in range(if1):
+      temp_box = box2[if1,:,:] - box2[if2,:,:]
+
+      # Run through twice if we have noise, otherwise once
+      nrun = 2 if noise_corr else 1
+      for icorr in range (nrun):
+        # clipping
+        cmin = pyIRC_percentile(temp_box,corr_mask,100*epsilon)
+        cmax = pyIRC_percentile(temp_box,corr_mask,100*(1-epsilon))
+        this_mask = numpy.where(numpy.logical_and(temp_box>cmin,temp_box<cmax),1,0) * corr_mask
+        if numpy.sum(this_mask)<1: return [] # FAIL!
+        # mean subtraction
+        mean_of_temp_box = numpy.sum(temp_box*this_mask)/numpy.sum(this_mask)
+        if subtr_corr and newMeanSubMethod: temp_box -= mean_of_temp_box
+
+        # Correlations in horizontal and vertical directions
+        maskCV = numpy.sum(this_mask[:-1,:]*this_mask[1:,:])
+        maskCH = numpy.sum(this_mask[:,:-1]*this_mask[:,1:])
+        CV = numpy.sum(this_mask[:-1,:]*this_mask[1:,:]*temp_box[:-1,:]*temp_box[1:,:])
+        CH = numpy.sum(this_mask[:,:-1]*this_mask[:,1:]*temp_box[:,:-1]*temp_box[:,1:])
+        if maskCH<1 or maskCV<1: return []
+        CH /= maskCH
+        CV /= maskCV
+
+        # diagonal directions
+        maskCD1 = numpy.sum(this_mask[:-1,:-1]*this_mask[1:,1:])
+        maskCD2 = numpy.sum(this_mask[:-1,1:]*this_mask[1:,:-1])
+        CD1 = numpy.sum(this_mask[:-1,:-1]*this_mask[1:,1:]*temp_box[:-1,:-1]*temp_box[1:,1:])
+        CD2 = numpy.sum(this_mask[:-1,1:]*this_mask[1:,:-1]*temp_box[:-1,1:]*temp_box[1:,:-1])
+        if maskCD1<1 or maskCD2<1: return []
+        CD1 /= maskCD1
+        CD2 /= maskCD2
+        CD = (CD1+CD2)/2.
+
+        if leadtrailSub:
+          maskCVx1 = numpy.sum(this_mask[:-1,:-4]*this_mask[1:,4:])
+          maskCHx1 = numpy.sum(this_mask[:,:-5]*this_mask[:,5:])
+          CVx1 = numpy.sum(this_mask[:-1,:-4]*this_mask[1:,4:]*temp_box[:-1,:-4]*temp_box[1:,4:])
+          CHx1 = numpy.sum(this_mask[:,:-5]*this_mask[:,5:]*temp_box[:,:-5]*temp_box[:,5:])
+          if maskCHx1<1 or maskCVx1<1: return []
+          CHx1 /= maskCHx1
+          CVx1 /= maskCVx1
+          maskCVx2 = numpy.sum(this_mask[:-1,4:]*this_mask[1:,:-4])
+          maskCHx2 = numpy.sum(this_mask[:,:-3]*this_mask[:,3:])
+          CVx2 = numpy.sum(this_mask[:-1,4:]*this_mask[1:,:-4]*temp_box[:-1,4:]*temp_box[1:,:-4])
+          CHx2 = numpy.sum(this_mask[:,:-3]*this_mask[:,3:]*temp_box[:,:-3]*temp_box[:,3:])
+          if maskCHx2<1 or maskCVx2<1: return []
+          CHx2 /= maskCHx2
+          CVx2 /= maskCVx2
+          CH -= (CHx1+CHx2)/2.
+          CV -= (CVx1+CVx2)/2.
+          #
+          # correction of the diagonal directions
+          maskCDx1 = numpy.sum(this_mask[:-1,:-5]*this_mask[1:,5:])
+          maskCDx2 = numpy.sum(this_mask[:-1,:-3]*this_mask[1:,3:])
+          maskCDx3 = numpy.sum(this_mask[1:,:-5]*this_mask[:-1,5:])
+          maskCDx4 = numpy.sum(this_mask[1:,:-3]*this_mask[:-1,3:])
+          CDx1 = numpy.sum(this_mask[:-1,:-5]*this_mask[1:,5:]*temp_box[:-1,:-5]*temp_box[1:,5:])
+          CDx2 = numpy.sum(this_mask[:-1,:-3]*this_mask[1:,3:]*temp_box[:-1,:-3]*temp_box[1:,3:])
+          CDx3 = numpy.sum(this_mask[1:,:-5]*this_mask[:-1,5:]*temp_box[1:,:-5]*temp_box[1:,5:])
+          CDx4 = numpy.sum(this_mask[1:,:-3]*this_mask[:-1,3:]*temp_box[1:,:-3]*temp_box[1:,3:])
+          if maskCDx1<1 or maskCDx2<1 or maskCDx3<1 or maskCDx4<1: return []
+          CDx1 /= maskCDx1
+          CDx2 /= maskCDx2
+          CDx3 /= maskCDx3
+          CDx4 /= maskCDx4
+          CD -= (CDx1+CDx2+CDx3+CDx4)/4.
+
+        if subtr_corr and not newMeanSubMethod and not leadtrailSub:
+          CH -= mean_of_temp_box**2
+          CV -= mean_of_temp_box**2
+        tCH += CH * (1 if icorr==0 else -1)
+        tCV += CV * (1 if icorr==0 else -1)
+        if not full_corr:
+          if subtr_corr and not newMeanSubMethod and not leadtrailSub: CD -= mean_of_temp_box**2
+          tCD += CD * (1 if icorr==0 else -1)
+
+        if verbose:
+          print ('pos =', if1, if2, 'iteration', icorr, 'cmin,cmax =', cmin, cmax)
+          print ('Mask size', numpy.sum(this_mask), 'correlations =', maskCH, maskCV, 'data:', CH, CV)
+
+        temp_box = box2Noise[if1,:,:] - box2Noise[if2,:,:]
+        # end nested for loop
+  #
+  # Normalize covariances. Note that taking the difference of 2 frames doubled the covariance
+  # matrix, so we have introduced cov_clip_corr
+  xi = scipy.stats.norm.ppf(1-epsilon)
+  cov_clip_corr = (1. - numpy.sqrt(2./numpy.pi)*xi*numpy.exp(-xi*xi/2.)/(1.-2.*epsilon) )**2
+  tCH /= num_files*(num_files-1)*cov_clip_corr
+  tCV /= num_files*(num_files-1)*cov_clip_corr
+  tCD /= num_files*(num_files-1)*cov_clip_corr
+
+  # Return the correlations
+  return [numpy.sum(this_mask), med2, var2, tCH, tCV, tCD]
+
 # Routine to obtain statistical properties of a region of the detector across many time slices
 #
 # Inputs:
