@@ -738,8 +738,6 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
         if maskCH<1 or maskCV<1: return []
         CH /= maskCH
         CV /= maskCV
-        CH2 /= maskCH2
-        CV2 /= maskCV2
 
         # diagonal directions
         if not full_corr:
@@ -942,7 +940,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
 
   # Correlations of neighboring pixels, in DN^2
   #
-  tCH = tCV = tCD = 0
+  tCH = tCV = tCD = tCH2 = tCV2 = tCD2 = tCDV = tCDH = 0
   for if1 in range(1,num_files):
     for if2 in range(if1):
       temp_box = box2[if1,:,:] - box2[if2,:,:]
@@ -968,7 +966,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
         CH = numpy.sum(this_mask[:,:-1]*this_mask[:,1:]*temp_box[:,:-1]*temp_box[:,1:])
         CV2 = numpy.sum(this_mask[:-2,:]*this_mask[2:,:]*temp_box[:-2,:]*temp_box[2:,:])
         CH2 = numpy.sum(this_mask[:,:-2]*this_mask[:,2:]*temp_box[:,:-2]*temp_box[:,2:])
-        if maskCH<1 or maskCV<1: return []
+        if maskCH<1 or maskCV<1 or maskCH2<1 or maskCV2<1: return []
         CH /= maskCH
         CV /= maskCV
         CH2 /= maskCH2
@@ -992,10 +990,30 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
         if maskCD2_1<1 or maskCD2_2<1: return []
         CD2_1 /= maskCD2_1
         CD2_2 /= maskCD2_2
-        CD2 = (CD2_1+CD2_2)/2.
+        CDp2 = (CD2_1+CD2_2)/2.  # Better name for this one?  CD2 already used above
 
-        # Still have 4 more pairs of correlations to compute
+        # Haven't done any checks below here!
+        # 'diagonal vertical'
+        maskCDV1 = numpy.sum(this_mask[:-2,:-1]*this_mask[2:,1:])
+        maskCDV2 = numpy.sum(this_mask[:-2,1:]*this_mask[2:,:-1])
+        CDV1 = numpy.sum(this_mask[:-2,:-1]*this_mask[2:,1:]*temp_box[:-2,:-1]*temp_box[2:,1:])
+        CDV2 = numpy.sum(this_mask[:-2,1:]*this_mask[2:,:-1]*temp_box[:-2,1:]*temp_box[2:,:-1])
+        if maskCDV1<1 or maskCDV2<1: return []
+        CDV1 /= maskCDV1
+        CDV2 /= maskCDV2
+        CDV = (CDV1+CDV2)/2.
         
+        # 'diagonal horizontal'
+        maskCDH1 = numpy.sum(this_mask[:-1,:-2]*this_mask[1:,2:])
+        maskCDH2 = numpy.sum(this_mask[:-1,2:]*this_mask[1:,:-2])
+        CDH1 = numpy.sum(this_mask[:-1,:-2]*this_mask[1:,2:]*temp_box[:-1,:-2]*temp_box[1:,2:])
+        CDH2 = numpy.sum(this_mask[:-1,2:]*this_mask[1:,:-2]*temp_box[:-1,2:]*temp_box[1:,:-2])
+        if maskCDH1<1 or maskCDH2<1: return []
+        CDH1 /= maskCDH1
+        CDH2 /= maskCDH2
+        CDH = (CDH1+CDH2)/2.
+
+        # Also need to add in the additional elements below here!
         if leadtrailSub:
           maskCVx1 = numpy.sum(this_mask[:-1,:-4]*this_mask[1:,4:])
           maskCHx1 = numpy.sum(this_mask[:,:-5]*this_mask[:,5:])
@@ -1035,9 +1053,9 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
           CV -= mean_of_temp_box**2
         tCH += CH * (1 if icorr==0 else -1)
         tCV += CV * (1 if icorr==0 else -1)
-        if not full_corr:
-          if subtr_corr and not newMeanSubMethod and not leadtrailSub: CD -= mean_of_temp_box**2
-          tCD += CD * (1 if icorr==0 else -1)
+        
+        if subtr_corr and not newMeanSubMethod and not leadtrailSub: CD -= mean_of_temp_box**2
+        tCD += CD * (1 if icorr==0 else -1)
 
         if verbose:
           print ('pos =', if1, if2, 'iteration', icorr, 'cmin,cmax =', cmin, cmax)
