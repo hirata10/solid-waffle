@@ -877,7 +877,7 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
 # Under construction correlation functions for charge diffusion measurements
 # many parts drawn from basic, might want option to do the usual 3x3 vs 5x5 but
 # this could be done in principle just with the usual basic function?
-# There's probably a better way of 
+# There's probably a better way of writing this...?!
 def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose):
 
   # Settings:
