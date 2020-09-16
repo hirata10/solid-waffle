@@ -957,62 +957,27 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
         mean_of_temp_box = numpy.sum(temp_box*this_mask)/numpy.sum(this_mask)
         if subtr_corr and newMeanSubMethod: temp_box -= mean_of_temp_box
 
-        # Correlations in horizontal and vertical directions
-        maskCV = numpy.sum(this_mask[:-1,:]*this_mask[1:,:])
-        maskCH = numpy.sum(this_mask[:,:-1]*this_mask[:,1:])
-        maskCV2 = numpy.sum(this_mask[:-2,:]*this_mask[2:,:])
-        maskCH2 = numpy.sum(this_mask[:,:-2]*this_mask[:,2:])
-        CV = numpy.sum(this_mask[:-1,:]*this_mask[1:,:]*temp_box[:-1,:]*temp_box[1:,:])
-        CH = numpy.sum(this_mask[:,:-1]*this_mask[:,1:]*temp_box[:,:-1]*temp_box[:,1:])
-        CV2 = numpy.sum(this_mask[:-2,:]*this_mask[2:,:]*temp_box[:-2,:]*temp_box[2:,:])
-        CH2 = numpy.sum(this_mask[:,:-2]*this_mask[:,2:]*temp_box[:,:-2]*temp_box[:,2:])
-        if maskCH<1 or maskCV<1 or maskCH2<1 or maskCV2<1: return []
-        CH /= maskCH
-        CV /= maskCV
-        CH2 /= maskCH2
-        CV2 /= maskCV2
+        # Correlations in all directions
+        masktmp = correlate2d(this_mask, this_mask,mode='same')
+        C_all = correlate2d(this_mask*temp_box, this_mask*temp_box, mode='same')
 
+        if numpy.any(masktmp<1): return []
 
-        # diagonal directions
-        maskCD1 = numpy.sum(this_mask[:-1,:-1]*this_mask[1:,1:])
-        maskCD2 = numpy.sum(this_mask[:-1,1:]*this_mask[1:,:-1])
-        CD1 = numpy.sum(this_mask[:-1,:-1]*this_mask[1:,1:]*temp_box[:-1,:-1]*temp_box[1:,1:])
-        CD2 = numpy.sum(this_mask[:-1,1:]*this_mask[1:,:-1]*temp_box[:-1,1:]*temp_box[1:,:-1])
-        if maskCD1<1 or maskCD2<1: return []
-        CD1 /= maskCD1
-        CD2 /= maskCD2
-        CD = (CD1+CD2)/2.
-        # 2 diagonals away; the naming might need to be changed
-        maskCD2_1 = numpy.sum(this_mask[:-2,:-2]*this_mask[2:,2:])
-        maskCD2_2 = numpy.sum(this_mask[:-2,2:]*this_mask[2:,:-2])
-        CD2_1 = numpy.sum(this_mask[:-2,:-2]*this_mask[2:,2:]*temp_box[:-2,:-2]*temp_box[2:,2:])
-        CD2_2 = numpy.sum(this_mask[:-2,2:]*this_mask[2:,:-2]*temp_box[:-2,2:]*temp_box[2:,:-2])
-        if maskCD2_1<1 or maskCD2_2<1: return []
-        CD2_1 /= maskCD2_1
-        CD2_2 /= maskCD2_2
-        CDp2 = (CD2_1+CD2_2)/2.  # Better name for this one?  CD2 already used above
+        C_all /= masktmp
 
-        # Haven't done any checks below here!
-        # 'diagonal vertical'
-        maskCDV1 = numpy.sum(this_mask[:-2,:-1]*this_mask[2:,1:])
-        maskCDV2 = numpy.sum(this_mask[:-2,1:]*this_mask[2:,:-1])
-        CDV1 = numpy.sum(this_mask[:-2,:-1]*this_mask[2:,1:]*temp_box[:-2,:-1]*temp_box[2:,1:])
-        CDV2 = numpy.sum(this_mask[:-2,1:]*this_mask[2:,:-1]*temp_box[:-2,1:]*temp_box[2:,:-1])
-        if maskCDV1<1 or maskCDV2<1: return []
-        CDV1 /= maskCDV1
-        CDV2 /= maskCDV2
-        CDV = (CDV1+CDV2)/2.
-        
-        # 'diagonal horizontal'
-        maskCDH1 = numpy.sum(this_mask[:-1,:-2]*this_mask[1:,2:])
-        maskCDH2 = numpy.sum(this_mask[:-1,2:]*this_mask[1:,:-2])
-        CDH1 = numpy.sum(this_mask[:-1,:-2]*this_mask[1:,2:]*temp_box[:-1,:-2]*temp_box[1:,2:])
-        CDH2 = numpy.sum(this_mask[:-1,2:]*this_mask[1:,:-2]*temp_box[:-1,2:]*temp_box[1:,:-2])
-        if maskCDH1<1 or maskCDH2<1: return []
-        CDH1 /= maskCDH1
-        CDH2 /= maskCDH2
-        CDH = (CDH1+CDH2)/2.
-
+        # hard-coded to return only 5x5 arrays
+        # Find the "center" of this array
+        if (dy%2==0):
+            c_y=dy//2
+        else:
+            c_y=dy/2 - 1
+        if (dx%2==0):
+            c_x=dx//2
+        else:
+            c_x=dx/2 - 1
+        Call_5x5 = C_all[c_y-3:c_y+2,c_x-3:c_x+2]
+        decenter_Call = decenter(Call_5x5)  # Might come in handy
+        ############### still need to update within this box
         # Also need to add in the additional elements below here!
         if leadtrailSub:
           maskCVx1 = numpy.sum(this_mask[:-1,:-4]*this_mask[1:,4:])
@@ -1063,17 +1028,16 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
 
         temp_box = box2Noise[if1,:,:] - box2Noise[if2,:,:]
         # end nested for loop
+        ############### below has been updated
   #
   # Normalize covariances. Note that taking the difference of 2 frames doubled the covariance
   # matrix, so we have introduced cov_clip_corr
   xi = scipy.stats.norm.ppf(1-epsilon)
   cov_clip_corr = (1. - numpy.sqrt(2./numpy.pi)*xi*numpy.exp(-xi*xi/2.)/(1.-2.*epsilon) )**2
-  tCH /= num_files*(num_files-1)*cov_clip_corr
-  tCV /= num_files*(num_files-1)*cov_clip_corr
-  tCD /= num_files*(num_files-1)*cov_clip_corr
+  tCall /= num_files*(num_files-1)*cov_clip_corr
 
   # Return the correlations
-  return [numpy.sum(this_mask), med2, var2, tCH, tCV, tCD]
+  return [numpy.sum(this_mask), med2, var2, tCall]
 
 # Routine to obtain statistical properties of a region of the detector across many time slices
 #
