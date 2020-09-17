@@ -10,11 +10,11 @@ import copy
 import warnings
 from fitsio import FITS,FITSHDR
 from ftsolve import center,decenter,solve_corr,solve_corr_many
+from scipy.signal import correlate2d
 
 # <== TESTING PARAMETERS ONLY ==>
 #
 # [these are false and should only be set to true for debugging purposes]
-
 Test_SubBeta = False
 
 # <== THESE FUNCTIONS DEPEND ON THE FORMAT OF THE INPUT FILES ==>
@@ -940,7 +940,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
 
   # Correlations of neighboring pixels, in DN^2
   #
-  tCH = tCV = tCD = tCH2 = tCV2 = tCD2 = tCDV = tCDH = 0
+  tCH = tCV = tCD = tCH2 = tCV2 = tCD2 = tCDV = tCDH = 0  #might be able to delete this
   for if1 in range(1,num_files):
     for if2 in range(if1):
       temp_box = box2[if1,:,:] - box2[if2,:,:]
@@ -987,6 +987,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
           if maskCHx1<1 or maskCVx1<1: return []
           CHx1 /= maskCHx1
           CVx1 /= maskCVx1
+          
           maskCVx2 = numpy.sum(this_mask[:-1,4:]*this_mask[1:,:-4])
           maskCHx2 = numpy.sum(this_mask[:,:-3]*this_mask[:,3:])
           CVx2 = numpy.sum(this_mask[:-1,4:]*this_mask[1:,:-4]*temp_box[:-1,4:]*temp_box[1:,:-4])
@@ -1037,6 +1038,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
   tCall /= num_files*(num_files-1)*cov_clip_corr
 
   # Return the correlations
+  # Could also just return the tCH and tCV part of tCall while checking this returns what we want
   return [numpy.sum(this_mask), med2, var2, tCall]
 
 # Routine to obtain statistical properties of a region of the detector across many time slices
