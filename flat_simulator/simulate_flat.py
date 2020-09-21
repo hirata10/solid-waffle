@@ -17,7 +17,7 @@ NOTE: to run this, one needs:
 """
 import sys
 import numpy as np
-from numpy.random import randn,poisson
+from numpy.random import randn,poisson,normal
 import scipy.signal as signal
 import astropy.io.fits as fits
 import fitsio
@@ -26,6 +26,7 @@ import re
 sys.path.insert(0, '../')
 #sys.path.insert(0, '/users/PCON0003/cond0080/src/solid-waffle/')
 from pyirc import *
+from ftsolve import p2kernel
 from detector_functions import *
 
 # Defaults
@@ -47,6 +48,11 @@ nlbeta = 1.5 # (ppm/e-)
 # nlcoeffs_arr are [c_2,c_3,c_4] with c_j in units of ppm electrons^(1-j) 
 nlcoeffs_arr = [-1.5725,1.9307e-5,-1.4099e-10]
 reset_frames = [0]
+
+# quantum yield defaults
+QY_omega = 0.
+QY_offset = 2
+QY_p2 = numpy.zeros((5,5)); QY_p2[2,2] = 1
 
 # Read in information
 config_file = sys.argv[1]
@@ -70,6 +76,14 @@ for line in content:
   # Gain (e/DN)
   m = re.search(r'^GAIN:\s*(\S+)', line)
   if m: gain = float(m.group(1))
+
+  # Quantum yield
+  m = re.search(r'^QY:\s*(\S+)\s+(\S+)', line)
+  if m:
+    QY_omega = float(m.group(1))
+    sig = float(m.group(2))
+    QY_offset = 2
+    QY_p2 = p2kernel(np.asarray([sig**2,0,sig**2]), QY_offset, 256)
 
   # Illumination (photons/s/pixel)
   m = re.search(r'^ILLUMINATION:\s*(\S+)', line)
@@ -139,6 +153,18 @@ print('Illumination:', I, 'ph/s/pix; QE =', QE)
 print('RNG seed ->', rngseed)
 numpy.random.seed(rngseed)
 
+# Define function to build distribution of pairs of points
+# myMean is mean number of *photons* per pixel (number of e is 2x larger)
+def PairPoisson(myMean, myShape):
+  Ptot = np.zeros(myShape)
+  (yg,xg) = myShape
+  for j in range(2*QY_offset+1):
+    for i in range(2*QY_offset+1):
+      dP = np.random.poisson(myMean*QY_p2[j,i], (yg+2*QY_offset, xg+2*QY_offset))
+      Ptot += dP[QY_offset:yg+QY_offset, QY_offset:xg+QY_offset]
+      Ptot += dP[j:yg+j, i:xg+i]
+  return(Ptot)
+
 # Reset first frame if needed
 offset_frame[:,:,:] = resetlevel
 if 0 in reset_frames:
@@ -156,24 +182,29 @@ for tdx in range(1, nt_step):
   if (tdx==1):
     allQ[idx,:,:] = allQ[idx-1,:,:]
     allQ[idx,xmin:xmax,ymin:ymax] += np.random.poisson(
-      QE*mean, allQ[idx,xmin:xmax,xmin:xmax].shape)
+      QE*mean*(1.-QY_omega)/(1.+QY_omega), allQ[idx,xmin:xmax,xmin:xmax].shape)
+    allQ[idx,xmin:xmax,ymin:ymax] += PairPoisson(QE*mean*QY_omega/(1.+QY_omega), allQ[idx,xmin:xmax,xmin:xmax].shape)
   else:
     # If not the first step, and the brighter-fatter effect is turned
     # on, then now loop through all pixels
     if bfemode=='true':
       # Calculate the area defect by taking a convolution of the bfe
       # kernel (flipped in the calc_area_defect function) and the charge Q
+      # Area defects are magnified by (1+QY_omega)/(1-QY_omega) since I am only applying them
+      # to the 1-electron events
       a_coeff = get_bfe_kernel_5x5()
       area_defect = calc_area_defect(
-        a_coeff, allQ[idx-1,xmin:xmax,ymin:ymax])
-      meanQ = area_defect*mean*QE
+        (1.+QY_omega)/(1.-QY_omega)*a_coeff, allQ[idx-1,xmin:xmax,ymin:ymax])
+      meanQ = area_defect*mean*QE*(1.-QY_omega)/(1.+QY_omega)
       allQ[idx,xmin:xmax,ymin:ymax] = allQ[idx-1,xmin:xmax,ymin:ymax] + \
           np.random.poisson(meanQ)
+      allQ[idx,xmin:xmax,ymin:ymax] += PairPoisson(QE*mean*QY_omega/(1.+QY_omega), allQ[idx,xmin:xmax,xmin:xmax].shape)
     else:
       # Otherwise Poisson draw the charge as before
       allQ[idx,:,:] = allQ[idx-1,:,:]
       allQ[idx,xmin:xmax,ymin:ymax] += np.random.poisson(
-        QE*mean, allQ[idx,xmin:xmax,ymin:ymax].shape)
+        QE*mean*(1.-QY_omega)/(1.+QY_omega), allQ[idx,xmin:xmax,ymin:ymax].shape)
+      allQ[idx,xmin:xmax,ymin:ymax] += PairPoisson(QE*mean*QY_omega/(1.+QY_omega), allQ[idx,xmin:xmax,xmin:xmax].shape)
   if (idx==0):
     data_cube_Q[count,:,:] = allQ[idx,:,:]
     allQ = np.zeros((substep, nx, ny))
@@ -217,6 +248,9 @@ if noisemode == 'last':
 elif noisemode == 'full':
   noise = fitsio.read(noisefile)
   data_cube_Q += noise  # Adding the noise at all reads
+else:
+  # a small amount of Gaussian noise, 12 e
+  data_cube_Q += 10*normal(size=(tsamp,N,N))
 
 # Convert charge to signal, clipping values<0 and >2**16
 data_cube_S = np.array(

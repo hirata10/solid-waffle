@@ -34,7 +34,7 @@ TIME:  1   5   6  10
 #TIME2A:  1  5  9  18
 #TIME2B:  1  5  9  18
 #TIME3:  1  5  9  18
-OUTPUT:		out/chris_20829vis1
+OUTPUT:		out/chris_20829vis1-mix2
 
 HOTPIX: 500 1000 0.1 0.1
 

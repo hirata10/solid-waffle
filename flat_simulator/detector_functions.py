@@ -53,7 +53,7 @@ def calculate_ipc(data_cube_Q, ipc_list, npad=2):
     Q_pad_ipc = signal.convolve(Q_pad, ipc_kern)
     # Dimensions/side for Q_pad_ipc are now 
     # data_cube_Q.shape[0]+ipc_kern.shape[0]+npad-1
-    extra_dim = (2*npad+ipc_kern.shape[0]-1)/2
+    extra_dim = (2*npad+ipc_kern.shape[0]-1)//2
     data_cube_Q[tdx,:,:] = Q_pad_ipc[extra_dim:-extra_dim,
                                      extra_dim:-extra_dim]
   return data_cube_Q
@@ -111,7 +111,7 @@ def calc_area_defect(ap, Q, npad=2):
   W = 1 + aQ
   # Final dimensions of W will be 2*npad+Q.shape[0]+ap.shape[0]-1
   # on each side
-  extra_dim = (2*npad+ap.shape[0]-1)/2
+  extra_dim = (2*npad+ap.shape[0]-1)//2
   return W[extra_dim:-extra_dim,extra_dim:-extra_dim]
 
 def ipc_invkernel_HV(alpha_H=0.01,alpha_V=0.01):
@@ -139,7 +139,7 @@ def K2a(ipc_kernel2, bfe_a):
   bfe_a_pad = np.pad(bfe_a, pad_width=(npad,npad), mode='symmetric')
   #ipc2_bfe = signal.convolve(ipc_kernel2, bfe_a_pad)
   ipc2_bfe = signal.convolve(bfe_a_pad, ipc_kernel2)
-  extra_dim = (2*npad+ipc_kernel2.shape[0]-1)/2
+  extra_dim = (2*npad+ipc_kernel2.shape[0]-1)//2
   ipc2_bfe_out = np.around(
       ipc2_bfe[extra_dim:-extra_dim, extra_dim:-extra_dim],4)
   return ipc2_bfe_out
