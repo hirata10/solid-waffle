@@ -269,14 +269,7 @@ dy = N//ny
 # Pixels in a block
 npix = dx*dy
 
-# Make table of reference pixel corrections for Method 1
-# This is only happening now on the visible files
-if fullref:
-  lightref = pyirc.ref_array(vislightfiles, formatpars, ny, tslices, False)
-  darkref = pyirc.ref_array(vislightfiles, formatpars, ny, tslices, False)
-else:
-  lightref = numpy.zeros((len(vislightfiles), ny, 2*len(tslices)+1))
-  darkref = numpy.zeros((len(visdarkfiles), ny, 2*len(tslices)+1))
+# reference pixel subtraction flag
 basicpar.subtr_href = fullref
 
 # more allocations
@@ -324,6 +317,33 @@ for iy in range(ny):
 for iy in range(ny):
   for ix in range(nx):
     print('{:3d} {:3d} {:12.5E} {:12.5E} {:12.5E}'.format(iy,ix,full_info[iy,ix,pyirc.swi.g],Ie[iy,ix],Ie_alt[iy,ix]))
+
+# Get correlation functions in each block
+nvis = te_vis - ts_vis - tchar2_vis + 1
+print ('Visible flat correlation functions, progress of calculation:')
+sys.stdout.write('|')
+for iy in range(ny): sys.stdout.write(' ')
+print ('| <- 100%')
+sys.stdout.write('|')
+for iy in range(ny):
+  sys.stdout.write('*'); sys.stdout.flush()
+  for ix in range(nx):
+    tslices0 = numpy.asarray([ts_vis, ts_vis+tchar1_vis, ts_vis+tchar2_vis])
+    for k in range(nvis):
+      tslicesk = (tslices0+k).tolist()
+      region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslicesk,
+                    [sensitivity_spread_cut, True], False)
+      dark_cube = pyirc.pixel_data(visdarkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslicesk,
+                    [sensitivity_spread_cut, False], False)
+      if fullref:
+        lightref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
+        darkref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
+      else:
+        lightref = numpy.zeros((len(vislightfiles), ny, 2*len(tslicesk)+1))
+        darkref = numpy.zeros((len(visdarkfiles), ny, 2*len(tslicesk)+1))
+      info = pyirc.corr_5x5(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
+      print(info)
+      exit() # to make sure we only go through once
 
 print('END')
 exit()
