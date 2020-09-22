@@ -1,17 +1,17 @@
 DETECTOR: SIMULATED
 LIGHT:
-../sims/F_ir1.fits
-../sims/F_ir2.fits
+/users/PCON0003/cond0007/sims/F_ir1.fits
+/users/PCON0003/cond0007/sims/F_ir2.fits
 DARK:
-../sims/D1.fits
-../sims/D2.fits
+/users/PCON0003/cond0007/sims/D1.fits
+/users/PCON0003/cond0007/sims/D2.fits
 
 VISLIGHT:
-../sims/F1.fits
-../sims/F2.fits
+/users/PCON0003/cond0007/sims/F1.fits
+/users/PCON0003/cond0007/sims/F2.fits
 VISDARK:
-../sims/D1.fits
-../sims/D2.fits
+/users/PCON0003/cond0007/sims/D1.fits
+/users/PCON0003/cond0007/sims/D2.fits
 
 FORMAT: 1
 CHAR: Advanced 1 3 3 bfe
