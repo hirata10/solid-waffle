@@ -7,8 +7,8 @@ DARK:
 /users/PCON0003/cond0007/sims/D2.fits
 
 VISLIGHT:
-/users/PCON0003/cond0007/sims/F1.fits
-/users/PCON0003/cond0007/sims/F2.fits
+/users/PCON0003/cond0007/sims/F_vis1.fits
+/users/PCON0003/cond0007/sims/F_vis2.fits
 VISDARK:
 /users/PCON0003/cond0007/sims/D1.fits
 /users/PCON0003/cond0007/sims/D2.fits
