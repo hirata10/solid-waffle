@@ -967,53 +967,38 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
 
         # hard-coded to return only 5x5 arrays
         # Find the "center" of this array
-        if (dy%2==0):
-            c_y=dy//2
-        else:
-            c_y=dy/2 - 1
-        if (dx%2==0):
-            c_x=dx//2
-        else:
-            c_x=dx/2 - 1
-        Call_5x5 = C_all[c_y-3:c_y+2,c_x-3:c_x+2]
-        decenter_Call = decenter(Call_5x5)  # Might come in handy
+        # if (dy%2==0):
+        #     c_y=dy//2
+        # else:
+        #     c_y=dy/2 - 1
+        # if (dx%2==0):
+        #     c_x=dx//2
+        # else:
+        #     c_x=dx/2 - 1
+        # Call_5x5 = C_all[c_y-3:c_y+2,c_x-3:c_x+2]
+        # decenter_Call = decenter(Call_5x5)  # Might come in handy
+        # Anna: commenting the lines above because I think this won't be needed
         ############### still need to update within this box
-        # Also need to add in the additional elements below here!
-        if leadtrailSub:
-          maskCVx1 = numpy.sum(this_mask[:-1,:-4]*this_mask[1:,4:])
-          maskCHx1 = numpy.sum(this_mask[:,:-5]*this_mask[:,5:])
-          CVx1 = numpy.sum(this_mask[:-1,:-4]*this_mask[1:,4:]*temp_box[:-1,:-4]*temp_box[1:,4:])
-          CHx1 = numpy.sum(this_mask[:,:-5]*this_mask[:,5:]*temp_box[:,:-5]*temp_box[:,5:])
-          if maskCHx1<1 or maskCVx1<1: return []
-          CHx1 /= maskCHx1
-          CVx1 /= maskCVx1
-          
-          maskCVx2 = numpy.sum(this_mask[:-1,4:]*this_mask[1:,:-4])
-          maskCHx2 = numpy.sum(this_mask[:,:-3]*this_mask[:,3:])
-          CVx2 = numpy.sum(this_mask[:-1,4:]*this_mask[1:,:-4]*temp_box[:-1,4:]*temp_box[1:,:-4])
-          CHx2 = numpy.sum(this_mask[:,:-3]*this_mask[:,3:]*temp_box[:,:-3]*temp_box[:,3:])
-          if maskCHx2<1 or maskCVx2<1: return []
-          CHx2 /= maskCHx2
-          CVx2 /= maskCVx2
-          CH -= (CHx1+CHx2)/2.
-          CV -= (CVx1+CVx2)/2.
-          #
-          # correction of the diagonal directions
-          maskCDx1 = numpy.sum(this_mask[:-1,:-5]*this_mask[1:,5:])
-          maskCDx2 = numpy.sum(this_mask[:-1,:-3]*this_mask[1:,3:])
-          maskCDx3 = numpy.sum(this_mask[1:,:-5]*this_mask[:-1,5:])
-          maskCDx4 = numpy.sum(this_mask[1:,:-3]*this_mask[:-1,3:])
-          CDx1 = numpy.sum(this_mask[:-1,:-5]*this_mask[1:,5:]*temp_box[:-1,:-5]*temp_box[1:,5:])
-          CDx2 = numpy.sum(this_mask[:-1,:-3]*this_mask[1:,3:]*temp_box[:-1,:-3]*temp_box[1:,3:])
-          CDx3 = numpy.sum(this_mask[1:,:-5]*this_mask[:-1,5:]*temp_box[1:,:-5]*temp_box[1:,5:])
-          CDx4 = numpy.sum(this_mask[1:,:-3]*this_mask[:-1,3:]*temp_box[1:,:-3]*temp_box[1:,3:])
-          if maskCDx1<1 or maskCDx2<1 or maskCDx3<1 or maskCDx4<1: return []
-          CDx1 /= maskCDx1
-          CDx2 /= maskCDx2
-          CDx3 /= maskCDx3
-          CDx4 /= maskCDx4
-          CD -= (CDx1+CDx2+CDx3+CDx4)/4.
 
+        if leadtrailSub:
+
+          C_pos_shift = np.zeros_like(C_all)
+          C_neg_shift = np.zeros_like(C_all)
+
+          C_pos_shift[:,:-8]=C_all[:,8:] #values of the correlation matrix 8 columns to the right
+          C_neg_shift[:,8:]=C_all[:,:-8] #values of the correlation matrix 8 columns to the left
+
+          """The 8 columns at the right edge just take the negative shift values, 
+             the 8 columns at the left edge just take the positive shift values,
+             and in the middle the mean of the two shifts is computed:
+          """
+          C_shift_mean[:, 8:-8] = np.mean([C_pos_shift[:, 8:-8], C_neg_shift[:, 8:-8]], axis=0)
+          C_shift_mean[:, :8] = C_pos_shift[:, :8]
+          C_shift_mean[:, -8:] = C_neg_shift[:, -8:]
+
+          C_all = C_all - C_shift_mean
+
+        #need to update the lines below to use C_all
         if subtr_corr and not newMeanSubMethod and not leadtrailSub:
           CH -= mean_of_temp_box**2
           CV -= mean_of_temp_box**2
