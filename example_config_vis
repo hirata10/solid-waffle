@@ -15,5 +15,6 @@ FORMAT: 4
 
 #NBIN: 32 32
 NBIN: 128 128
+IPCSUB: True
 TIME:    1 3 4 7
 OUTPUT:		out/this_det12

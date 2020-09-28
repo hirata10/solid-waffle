@@ -941,6 +941,9 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
   # Correlations of neighboring pixels, in DN^2
   #
   tCH = tCV = tCD = tCH2 = tCV2 = tCD2 = tCDV = tCDH = 0  #might be able to delete this
+  C_shift_mean = np.zeros((dy,dx))
+  tC_all = np.zeros((dy,dx))
+
   for if1 in range(1,num_files):
     for if2 in range(if1):
       temp_box = box2[if1,:,:] - box2[if2,:,:]
@@ -965,21 +968,6 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
 
         C_all /= masktmp
 
-        # hard-coded to return only 5x5 arrays
-        # Find the "center" of this array
-        # if (dy%2==0):
-        #     c_y=dy//2
-        # else:
-        #     c_y=dy/2 - 1
-        # if (dx%2==0):
-        #     c_x=dx//2
-        # else:
-        #     c_x=dx/2 - 1
-        # Call_5x5 = C_all[c_y-3:c_y+2,c_x-3:c_x+2]
-        # decenter_Call = decenter(Call_5x5)  # Might come in handy
-        # Anna: commenting the lines above because I think this won't be needed
-        ############### still need to update within this box
-
         if leadtrailSub:
 
           C_pos_shift = np.zeros_like(C_all)
@@ -1000,31 +988,35 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
 
         #need to update the lines below to use C_all
         if subtr_corr and not newMeanSubMethod and not leadtrailSub:
-          CH -= mean_of_temp_box**2
-          CV -= mean_of_temp_box**2
-        tCH += CH * (1 if icorr==0 else -1)
-        tCV += CV * (1 if icorr==0 else -1)
-        
-        if subtr_corr and not newMeanSubMethod and not leadtrailSub: CD -= mean_of_temp_box**2
-        tCD += CD * (1 if icorr==0 else -1)
+          #CH -= mean_of_temp_box**2  # Can delete these after verifying below works
+          #CV -= mean_of_temp_box**2
+          C_all -= mean_of_temp_box**2
+        #tCH += CH * (1 if icorr==0 else -1)
+        #tCV += CV * (1 if icorr==0 else -1)
+        tC_all += C_all * (1 if icorr==0 else -1)
+
+        # Two lines below now probably unnecessary
+        #if subtr_corr and not newMeanSubMethod and not leadtrailSub: CD -= mean_of_temp_box**2
+        #tCD += CD * (1 if icorr==0 else -1)
 
         if verbose:
           print ('pos =', if1, if2, 'iteration', icorr, 'cmin,cmax =', cmin, cmax)
-          print ('Mask size', numpy.sum(this_mask), 'correlations =', maskCH, maskCV, 'data:', CH, CV)
+          # Below needs to be adjusted
+          #print ('Mask size', numpy.sum(this_mask), 'correlations =', maskCH, maskCV, 'data:', CH, CV)
 
         temp_box = box2Noise[if1,:,:] - box2Noise[if2,:,:]
         # end nested for loop
-        ############### below has been updated
+
   #
   # Normalize covariances. Note that taking the difference of 2 frames doubled the covariance
   # matrix, so we have introduced cov_clip_corr
   xi = scipy.stats.norm.ppf(1-epsilon)
   cov_clip_corr = (1. - numpy.sqrt(2./numpy.pi)*xi*numpy.exp(-xi*xi/2.)/(1.-2.*epsilon) )**2
-  tCall /= num_files*(num_files-1)*cov_clip_corr
+  tC_all /= num_files*(num_files-1)*cov_clip_corr
 
   # Return the correlations
   # Could also just return the tCH and tCV part of tCall while checking this returns what we want
-  return [numpy.sum(this_mask), med2, var2, tCall]
+  return [numpy.sum(this_mask), med2, var2, tC_all]
 
 # Routine to obtain statistical properties of a region of the detector across many time slices
 #
