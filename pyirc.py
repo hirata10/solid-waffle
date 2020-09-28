@@ -968,6 +968,19 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
 
         C_all /= masktmp
 
+        # hard-coded to return only 5x5 arrays
+        # Find the "center" of this array
+        if (dy%2==0):
+            c_y=dy//2
+        else:
+            c_y=dy/2 - 1
+        if (dx%2==0):
+            c_x=dx//2
+        else:
+            c_x=dx/2 - 1
+        Call_5x5 = C_all[c_y-3:c_y+2,c_x-3:c_x+2]
+        decenter_Call = decenter(Call_5x5)  # Might come in handy
+
         if leadtrailSub:
 
           C_pos_shift = np.zeros_like(C_all)
