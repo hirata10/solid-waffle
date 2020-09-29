@@ -938,8 +938,8 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
   var2 = 0
   corr_mask = region_cube[-1,0,:,:]
 
-  C_shift_mean = np.zeros((dy,dx))
-  tC_all = np.zeros((dy,dx))
+  C_shift_mean = numpy.zeros((dy,dx))
+  tC_all = numpy.zeros((dy,dx))
 
   for if1 in range(1,num_files):
     for if2 in range(if1):
@@ -963,6 +963,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
 
       # Run through twice if we have noise, otherwise once
       nrun = 2 if noise_corr else 1
+      print("nrun: ",nrun)
       for icorr in range (nrun):
         # clipping
         cmin = pyIRC_percentile(temp_box,corr_mask,100*epsilon)
@@ -981,23 +982,10 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
 
         C_all /= masktmp
 
-        # hard-coded to return only 5x5 arrays
-        # Find the "center" of this array
-        if (dy%2==0):
-            c_y=dy//2
-        else:
-            c_y=dy/2 - 1
-        if (dx%2==0):
-            c_x=dx//2
-        else:
-            c_x=dx/2 - 1
-        Call_5x5 = C_all[c_y-3:c_y+2,c_x-3:c_x+2]
-        decenter_Call = decenter(Call_5x5)  # Might come in handy
-
         if leadtrailSub:
 
-          C_pos_shift = np.zeros_like(C_all)
-          C_neg_shift = np.zeros_like(C_all)
+          C_pos_shift = numpy.zeros_like(C_all)
+          C_neg_shift = numpy.zeros_like(C_all)
 
           C_pos_shift[:,:-8]=C_all[:,8:] #values of the correlation matrix 8 columns to the right
           C_neg_shift[:,8:]=C_all[:,:-8] #values of the correlation matrix 8 columns to the left
@@ -1006,7 +994,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
              the 8 columns at the left edge just take the positive shift values,
              and in the middle the mean of the two shifts is computed:
           """
-          C_shift_mean[:, 8:-8] = np.mean([C_pos_shift[:, 8:-8], C_neg_shift[:, 8:-8]], axis=0)
+          C_shift_mean[:, 8:-8] = numpy.mean([C_pos_shift[:, 8:-8], C_neg_shift[:, 8:-8]], axis=0)
           C_shift_mean[:, :8] = C_pos_shift[:, :8]
           C_shift_mean[:, -8:] = C_neg_shift[:, -8:]
 
@@ -1034,10 +1022,22 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
   tC_all /= num_files*(num_files-1)*cov_clip_corr
 
   # extract 5x5 matrix in the center of tC_all here:
+  # hard-coded to return only 5x5 arrays, we should add option to specify
+  # Find the "center" of this array
+  if (dy%2==0):
+    c_y=dy//2
+  else:
+    c_y=dy/2 - 1
+  if (dx%2==0):
+    c_x=dx//2
+  else:
+    c_x=dx/2 - 1
+  tC_all_5x5 = tC_all[c_y-3:c_y+2,c_x-3:c_x+2]
+  decenter_tC_all = decenter(tC_all_5x5)  # Might come in handy
+  print('tCH, tCV: ', decenter_tC_all[0,1], decenter_tC_all[1,0])
 
   # Return the correlations
-  # Could also just return the tCH and tCV part of tCall while checking this returns what we want
-  return [numpy.sum(this_mask), med2, var1, var2, tC_all]
+  return [numpy.sum(this_mask), med2, var1, var2, tC_all_5x5]
 
 # Routine to obtain statistical properties of a region of the detector across many time slices
 #
