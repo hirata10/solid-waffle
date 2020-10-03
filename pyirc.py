@@ -10,7 +10,7 @@ import copy
 import warnings
 from fitsio import FITS,FITSHDR
 from ftsolve import center,decenter,solve_corr,solve_corr_many,solve_corr_vis,solve_corr_vis_many,pad_to_N
-from scipy.signal import correlate2d
+from scipy.signal import correlate2d,fftconvolve
 
 # <== TESTING PARAMETERS ONLY ==>
 #
@@ -21,7 +21,7 @@ Test_SubBeta = False
 
 # Version number of script
 def get_version():
-  return 26
+  return 27
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -975,8 +975,11 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
         if subtr_corr and newMeanSubMethod: temp_box -= mean_of_temp_box
 
         # Correlations in all directions
-        masktmp = correlate2d(this_mask, this_mask,mode='same')
-        C_all = correlate2d(this_mask*temp_box, this_mask*temp_box, mode='same')
+        #masktmp = correlate2d(this_mask, this_mask,mode='same')
+        #C_all = correlate2d(this_mask*temp_box, this_mask*temp_box, mode='same')
+        dy2 = dy//2; dx2 = dx//2
+        masktmp = fftconvolve(this_mask, numpy.flip(this_mask),mode='full')[dy2:-dy2+1,dx2:-dx2+1]
+        C_all = fftconvolve(this_mask*temp_box, numpy.flip(this_mask*temp_box), mode='full')[dy2:-dy2+1,dx2:-dx2+1]
 
         if numpy.any(masktmp<1): return []
 

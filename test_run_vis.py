@@ -344,7 +344,7 @@ for iy in range(ny):
       else:
         lightref = numpy.zeros((len(vislightfiles), ny, 2*len(tslicesk)+1))
         darkref = numpy.zeros((len(visdarkfiles), ny, 2*len(tslicesk)+1))
-      info = pyirc.corr_5x5(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar, True) # verbose
+      info = pyirc.corr_5x5(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
       print(k, nvis, info)
       #basicpar2 = copy.copy(basicpar)
       #basicpar2.full_corr = False
@@ -370,7 +370,7 @@ for iy in range(ny):
       # this is a test, will put Jahmour's block here
       bfepar.Phi = numpy.zeros((5,5)); bfepar.Phi[2,2] = 0.02
       bfepar.Phi = 0.08/1.08*ftsolve.p2kernel([0.2**2, 0, 0.2**2], 2)
-      bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, True) # <- verbose
+      bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) # <- verbose
       print(bfek)
 
     exit() # to make sure we only go through once
