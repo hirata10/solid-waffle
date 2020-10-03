@@ -4,10 +4,12 @@ import time
 import re
 import numpy
 import pyirc
+import ftsolve
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
+import copy
 
 class EmptyClass:
   pass
@@ -60,6 +62,7 @@ bfepar.epsilon = .01
 bfepar.treset = basicpar.reset_frame
 bfepar.blsub = True
 bfepar.fullnl = False
+bfepar.vis = True
 
 # Plotting parameters
 narrowfig = False
@@ -341,9 +344,36 @@ for iy in range(ny):
       else:
         lightref = numpy.zeros((len(vislightfiles), ny, 2*len(tslicesk)+1))
         darkref = numpy.zeros((len(visdarkfiles), ny, 2*len(tslicesk)+1))
-      info = pyirc.corr_5x5(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
-      print(info)
-      exit() # to make sure we only go through once
+      info = pyirc.corr_5x5(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar, True) # verbose
+      print(k, nvis, info)
+      #basicpar2 = copy.copy(basicpar)
+      #basicpar2.full_corr = False
+      #info2 = pyirc.basic(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar2, False)
+      #print(info2)
+      # [number of good pixels, median, variance, tCH, tCV, tCD]
+
+      # end loop over k
+
+    # pull out basic parameters
+    basicinfo = full_info[iy,ix,:pyirc.swi.Nb].tolist()
+    print('old current ->', basicinfo[pyirc.swi.I])
+    basicinfo[pyirc.swi.I] = Ie[iy,ix]
+    basicinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p]
+    print(basicinfo)
+
+    # now get the cube of data for BFE
+    print(tslices)
+    region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
+                  [sensitivity_spread_cut, True], False)
+    for iter in range(1):
+
+      # this is a test, will put Jahmour's block here
+      bfepar.Phi = numpy.zeros((5,5)); bfepar.Phi[2,2] = 0.02
+      bfepar.Phi = 0.08/1.08*ftsolve.p2kernel([0.2**2, 0, 0.2**2], 2)
+      bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, True) # <- verbose
+      print(bfek)
+
+    exit() # to make sure we only go through once
 
 print('END')
 exit()

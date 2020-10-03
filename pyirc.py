@@ -9,7 +9,7 @@ import fitsio
 import copy
 import warnings
 from fitsio import FITS,FITSHDR
-from ftsolve import center,decenter,solve_corr,solve_corr_many
+from ftsolve import center,decenter,solve_corr,solve_corr_many,solve_corr_vis,solve_corr_vis_many,pad_to_N
 from scipy.signal import correlate2d
 
 # <== TESTING PARAMETERS ONLY ==>
@@ -21,7 +21,7 @@ Test_SubBeta = False
 
 # Version number of script
 def get_version():
-  return 25
+  return 26
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -963,7 +963,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
 
       # Run through twice if we have noise, otherwise once
       nrun = 2 if noise_corr else 1
-      print("nrun: ",nrun)
+      print("if1,if2=", if1, if2, " nrun: ",nrun)
       for icorr in range (nrun):
         # clipping
         cmin = pyIRC_percentile(temp_box,corr_mask,100*epsilon)
@@ -1263,11 +1263,14 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
 #   ctrl_pars_bfe.epsilon = cut fraction (default to 0.01)
 #   ctrl_pars_bfe.treset = reset frame (default to 0)
 #   ctrl_pars_bfe.BSub = baseline subtraction? (default to True)
+#   ctrl_pars_bfe.vis = has visible? (default to False)
+#   ctrl_pars.Phi = omega*p2/(1+omega) kernel (only used if ctrl_pars_bfe.vis is true)
 # verbose = True or False (recommend True only for debugging)
 #
 # output is a fsBFE x fsBFE (default: 5x5) BFE kernel in inverse electrons
 #
 def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
+  N = 21 # <-- size for ftsolve
 
   # Extract parameters from basicinfo
   gain =   basicinfo[swi.g]
@@ -1288,6 +1291,17 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
   if verbose: print ('nfiles = ',num_files,', ntimes = ',nt,', dx,dy=',dx,dy)
   treset = 0
   if hasattr(ctrl_pars_bfe,'treset'): treset = ctrl_pars_bfe.treset
+
+  # for visible flats
+  hasvis = False
+  if hasattr(ctrl_pars_bfe,'vis'):
+    if ctrl_pars_bfe.vis:
+      hasvis = True
+      normPhi = numpy.sum(ctrl_pars_bfe.Phi) # this is omega/(1+omega)
+      omega = normPhi / (1-normPhi)
+      p2 = numpy.zeros_like(ctrl_pars_bfe.Phi)
+      if numpy.abs(normPhi)>1e-49: p2 = ctrl_pars_bfe.Phi / normPhi # this prevents an exception if omega=0
+      p2 = decenter(pad_to_N(p2,N))
 
   # BFE kernel size:
   # sBFE = range; fsBFE = full size
@@ -1383,7 +1397,6 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
 
   # Implement cr_converge.
   if ctrl_pars_bfe.fullnl:
-    N = 21
     avals = [basicinfo[swi.alphaV], basicinfo[swi.alphaH], basicinfo[swi.alphaD]]
     avals_nl = [0,0,0]
     sigma_a = 0
@@ -1395,8 +1408,12 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     iters = 0
     while element_diff > tol and iters<=100:
         # Note: solve_corr takes centered things, decenters/calculates internally
-        theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,[t-treset for t in tslices],avals,avals_nl)\
-          *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
+        if hasvis:
+          theory_Cr = solve_corr_vis(BFEK_model,N,I,gain,beta,sigma_a,[t-treset for t in tslices],avals,avals_nl,sBFE_out,omega,p2)\
+            *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
+        else:
+          theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,[t-treset for t in tslices],avals,avals_nl)\
+            *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
         if numpy.isnan(theory_Cr).any():
             warnings.warn('BFE loop diverged, generated NaN')
             return numpy.zeros((fsBFE_out,fsBFE_out)) + numpy.nan
@@ -1404,6 +1421,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
         element_diff = numpy.amax(abs(difference))
         BFEK_model -= difference[::-1,::-1]
         iters += 1
+        if verbose: print(iter, BFEK_model)
         if iters>99:
            warnings.warn("WARNING: NL loop has iterated 100 times")
            return numpy.zeros((fsBFE_out,fsBFE_out)) + numpy.nan

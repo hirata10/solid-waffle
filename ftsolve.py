@@ -84,12 +84,13 @@ def p2kernel(cov, np2, N_integ=256):
   p2_output /= 2*np.pi*np.sqrt(detC)
   return(p2_output)
 
-# given omega*p2 kernel -> get [omega, cxx, cxy, cyy, change in last step, number of iterations]
+# given omegabar*p2 kernel -> get [omega, cxx, cxy, cyy, change in last step, number of iterations]
+# omegabar = omega/(1+omega)
 # cmin = minimum semi-minor axis of the covariance
 def op2_to_pars(op2, cmin=.025):
   cf = 1.
   np2 = np.shape(op2)[0]//2
-  omega = np.sum(op2)
+  omegabar = np.sum(op2)
   cxx = cyy = 2*cmin**2; cxy = 0
   eps = 1; j_iter = 0
   N = 96 # low resolution at first, upgrade when we get close
@@ -99,43 +100,44 @@ def op2_to_pars(op2, cmin=.025):
     if eps<1e-5 or j_iter==496:
       N=256; this_np2 = np2
       this_op2 = op2
-    omega_old=omega; cxx_old=cxx; cxy_old=cxy; cyy_old=cyy
+    omegabar_old=omegabar; cxx_old=cxx; cxy_old=cxy; cyy_old=cyy
 
-    # update omega
+    # update omegabar
     p2 = p2kernel([cxx,cxy,cyy],this_np2,N)
-    err = this_op2 - omega*p2
+    err = this_op2 - omegabar*p2
     derr = -p2
-    omega -= cf*np.sum(err*derr)/np.sum(derr**2)
+    omegabar -= cf*np.sum(err*derr)/np.sum(derr**2)
     # update cxx
-    # p2 doesn't need to be updated when we change omega
-    err = this_op2 - omega*p2
-    derr = -omega*(p2kernel([1.1*cxx,cxy,cyy],this_np2,N) - p2)/(.1*cxx)
+    # p2 doesn't need to be updated when we change omegabar
+    err = this_op2 - omegabar*p2
+    derr = -omegabar*(p2kernel([1.1*cxx,cxy,cyy],this_np2,N) - p2)/(.1*cxx)
     cxx -= cf*np.sum(err*derr)/np.sum(derr**2)
     cxxmin = cxy**2/(cyy-cmin**2) + cmin**2
     if cxx<cxxmin: cxx=cxxmin*1.000001
     # update cyy
     p2 = p2kernel([cxx,cxy,cyy],this_np2,N)
-    err = this_op2 - omega*p2
-    derr = -omega*(p2kernel([cxx,cxy,1.1*cyy],this_np2) - p2)/(.1*cyy)
+    err = this_op2 - omegabar*p2
+    derr = -omegabar*(p2kernel([cxx,cxy,1.1*cyy],this_np2) - p2)/(.1*cyy)
     cyy -= cf*np.sum(err*derr)/np.sum(derr**2)
     cyymin = cxy**2/(cxx-cmin**2) + cmin**2
     if cyy<cyymin: cyy=cyymin*1.000001
     # update cxy
     p2 = p2kernel([cxx,cxy,cyy],this_np2,N)
-    err = this_op2 - omega*p2
+    err = this_op2 - omegabar*p2
     dcxy = .1*np.sqrt(cxx*cyy)
     if cxy>0: dcxy=-dcxy
-    derr = -omega*(p2kernel([cxx,cxy+dcxy,cyy],this_np2,N) - p2)/dcxy
+    derr = -omegabar*(p2kernel([cxx,cxy+dcxy,cyy],this_np2,N) - p2)/dcxy
     cxy -= cf*np.sum(err*derr)/np.sum(derr**2)
     cxylim = np.sqrt((cxx-cmin**2)*(cyy-cmin**2))/1.000001
     if cxy<-cxylim: cxy=-cxylim
     if cxy>cxylim: cxy=cxylim
 
     j_iter+=1
-    eps = np.max(np.abs(np.asarray([omega-omega_old, cxx-cxx_old, cxy-cxy_old, cyy-cyy_old])))
-    #print(omega, cxx, cxy, cyy, eps, j_iter)
+    eps = np.max(np.abs(np.asarray([omegabar-omegabar_old, cxx-cxx_old, cxy-cxy_old, cyy-cyy_old])))
+    #print(omegabar, cxx, cxy, cyy, eps, j_iter)
 
-  if j_iter==512: warnings.warn('op2_to_pars: failed to converge', [omega, cxx, cxy, cyy, eps])
+  if j_iter==512: warnings.warn('op2_to_pars: failed to converge', [omegabar, cxx, cxy, cyy, eps])
+  omega = omegabar/(1-omegabar)
   return([omega, cxx, cxy, cyy, eps, j_iter])
 
 # test functions for p2kernel
