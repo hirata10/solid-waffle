@@ -434,8 +434,7 @@ def gen_nl_cube(filelist, formatpars, timeslice, ngrid, Ib, usemode, verbose):
       q=numpy.poly1d.deriv(p)
       fit_array[:,iy,ix] = p(range(tmin-tref,tmax+1-tref))
       deriv_array[:,iy,ix] = q(range(tmin-tref,tmax+1-tref))
-      coefs_array[:,iy,ix] = p.c[::-1]
-
+      coefs_array[:p.order+1,iy,ix] = p.c[::-1]
   if usemode=='dev':
     return output_array, fit_array, deriv_array
   else:
@@ -986,7 +985,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
         C_all /= masktmp
 
         if leadtrailSub:
-
+          print("leadtrailsub turned on")
           C_pos_shift = numpy.zeros_like(C_all)
           C_neg_shift = numpy.zeros_like(C_all)
 
