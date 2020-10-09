@@ -985,7 +985,6 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
         C_all /= masktmp
 
         if leadtrailSub:
-          print("leadtrailsub turned on")
           C_pos_shift = numpy.zeros_like(C_all)
           C_neg_shift = numpy.zeros_like(C_all)
 
