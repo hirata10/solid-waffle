@@ -365,13 +365,53 @@ for iy in range(ny):
     print(tslices)
     region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
                   [sensitivity_spread_cut, True], False)
-    for iter in range(1):
-
+    
+    # iterate to solve BFE, Phi
+    
+    basicinfo[swi.alphaH]
+    basicinfo[swi.alphaV]
+    basicinfo[swi.beta]
+    
+    om = 0.08
+    cov = [0.2**2, 0, 0.2**2]
+    np2 = 2
+    p2_init = ftsolve.p2kernel(cov, np2)
+    bfepar.Phi = om/(1+om) * p2_init
+    bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) 
+    datacorr = pyirc.corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose)
+    tol = 1e-6
+    diff = 1
+    count = 0
+    
+    print('Initial BFE kernel:')
+    print(bfek)
+    
+    """while np.abs(diff) > tol:   
+        # update Phi
+        # check Ie param notation?
+        
+        truecorr = solve_corr_vis_many(bfek,N,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
+                                       basicinfo[pyirc.swi.beta],sigma_a,tslices,avals,omega=om,p2=0)
+        diff = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*t_abcd) * (datacorr - truecorr)
+        bfepar.Phi += diff
+    
+        # update BFE
+        bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) 
+        count += 1
+        
+        if count>100:
+            print('100 iterations of BFE/Phi solver reached, diff={:0.6f}'.format(diff))
+            break"""
+    
+    print('Final BFE kernel:')
+    print(bfek)   
+    
+    #for iter in range(1):  
       # this is a test, will put Jahmour's block here
-      bfepar.Phi = numpy.zeros((5,5)); bfepar.Phi[2,2] = 0.02
-      bfepar.Phi = 0.08/1.08*ftsolve.p2kernel([0.2**2, 0, 0.2**2], 2)
-      bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) # <- verbose
-      print(bfek)
+      #bfepar.Phi = numpy.zeros((5,5)); bfepar.Phi[2,2] = 0.02
+      #bfepar.Phi = 0.08/1.08*ftsolve.p2kernel([0.2**2, 0, 0.2**2], 2)
+      #bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) # <- verbose
+      #print(bfek)
 
     exit() # to make sure we only go through once
 
