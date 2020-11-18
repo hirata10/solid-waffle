@@ -368,9 +368,9 @@ for iy in range(ny):
     
     # iterate to solve BFE, Phi
     
-    basicinfo[swi.alphaH]
-    basicinfo[swi.alphaV]
-    basicinfo[swi.beta]
+    #basicinfo[swi.alphaH]
+    #basicinfo[swi.alphaV]
+    #basicinfo[swi.beta]
     
     om = 0.08
     cov = [0.2**2, 0, 0.2**2]
@@ -391,8 +391,8 @@ for iy in range(ny):
         # check Ie param notation?
         
         truecorr = solve_corr_vis_many(bfek,N,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
-                                       basicinfo[pyirc.swi.beta],sigma_a,tslices,avals,omega=om,p2=0)
-        diff = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*t_abcd) * (datacorr - truecorr)
+                                       basicinfo[pyirc.swi.beta],sigma_a,tslices,avals,omega=om,p2=0) # fix omega, p2
+        diff = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*tchar2_vis) * (datacorr - truecorr)
         bfepar.Phi += diff
     
         # update BFE
