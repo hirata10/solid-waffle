@@ -384,17 +384,13 @@ for iy in range(ny):
     
     # iterate to solve BFE, Phi
     
-    #basicinfo[swi.alphaH]
-    #basicinfo[swi.alphaV]
-    #basicinfo[swi.beta]
-    
     om = 0.08
     cov = [0.2**2, 0, 0.2**2]
     np2 = 2
     p2_init = ftsolve.p2kernel(cov, np2)
     bfepar.Phi = om/(1+om) * p2_init
     bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) 
-    datacorr = pyirc.corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose)
+    #datacorr = pyirc.corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose)
     tol = 1e-6
     diff = 1
     count = 0
@@ -402,13 +398,21 @@ for iy in range(ny):
     print('Initial BFE kernel:')
     print(bfek)
     
-    """while np.abs(diff) > tol:   
+    while np.abs(diff) > tol:   
         # update Phi
         # check Ie param notation?
         
+        tslices_vis = [ts_vis,ts_vis+tchar2_vis,ts_vis,ts_vis+tchar2_vis,nvis]
+        tslices_vis1 = [ts_vis,ts_vis+tchar1_vis,ts_vis,ts_vis+tchar1_vis,nvis]
+        normPhi = numpy.sum(bfepar.Phi) # this is omega/(1+omega)
+        omega = normPhi / (1-normPhi)
+        p2 = bfepar.Phi/omega
         truecorr = solve_corr_vis_many(bfek,N,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
-                                       basicinfo[pyirc.swi.beta],sigma_a,tslices,avals,omega=om,p2=0) # fix omega, p2
-        diff = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*tchar2_vis) * (datacorr - truecorr)
+                                       basicinfo[pyirc.swi.beta],sigma_a,tslices_vis,avals,omega=omega,p2=p2)
+        truecorr[2][2] = (truecorr-solve_corr_vis_many(bfek,N,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
+                                       basicinfo[pyirc.swi.beta],sigma_a,tslices_vis1,avals,omega=omega,p2=p2))[2][2]
+        diff = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*tchar2_vis) * (corr_mean - truecorr)
+        diff[2][2] = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*(tchar2_vis-tchar1_vis)) * (corr_mean[2][2] - truecorr[2][2])
         bfepar.Phi += diff
     
         # update BFE
@@ -417,7 +421,7 @@ for iy in range(ny):
         
         if count>100:
             print('100 iterations of BFE/Phi solver reached, diff={:0.6f}'.format(diff))
-            break"""
+            break
     
     print('Final BFE kernel:')
     print(bfek)   
