@@ -332,6 +332,8 @@ for iy in range(ny):
   sys.stdout.write('*'); sys.stdout.flush()
   for ix in range(nx):
     tslices0 = numpy.asarray([ts_vis, ts_vis+tchar1_vis, ts_vis+tchar2_vis])
+    # initialize vector to stack correlation matrices:
+    corr_stack = []
     for k in range(nvis):
       tslicesk = (tslices0+k).tolist()
       region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslicesk,
@@ -346,6 +348,19 @@ for iy in range(ny):
         darkref = numpy.zeros((len(visdarkfiles), ny, 2*len(tslicesk)+1))
       info = pyirc.corr_5x5(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
       print(k, nvis, info)
+
+      corr_matrix = info[4]
+      var1 = info[2]
+      var2 = info[3]
+      # center of corr_matrix is element (2, 2) of the numpy array
+      corr_matrix[2][2] = var2 - var1
+
+      corr_stack.append(corr_matrix)
+
+    corr_mean = numpy.mean(corr_stack, axis=0)
+    # corr_mean is the v vector of eq. 34
+    print("Average of corr. functions correcting the center by Delta variance:", corr_mean)
+
       #basicpar2 = copy.copy(basicpar)
       #basicpar2.full_corr = False
       #info2 = pyirc.basic(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar2, False)
@@ -360,6 +375,7 @@ for iy in range(ny):
     basicinfo[pyirc.swi.I] = Ie[iy,ix]
     basicinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p]
     print(basicinfo)
+
 
     # now get the cube of data for BFE
     print(tslices)
