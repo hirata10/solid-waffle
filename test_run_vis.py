@@ -398,7 +398,7 @@ for iy in range(ny):
     print('Initial BFE kernel:')
     print(bfek)
     
-    while np.abs(diff) > tol:   
+    while numpy.max(numpy.abs(diff)) > tol:   
         # update Phi
         # check Ie param notation?
         
@@ -413,6 +413,9 @@ for iy in range(ny):
                                        basicinfo[pyirc.swi.beta],sigma_a,tslices_vis1,avals,omega=omega,p2=p2))[2][2]
         diff = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*tchar2_vis) * (corr_mean - truecorr)
         diff[2][2] = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*(tchar2_vis-tchar1_vis)) * (corr_mean[2][2] - truecorr[2][2])
+        if count==0:
+            print('Diff: ',diff)
+            print('Truecorr: ',truecorr)
         bfepar.Phi += diff
     
         # update BFE
