@@ -347,7 +347,7 @@ for iy in range(ny):
         lightref = numpy.zeros((len(vislightfiles), ny, 2*len(tslicesk)+1))
         darkref = numpy.zeros((len(visdarkfiles), ny, 2*len(tslicesk)+1))
       info = pyirc.corr_5x5(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
-      print(k, nvis, info)
+      #print(k, nvis, info)
 
       corr_matrix = info[4]
       var1 = info[2]
@@ -394,11 +394,13 @@ for iy in range(ny):
     tol = 1e-6
     diff = 1
     count = 0
+    NN = 21
     
     print('Initial BFE kernel:')
     print(bfek)
     
     while numpy.max(numpy.abs(diff)) > tol:   
+
         # update Phi
         # check Ie param notation?
         
@@ -407,9 +409,11 @@ for iy in range(ny):
         normPhi = numpy.sum(bfepar.Phi) # this is omega/(1+omega)
         omega = normPhi / (1-normPhi)
         p2 = bfepar.Phi/omega
-        truecorr = solve_corr_vis_many(bfek,N,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
+        sigma_a = 0.
+        avals = [basicinfo[pyirc.swi.alphaV], basicinfo[pyirc.swi.alphaH], basicinfo[pyirc.swi.alphaD]] # (aV, aH, aD)
+        truecorr = ftsolve.solve_corr_vis_many(bfek,NN,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
                                        basicinfo[pyirc.swi.beta],sigma_a,tslices_vis,avals,omega=omega,p2=p2)
-        truecorr[2][2] = (truecorr-solve_corr_vis_many(bfek,N,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
+        truecorr[2][2] = (truecorr-ftsolve.solve_corr_vis_many(bfek,NN,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
                                        basicinfo[pyirc.swi.beta],sigma_a,tslices_vis1,avals,omega=omega,p2=p2))[2][2]
         diff = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*tchar2_vis) * (corr_mean - truecorr)
         diff[2][2] = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*(tchar2_vis-tchar1_vis)) * (corr_mean[2][2] - truecorr[2][2])

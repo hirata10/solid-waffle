@@ -253,7 +253,7 @@ def solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsi
     if omega == 0:
         return solve_corr(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize)
     else:
-        p2_sq = fft2(p2)
+        p2_sq = fft2(pad_to_N(p2,N))
         ta, tb, tc, td = tslices
         aV, aH, aD = avals
         aV_nl, aH_nl, aD_nl = avals_nl
@@ -323,10 +323,10 @@ def solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsi
 def solve_corr_vis_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2,omega=0,p2=0):
    this_t = tslices[:-1]
    tn = tslices[-1]
-   cf = solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize,omega,p2)
+   cf = solve_corr_vis(bfek,N,I,g,betas,sigma_a,this_t,avals,avals_nl,outsize,omega,p2)
    for j in range(tn-1):
      for k in range(4): this_t[k] += 1
-     cf += solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize,omega,p2)
+     cf += solve_corr_vis(bfek,N,I,g,betas,sigma_a,this_t,avals,avals_nl,outsize,omega,p2)
    cf /= tn+0.0
    return(cf)
    
