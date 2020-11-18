@@ -962,7 +962,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
 
       # Run through twice if we have noise, otherwise once
       nrun = 2 if noise_corr else 1
-      print("if1,if2=", if1, if2, " nrun: ",nrun)
+      if verbose: print("if1,if2=", if1, if2, " nrun: ",nrun)
       for icorr in range (nrun):
         # clipping
         cmin = pyIRC_percentile(temp_box,corr_mask,100*epsilon)
@@ -1035,7 +1035,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
     c_x=dx/2 - 1
   tC_all_5x5 = tC_all[c_y-3:c_y+2,c_x-3:c_x+2]
   decenter_tC_all = decenter(tC_all_5x5)  # Might come in handy
-  print('tCH, tCV: ', decenter_tC_all[0,1], decenter_tC_all[1,0])
+  if verbose: print('tCH, tCV: ', decenter_tC_all[0,1], decenter_tC_all[1,0])
 
   # Return the correlations
   return [numpy.sum(this_mask), med2, var1, var2, tC_all_5x5]
