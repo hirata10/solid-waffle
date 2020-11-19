@@ -216,6 +216,7 @@ def solve_corr(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2
         X = I*t1*(afsq+afsq_p-sigma_a)
         qq = (np.where(np.abs(X)>1e-4, (np.exp(X)-1)/np.where(np.abs(X)>1e-5,X,X+1),
                           1+X/2.+X**2/6.+X**3/24.))*I*t1*np.exp(I*afsq*(t-t1))*np.exp(I*sigma_a*t1)                          
+        if ts[1]<ts[0]: qq = np.conjugate(qq)
 
         qqs.append(qq)
     
@@ -306,10 +307,10 @@ def solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsi
             X = I*t1*(afsq+afsq_p-sigma_a)
             qq = ((2*omega*p2_sq+1+omega)/(1+omega))*(np.where(np.abs(X)>1e-4, (np.exp(X)-1)/np.where(np.abs(X)>1e-5,X,X+1),
                           1+X/2.+X**2/6.+X**3/24.))*I*t1*np.exp(I*afsq*(t-t1))*np.exp(I*sigma_a*t1)                          
+            if ts[1]<ts[0]: qq = np.conjugate(qq)
 
             qqs.append(qq)
             
-    
         # Plug into correlation function (see eqn 51)
         csq_abcd =(1/g**2
            *(eval_cnl(betas,I,ta)*eval_cnl(betas,I,tc)*(ksq+knl_sq*I*ta)*(ksq_p+knl_sq_p*I*tc)*qqs[0] 

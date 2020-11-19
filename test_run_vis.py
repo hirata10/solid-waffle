@@ -321,6 +321,10 @@ for iy in range(ny):
   for ix in range(nx):
     print('{:3d} {:3d} {:12.5E} {:12.5E} {:12.5E}'.format(iy,ix,full_info[iy,ix,pyirc.swi.g],Ie[iy,ix],Ie_alt[iy,ix]))
 
+# Allocate space for visible information
+vis_bfek = numpy.zeros((ny,nx,5,5))
+vis_Phi = numpy.zeros((ny,nx,5,5))
+
 # Get correlation functions in each block
 nvis = te_vis - ts_vis - tchar2_vis + 1
 print ('Visible flat correlation functions, progress of calculation:')
@@ -359,7 +363,7 @@ for iy in range(ny):
 
     corr_mean = numpy.mean(corr_stack, axis=0)
     # corr_mean is the v vector of eq. 34
-    print("Average of corr. functions correcting the center by Delta variance:", corr_mean)
+    #print("Average of corr. functions correcting the center by Delta variance:", corr_mean)
 
       #basicpar2 = copy.copy(basicpar)
       #basicpar2.full_corr = False
@@ -374,52 +378,41 @@ for iy in range(ny):
     print('old current ->', basicinfo[pyirc.swi.I])
     basicinfo[pyirc.swi.I] = Ie[iy,ix]
     basicinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p]
-    print(basicinfo)
+    #print(basicinfo)
 
 
     # now get the cube of data for BFE
-    print(tslices)
+    #print(tslices)
     region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
                   [sensitivity_spread_cut, True], False)
     
     # iterate to solve BFE, Phi
     
-    om = 0.08
-    cov = [0.2**2, 0, 0.2**2]
     np2 = 2
-    p2_init = ftsolve.p2kernel(cov, np2)
-    bfepar.Phi = om/(1+om) * p2_init
+    bfepar.Phi = numpy.zeros((2*np2+1,2*np2+1)); bfepar.Phi[np2,np2] = 1.e-12 # initialize to essentially zero
     bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) 
-    #datacorr = pyirc.corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose)
-    tol = 1e-6
+    tol = 1e-9
     diff = 1
     count = 0
     NN = 21
     
-    print('Initial BFE kernel:')
-    print(bfek)
-    
     while numpy.max(numpy.abs(diff)) > tol:   
 
-        # update Phi
-        # check Ie param notation?
-        
         tslices_vis = [ts_vis,ts_vis+tchar2_vis,ts_vis,ts_vis+tchar2_vis,nvis]
         tslices_vis1 = [ts_vis,ts_vis+tchar1_vis,ts_vis,ts_vis+tchar1_vis,nvis]
         normPhi = numpy.sum(bfepar.Phi) # this is omega/(1+omega)
         omega = normPhi / (1-normPhi)
-        p2 = bfepar.Phi/omega
+        p2 = bfepar.Phi/normPhi
         sigma_a = 0.
         avals = [basicinfo[pyirc.swi.alphaV], basicinfo[pyirc.swi.alphaH], basicinfo[pyirc.swi.alphaD]] # (aV, aH, aD)
         truecorr = ftsolve.solve_corr_vis_many(bfek,NN,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
                                        basicinfo[pyirc.swi.beta],sigma_a,tslices_vis,avals,omega=omega,p2=p2)
+        if count==0:
+          print(tslices_vis, p2, truecorr)
         truecorr[2][2] = (truecorr-ftsolve.solve_corr_vis_many(bfek,NN,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
                                        basicinfo[pyirc.swi.beta],sigma_a,tslices_vis1,avals,omega=omega,p2=p2))[2][2]
         diff = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*tchar2_vis) * (corr_mean - truecorr)
         diff[2][2] = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*(tchar2_vis-tchar1_vis)) * (corr_mean[2][2] - truecorr[2][2])
-        if count==0:
-            print('Diff: ',diff)
-            print('Truecorr: ',truecorr)
         bfepar.Phi += diff
     
         # update BFE
@@ -427,20 +420,24 @@ for iy in range(ny):
         count += 1
         
         if count>100:
-            print('100 iterations of BFE/Phi solver reached, diff={:0.6f}'.format(diff))
+            print('100 iterations of BFE/Phi solver reached, diff={:0.6f}'.format(numpy.max(numpy.abs(diff))))
             break
-    
-    print('Final BFE kernel:')
-    print(bfek)   
-    
-    #for iter in range(1):  
-      # this is a test, will put Jahmour's block here
-      #bfepar.Phi = numpy.zeros((5,5)); bfepar.Phi[2,2] = 0.02
-      #bfepar.Phi = 0.08/1.08*ftsolve.p2kernel([0.2**2, 0, 0.2**2], 2)
-      #bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) # <- verbose
-      #print(bfek)
 
-    exit() # to make sure we only go through once
+    print('iter', count, 'omega = ',omega, 'max diff =', numpy.max(numpy.abs(diff)))
+
+    # save information
+    vis_bfek[iy,ix,:,:] = bfek
+    vis_Phi[iy,ix,:,:] = bfepar.Phi
+
+    # end loop over super-pixels
+    # exit() # to make sure we only go through once -- test only
+
+
+# Now get ready to write information
+print('Mean BFE kernel:')
+print(numpy.mean(vis_bfek,axis=(0,1)))
+print('Mean Phi kernel:')
+print(numpy.mean(vis_Phi,axis=(0,1)))
 
 print('END')
 exit()
