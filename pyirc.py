@@ -1265,7 +1265,7 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
 #   ctrl_pars_bfe.treset = reset frame (default to 0)
 #   ctrl_pars_bfe.BSub = baseline subtraction? (default to True)
 #   ctrl_pars_bfe.vis = has visible? (default to False)
-#   ctrl_pars.Phi = omega*p2/(1+omega) kernel (only used if ctrl_pars_bfe.vis is true)
+#   ctrl_pars_bfe.Phi = omega*p2/(1+omega) kernel (only used if ctrl_pars_bfe.vis is true)
 # verbose = True or False (recommend True only for debugging)
 #
 # output is a fsBFE x fsBFE (default: 5x5) BFE kernel in inverse electrons
@@ -1302,7 +1302,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
       omega = normPhi / (1-normPhi)
       p2 = numpy.zeros_like(ctrl_pars_bfe.Phi)
       if numpy.abs(normPhi)>1e-49: p2 = ctrl_pars_bfe.Phi / normPhi # this prevents an exception if omega=0
-      p2 = decenter(pad_to_N(p2,N))
+      p2 = pad_to_N(p2,N) # still centered
 
   # BFE kernel size:
   # sBFE = range; fsBFE = full size

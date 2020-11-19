@@ -249,11 +249,12 @@ def solve_corr_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outs
    
 # Make a new function for visible wavelengths that returns the default
 # behavior of solve_corr if omega = 0. Otherwise, it takes in p2 and omega != 0.
+# input p2 is *centered*
 def solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2,omega=0,p2=0):
     if omega == 0:
         return solve_corr(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize)
     else:
-        p2_sq = fft2(pad_to_N(p2,N))
+        p2_sq = fft2(decenter(pad_to_N(p2,N)))
         ta, tb, tc, td = tslices
         aV, aH, aD = avals
         aV_nl, aH_nl, aD_nl = avals_nl
