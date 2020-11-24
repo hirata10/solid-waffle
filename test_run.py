@@ -317,6 +317,8 @@ print (full_info.shape)
 print ('Number of good regions =', numpy.sum(is_good))
 mean_full_info = numpy.mean(numpy.mean(full_info, axis=0), axis=0)/numpy.mean(is_good)
 print ('Mean info from good regions =', mean_full_info)
+std_full_info = numpy.sqrt(numpy.mean(numpy.mean(full_info**2, axis=0), axis=0)/numpy.mean(is_good) - mean_full_info**2)
+print ('Stdv info from good regions =', std_full_info)
 print ('')
 
 # Non-linearity cube

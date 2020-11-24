@@ -21,7 +21,7 @@ Test_SubBeta = False
 
 # Version number of script
 def get_version():
-  return 27
+  return 28
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -174,12 +174,24 @@ class IndexDictionary:
 swi = IndexDictionary(0)
 
 # Routine to get percentile cuts with a mask removed
+# disc flag if True (default) tells the code to interpolate based on the assumption
+# that the input data are integers
 #
 # mask consists of 0's and 1's and is the same size as this_array
-def pyIRC_percentile(this_array, mask, perc):
+def pyIRC_percentile(this_array, mask, perc, disc=True):
   val = this_array.flatten()
   ma = mask.flatten()
   w = numpy.array([val[x] for x in numpy.where(ma>.5)])
+  n = numpy.size(w)
+  if disc:
+    ctr = numpy.percentile(w,perc)
+    n1 = numpy.count_nonzero(w<ctr-.499999)
+    n2 = numpy.count_nonzero(w<=ctr+.499999)
+    assert n1<=n2
+    if n1==n2: return(ctr)
+    dctr = (perc/100.*n-(n1+n2)/2.)/float(n2-n1)
+    return(ctr + dctr)
+  #w -= numpy.modf(numpy.linspace(0,(1.+numpy.sqrt(5.))/2*(n-1), num=n))[0] - .5
   return numpy.percentile(w,perc)
 
 # Routine to get mean with a mask removed

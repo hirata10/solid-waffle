@@ -375,7 +375,7 @@ for iy in range(ny):
 
     # pull out basic parameters
     basicinfo = full_info[iy,ix,:pyirc.swi.Nb].tolist()
-    print('old current ->', basicinfo[pyirc.swi.I])
+    #print('old current ->', basicinfo[pyirc.swi.I])
     basicinfo[pyirc.swi.I] = Ie[iy,ix]
     basicinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p]
     #print(basicinfo)
@@ -398,8 +398,9 @@ for iy in range(ny):
     
     while numpy.max(numpy.abs(diff)) > tol:   
 
-        tslices_vis = [ts_vis,ts_vis+tchar2_vis,ts_vis,ts_vis+tchar2_vis,nvis]
-        tslices_vis1 = [ts_vis,ts_vis+tchar1_vis,ts_vis,ts_vis+tchar1_vis,nvis]
+        ts_vis_ref = ts_vis - basicpar.reset_frame
+        tslices_vis = [ts_vis_ref,ts_vis_ref+tchar2_vis,ts_vis_ref,ts_vis_ref+tchar2_vis,nvis]
+        tslices_vis1 = [ts_vis_ref,ts_vis_ref+tchar1_vis,ts_vis_ref,ts_vis_ref+tchar1_vis,nvis]
         normPhi = numpy.sum(bfepar.Phi) # this is omega/(1+omega)
         omega = normPhi / (1-normPhi)
         p2 = bfepar.Phi/normPhi
@@ -407,8 +408,8 @@ for iy in range(ny):
         avals = [basicinfo[pyirc.swi.alphaV], basicinfo[pyirc.swi.alphaH], basicinfo[pyirc.swi.alphaD]] # (aV, aH, aD)
         truecorr = ftsolve.solve_corr_vis_many(bfek,NN,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
                                        basicinfo[pyirc.swi.beta],sigma_a,tslices_vis,avals,omega=omega,p2=p2)
-        if count==0:
-          print(tslices_vis, p2, truecorr)
+        #if count==0:
+        #  print(tslices_vis, p2, truecorr)
         truecorr[2][2] = (truecorr-ftsolve.solve_corr_vis_many(bfek,NN,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
                                        basicinfo[pyirc.swi.beta],sigma_a,tslices_vis1,avals,omega=omega,p2=p2))[2][2]
         diff = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*tchar2_vis) * (corr_mean - truecorr)
@@ -423,14 +424,13 @@ for iy in range(ny):
             print('100 iterations of BFE/Phi solver reached, diff={:0.6f}'.format(numpy.max(numpy.abs(diff))))
             break
 
-    print('iter', count, 'omega = ',omega, 'max diff =', numpy.max(numpy.abs(diff)))
+    #print('iter', count, 'omega = ',omega, 'max diff =', numpy.max(numpy.abs(diff)))
 
     # save information
     vis_bfek[iy,ix,:,:] = bfek
     vis_Phi[iy,ix,:,:] = bfepar.Phi
 
     # end loop over super-pixels
-    # exit() # to make sure we only go through once -- test only
 
 
 # Now get ready to write information
@@ -438,6 +438,10 @@ print('Mean BFE kernel:')
 print(numpy.mean(vis_bfek,axis=(0,1)))
 print('Mean Phi kernel:')
 print(numpy.mean(vis_Phi,axis=(0,1)))
+print('sigma Phi kernel:')
+print(numpy.std(vis_Phi,axis=(0,1)))
+print('Charge diffusion parameters:')
+print(ftsolve.op2_to_pars(vis_Phi))
 
 print('END')
 exit()
