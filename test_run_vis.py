@@ -377,7 +377,8 @@ for iy in range(ny):
     basicinfo = full_info[iy,ix,:pyirc.swi.Nb].tolist()
     #print('old current ->', basicinfo[pyirc.swi.I])
     basicinfo[pyirc.swi.I] = Ie[iy,ix]
-    basicinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p]
+    basicinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p] # in DN, +
+    beta_in_e = -basicinfo[pyirc.swi.beta]/basicinfo[pyirc.swi.g]**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1) # in e , -
     #print(basicinfo)
 
 
@@ -407,11 +408,11 @@ for iy in range(ny):
         sigma_a = 0.
         avals = [basicinfo[pyirc.swi.alphaV], basicinfo[pyirc.swi.alphaH], basicinfo[pyirc.swi.alphaD]] # (aV, aH, aD)
         truecorr = ftsolve.solve_corr_vis_many(bfek,NN,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
-                                       basicinfo[pyirc.swi.beta],sigma_a,tslices_vis,avals,omega=omega,p2=p2)
+                                       beta_in_e,sigma_a,tslices_vis,avals,omega=omega,p2=p2)
         #if count==0:
         #  print(tslices_vis, p2, truecorr)
         truecorr[2][2] = (truecorr-ftsolve.solve_corr_vis_many(bfek,NN,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
-                                       basicinfo[pyirc.swi.beta],sigma_a,tslices_vis1,avals,omega=omega,p2=p2))[2][2]
+                                       beta_in_e,sigma_a,tslices_vis1,avals,omega=omega,p2=p2))[2][2]
         diff = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*tchar2_vis) * (corr_mean - truecorr)
         diff[2][2] = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*(tchar2_vis-tchar1_vis)) * (corr_mean[2][2] - truecorr[2][2])
         bfepar.Phi += diff
@@ -441,7 +442,7 @@ print(numpy.mean(vis_Phi,axis=(0,1)))
 print('sigma Phi kernel:')
 print(numpy.std(vis_Phi,axis=(0,1)))
 print('Charge diffusion parameters:')
-print(ftsolve.op2_to_pars(vis_Phi))
+print(ftsolve.op2_to_pars(numpy.mean(vis_Phi,axis=(0,1))))
 
 print('END')
 exit()
