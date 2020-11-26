@@ -125,8 +125,7 @@ def op2_to_pars(op2, cmin=.025):
     p2 = p2kernel([cxx,cxy,cyy],this_np2,N)
     err = this_op2 - omegabar*p2
     dcxy = .1*np.sqrt(cxx*cyy)
-    if cxy>0: dcxy=-dcxy
-    derr = -omegabar*(p2kernel([cxx,cxy+dcxy,cyy],this_np2,N) - p2)/dcxy
+    derr = -omegabar*(p2kernel([cxx,cxy+dcxy/2,cyy],this_np2,N) - p2kernel([cxx,cxy-dcxy/2,cyy],this_np2,N))/dcxy
     cxy -= cf*np.sum(err*derr)/np.sum(derr**2)
     cxylim = np.sqrt((cxx-cmin**2)*(cyy-cmin**2))/1.000001
     if cxy<-cxylim: cxy=-cxylim
@@ -136,7 +135,7 @@ def op2_to_pars(op2, cmin=.025):
     eps = np.max(np.abs(np.asarray([omegabar-omegabar_old, cxx-cxx_old, cxy-cxy_old, cyy-cyy_old])))
     #print(omegabar, cxx, cxy, cyy, eps, j_iter)
 
-  if j_iter==512: warnings.warn('op2_to_pars: failed to converge', [omegabar, cxx, cxy, cyy, eps])
+  if j_iter==512: warnings.warn('op2_to_pars: failed to converge')
   omega = omegabar/(1-omegabar)
   return([omega, cxx, cxy, cyy, eps, j_iter])
 

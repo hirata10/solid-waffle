@@ -324,6 +324,10 @@ for iy in range(ny):
 # Allocate space for visible information
 vis_bfek = numpy.zeros((ny,nx,5,5))
 vis_Phi = numpy.zeros((ny,nx,5,5))
+# omega and charge diffusion covariance
+QYomega = numpy.zeros((ny,nx))
+cdCov = numpy.zeros((ny,nx,3))
+cdNiter = numpy.zeros((ny,nx))
 
 # Get correlation functions in each block
 nvis = te_vis - ts_vis - tchar2_vis + 1
@@ -335,69 +339,58 @@ sys.stdout.write('|')
 for iy in range(ny):
   sys.stdout.write('*'); sys.stdout.flush()
   for ix in range(nx):
-    tslices0 = numpy.asarray([ts_vis, ts_vis+tchar1_vis, ts_vis+tchar2_vis])
-    # initialize vector to stack correlation matrices:
-    corr_stack = []
-    for k in range(nvis):
-      tslicesk = (tslices0+k).tolist()
-      region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslicesk,
+    if is_good[iy,ix]>.5:
+      tslices0 = numpy.asarray([ts_vis, ts_vis+tchar1_vis, ts_vis+tchar2_vis])
+      # initialize vector to stack correlation matrices:
+      corr_stack = []
+      for k in range(nvis):
+        tslicesk = (tslices0+k).tolist()
+        region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslicesk,
+                      [sensitivity_spread_cut, True], False)
+        dark_cube = pyirc.pixel_data(visdarkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslicesk,
+                      [sensitivity_spread_cut, False], False)
+        if fullref:
+          lightref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
+          darkref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
+        else:
+          lightref = numpy.zeros((len(vislightfiles), ny, 2*len(tslicesk)+1))
+          darkref = numpy.zeros((len(visdarkfiles), ny, 2*len(tslicesk)+1))
+        info = pyirc.corr_5x5(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
+
+        corr_matrix = info[4]
+        var1 = info[2]
+        var2 = info[3]
+        # center of corr_matrix is element (2, 2) of the numpy array
+        corr_matrix[2][2] = var2 - var1
+
+        corr_stack.append(corr_matrix)
+        # end loop over k
+
+      corr_mean = numpy.mean(corr_stack, axis=0)
+      # corr_mean is the v vector of eq. 34
+
+      # pull out basic parameters
+      basicinfo = full_info[iy,ix,:pyirc.swi.Nb].tolist()
+      #print('old current ->', basicinfo[pyirc.swi.I])
+      basicinfo[pyirc.swi.I] = Ie[iy,ix]
+      basicinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p] # in DN, +
+      beta_in_e = -basicinfo[pyirc.swi.beta]/basicinfo[pyirc.swi.g]**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1) # in e , -
+
+      # now get the cube of data for BFE
+      region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
                     [sensitivity_spread_cut, True], False)
-      dark_cube = pyirc.pixel_data(visdarkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslicesk,
-                    [sensitivity_spread_cut, False], False)
-      if fullref:
-        lightref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
-        darkref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
-      else:
-        lightref = numpy.zeros((len(vislightfiles), ny, 2*len(tslicesk)+1))
-        darkref = numpy.zeros((len(visdarkfiles), ny, 2*len(tslicesk)+1))
-      info = pyirc.corr_5x5(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
-      #print(k, nvis, info)
-
-      corr_matrix = info[4]
-      var1 = info[2]
-      var2 = info[3]
-      # center of corr_matrix is element (2, 2) of the numpy array
-      corr_matrix[2][2] = var2 - var1
-
-      corr_stack.append(corr_matrix)
-
-    corr_mean = numpy.mean(corr_stack, axis=0)
-    # corr_mean is the v vector of eq. 34
-    #print("Average of corr. functions correcting the center by Delta variance:", corr_mean)
-
-      #basicpar2 = copy.copy(basicpar)
-      #basicpar2.full_corr = False
-      #info2 = pyirc.basic(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar2, False)
-      #print(info2)
-      # [number of good pixels, median, variance, tCH, tCV, tCD]
-
-      # end loop over k
-
-    # pull out basic parameters
-    basicinfo = full_info[iy,ix,:pyirc.swi.Nb].tolist()
-    #print('old current ->', basicinfo[pyirc.swi.I])
-    basicinfo[pyirc.swi.I] = Ie[iy,ix]
-    basicinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p] # in DN, +
-    beta_in_e = -basicinfo[pyirc.swi.beta]/basicinfo[pyirc.swi.g]**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1) # in e , -
-    #print(basicinfo)
-
-
-    # now get the cube of data for BFE
-    #print(tslices)
-    region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
-                  [sensitivity_spread_cut, True], False)
     
-    # iterate to solve BFE, Phi
+      # iterate to solve BFE, Phi
     
-    np2 = 2
-    bfepar.Phi = numpy.zeros((2*np2+1,2*np2+1)); bfepar.Phi[np2,np2] = 1.e-12 # initialize to essentially zero
-    bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) 
-    tol = 1e-9
-    diff = 1
-    count = 0
-    NN = 21
+      np2 = 2
+      bfepar.Phi = numpy.zeros((2*np2+1,2*np2+1)); bfepar.Phi[np2,np2] = 1.e-12 # initialize to essentially zero
+      bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) 
+      tol = 1e-9
+      diff = 1
+      count = 0
+      NN = 21
     
-    while numpy.max(numpy.abs(diff)) > tol:   
+      while numpy.max(numpy.abs(diff)) > tol:   
 
         ts_vis_ref = ts_vis - basicpar.reset_frame
         tslices_vis = [ts_vis_ref,ts_vis_ref+tchar2_vis,ts_vis_ref,ts_vis_ref+tchar2_vis,nvis]
@@ -425,14 +418,21 @@ for iy in range(ny):
             print('100 iterations of BFE/Phi solver reached, diff={:0.6f}'.format(numpy.max(numpy.abs(diff))))
             break
 
-    #print('iter', count, 'omega = ',omega, 'max diff =', numpy.max(numpy.abs(diff)))
+      #print('iter', count, 'omega = ',omega, 'max diff =', numpy.max(numpy.abs(diff)))
 
-    # save information
-    vis_bfek[iy,ix,:,:] = bfek
-    vis_Phi[iy,ix,:,:] = bfepar.Phi
+      # save information
+      vis_bfek[iy,ix,:,:] = bfek
+      vis_Phi[iy,ix,:,:] = bfepar.Phi
+      op2 = ftsolve.op2_to_pars(bfepar.Phi)
+      QYomega[iy,ix] = op2[0]
+      cdCov[iy,ix,0] = op2[1]
+      cdCov[iy,ix,1] = op2[2]
+      cdCov[iy,ix,2] = op2[3]
+      cdNiter[iy,ix] = op2[-1]
 
-    # end loop over super-pixels
-
+      # end loop over super-pixels
+print('|')
+print('')
 
 # Now get ready to write information
 print('Mean BFE kernel:')
@@ -443,6 +443,40 @@ print('sigma Phi kernel:')
 print(numpy.std(vis_Phi,axis=(0,1)))
 print('Charge diffusion parameters:')
 print(ftsolve.op2_to_pars(numpy.mean(vis_Phi,axis=(0,1))))
+
+# put all information into a gigantic array
+vis_out_data = numpy.zeros((ny,nx,56))
+vis_out_data[:,:,:25] = vis_bfek.reshape(ny,nx,25)
+vis_out_data[:,:,25:50] = vis_Phi.reshape(ny,nx,25)
+vis_out_data[:,:,50] = QYomega
+vis_out_data[:,:,51:54] = cdCov
+vis_out_data[:,:,54] = Ie
+vis_out_data[:,:,55] = cdNiter
+ncol = 56
+#
+# now we have in each super-pixel, 55 "columns" of data
+# columns  0 .. 24 are the visible BFE kernel in e^-1 (order: dy=-2 dx=-2; dy=-2 dx=-1; dy=-2 dx=0; ...)
+# columns 25 .. 49 are the visible Phi kernel (order: dy=-2 dx=-2; dy=-2 dx=-1; dy=-2 dx=0; ...)
+# column 50 is the quantum yield omega parameter
+# column 51 is Cxx charge diffusion in pixels^2
+# column 52 is Cxy charge diffusion in pixels^2
+# column 53 is Cyy charge diffusion in pixels^2
+# column 54 is visible current Ie (e per frame)
+# column 55 is number of iterations in p2 kernel
+
+print ('')
+print (vis_out_data.shape)
+print ('Number of good regions =', numpy.sum(is_good))
+mean_vis_out_data = numpy.mean(numpy.mean(vis_out_data, axis=0), axis=0)/numpy.mean(is_good)
+std_vis_out_data = numpy.sqrt(numpy.mean(numpy.mean(vis_out_data**2, axis=0), axis=0)/numpy.mean(is_good) - mean_vis_out_data**2)
+print('column, mean, stdev, stdev on the mean:')
+for k in range(ncol):
+  print('{:2d} {:12.5E} {:12.5E} {:12.5E}'.format(k, mean_vis_out_data[k], std_vis_out_data[k], std_vis_out_data[k]/numpy.sqrt(numpy.sum(is_good)-1)))
+print ('')
+#
+# save to file
+numpy.savetxt(outstem+'_visinfo.txt', vis_out_data.reshape(ny*nx, ncol))
+numpy.save(outstem+'_visinfo.npy', vis_out_data)
 
 print('END')
 exit()
