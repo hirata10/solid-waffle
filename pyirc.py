@@ -21,7 +21,7 @@ Test_SubBeta = False
 
 # Version number of script
 def get_version():
-  return 28
+  return 29
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -945,6 +945,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
   mean2 = numpy.mean(box2, axis=0)
   med1 = numpy.median(mean1)
   med2 = numpy.median(mean2)
+  med21 = numpy.median(mean2-mean1)
   var1 = 0
   var2 = 0
   corr_mask = region_cube[-1,0,:,:]
@@ -1050,7 +1051,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
   if verbose: print('tCH, tCV: ', decenter_tC_all[0,1], decenter_tC_all[1,0])
 
   # Return the correlations
-  return [numpy.sum(this_mask), med2, var1, var2, tC_all_5x5]
+  return [numpy.sum(this_mask), med21, var1, var2, tC_all_5x5]
 
 # Routine to obtain statistical properties of a region of the detector across many time slices
 #

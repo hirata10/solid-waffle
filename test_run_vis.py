@@ -55,6 +55,7 @@ basicpar.leadtrailSub = False
 basicpar.g_ptile = 75.
 basicpar.fullnl = False
 basicpar.use_allorder = False
+basicpar.vis_med_correct = False
 
 # Parameters for BFE
 bfepar = EmptyClass()
@@ -156,6 +157,9 @@ for line in content:
      te_vis = int(m.group(2))
      tchar1_vis = int(m.group(3))
      tchar2_vis = int(m.group(4))
+  #
+  m = re.search(r'^VISMEDCORR', line)
+  if m: basicpar.vis_med_correct = True
 
   # Time slices
   m = re.search(r'^TIME:\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
@@ -340,6 +344,13 @@ for iy in range(ny):
   sys.stdout.write('*'); sys.stdout.flush()
   for ix in range(nx):
     if is_good[iy,ix]>.5:
+      # pull out basic parameters
+      basicinfo = full_info[iy,ix,:pyirc.swi.Nb].tolist()
+      #print('old current ->', basicinfo[pyirc.swi.I])
+      basicinfo[pyirc.swi.I] = Ie[iy,ix]
+      basicinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p] # in DN, +
+      beta_in_e = -basicinfo[pyirc.swi.beta]/basicinfo[pyirc.swi.g]**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1) # in e , -
+
       tslices0 = numpy.asarray([ts_vis, ts_vis+tchar1_vis, ts_vis+tchar2_vis])
       # initialize vector to stack correlation matrices:
       corr_stack = []
@@ -363,18 +374,21 @@ for iy in range(ny):
         # center of corr_matrix is element (2, 2) of the numpy array
         corr_matrix[2][2] = var2 - var1
 
+        # median corrections to the central array of the auto-correlation matrix
+        # (so we multiply the measured variance by the measured/predicted median,
+        # this would perfectly correct for errors in Ie if the detector were exactly linear)
+        med21 = info[1]
+        predictmed = (tslicesk[2]*Ie[iy,ix]*(1. - numpy.sum(beta_in_e * (tslicesk[2]*Ie[iy,ix])**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1)) )\
+                     - tslicesk[1]*Ie[iy,ix]*(1. - numpy.sum(beta_in_e * (tslicesk[1]*Ie[iy,ix])**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1)) ))\
+                     / basicinfo[pyirc.swi.g]
+        #print('->', iy, ix, k, med21, predictmed, med21/predictmed)
+        if basicpar.vis_med_correct: corr_matrix[2][2] *= med21/predictmed
+
         corr_stack.append(corr_matrix)
         # end loop over k
 
       corr_mean = numpy.mean(corr_stack, axis=0)
       # corr_mean is the v vector of eq. 34
-
-      # pull out basic parameters
-      basicinfo = full_info[iy,ix,:pyirc.swi.Nb].tolist()
-      #print('old current ->', basicinfo[pyirc.swi.I])
-      basicinfo[pyirc.swi.I] = Ie[iy,ix]
-      basicinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p] # in DN, +
-      beta_in_e = -basicinfo[pyirc.swi.beta]/basicinfo[pyirc.swi.g]**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1) # in e , -
 
       # now get the cube of data for BFE
       region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
