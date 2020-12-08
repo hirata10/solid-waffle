@@ -370,3 +370,18 @@ VISTIME: 1 20 1 3
 start = beginning of part of ramp to use (1st frame = 1)
 end = ending of visible ramp to use
 dt1, dt2 = time differences for visible autocorrelations (dt2>dt1; use dt2 for charge diffusion correlations, dt1 is for variance subtraction in determining the apparent gain and hence omega)
+
+-- VISBFETIME --
+
+The timestamps to use for BFE determination in the visible data. (The code estimates BFE separately for visible and IR.) BFE measurement uses the non-overlapping correlation function C_{abcd}, where the timestamps a, b, c, and d are in this keyword:
+
+VISBFETIME: 1 9 10 18
+
+-- VISMEDCORR --
+
+If you add this keyword to the configuration file:
+
+VISMEDCORR
+
+then in the visible characterization, the variance C_{adad}(0,0)-C_{abab}(0,0) is re-scaled by the predicted / measured value of M_{bd} so that the slope of the photon transfer curve is corrected for errors in the current Ie. We recommend this option only as a test case.
+

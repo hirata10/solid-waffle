@@ -68,6 +68,9 @@ bfepar.vis = True
 # Plotting parameters
 narrowfig = False
 
+# Separate parameters for visible BFE?
+has_visbfe = False
+
 # Read in information
 config_file = sys.argv[1]
 if len(sys.argv)>2:
@@ -160,6 +163,12 @@ for line in content:
   #
   m = re.search(r'^VISMEDCORR', line)
   if m: basicpar.vis_med_correct = True
+  #
+  # Visible BFE
+  m = re.search(r'^VISBFETIME:\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
+  if m:
+    tslices_visbfe = [ int(m.group(x)) for x in range(1,5)]
+    has_visbfe = True
 
   # Time slices
   m = re.search(r'^TIME:\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
@@ -238,6 +247,9 @@ for line in content:
   m = re.search(r'^NARROWFIG', line)
   if m: narrowfig = True
 
+# replace visible time slices for BFE
+if has_visbfe: tslices = tslices_visbfe
+
 # set up array size parameters
 pyirc.swi.addbfe(s_bfe)
 pyirc.swi.addhnl(p_order)
@@ -298,6 +310,7 @@ if p_order==0:
 # Get Ie
 Ie = numpy.zeros((ny,nx))
 Ie_alt = numpy.zeros((ny,nx))
+Ie_alt2 = numpy.zeros((ny,nx))
 
 print('computing Ie using', ts_vis, te_vis)
 nlcubeX, nlfitX, nlderX, pcoefX = pyirc.gen_nl_cube(
@@ -311,19 +324,25 @@ for iy in range(ny):
       for ae in range(pyirc.swi.p+1): Signal += pcoefX[ae,iy,ix]*t**ae
       # iterative NL correction
       LinSignal = numpy.copy(Signal)
-      for k in range(5):
+      for k in range(32):
         LS2 = numpy.copy(LinSignal)
         LinSignal = numpy.copy(Signal)
         LS2 += (LinSignal[-1]-LinSignal[0])/(te_vis-ts_vis) * (ts_vis-basicpar.reset_frame)
         for o in range(2,pyirc.swi.p+1): LinSignal -= full_info[iy,ix,pyirc.swi.Nbb+o-1]*LS2**o
       Ie[iy,ix] = pcoefX[1,iy,ix] * full_info[iy,ix,pyirc.swi.g]
       Ie_alt[iy,ix] = (LinSignal[-1]-LinSignal[0])/(te_vis-ts_vis) * full_info[iy,ix,pyirc.swi.g]
+      Sab = Signal[-1]-Signal[0]
+      Ie_alt2[iy,ix] = full_info[iy,ix,pyirc.swi.g]*Sab/(te_vis-ts_vis)
+      beta_in_e = -full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p]/full_info[iy,ix,pyirc.swi.g]**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1) # in e , -
+      for k in range(32):
+        btcorr = 0
+        for j in range(2,pyirc.swi.p+1): btcorr += beta_in_e[j-2]*Ie_alt2[iy,ix]**(j-1)*(t[-1]**j-t[0]**j)
+        Ie_alt2[iy,ix] = full_info[iy,ix,pyirc.swi.g]*Sab/(te_vis-ts_vis-btcorr)
     else:
       is_good[iy,ix] = 0 # error
 
-for iy in range(ny):
-  for ix in range(nx):
-    print('{:3d} {:3d} {:12.5E} {:12.5E} {:12.5E}'.format(iy,ix,full_info[iy,ix,pyirc.swi.g],Ie[iy,ix],Ie_alt[iy,ix]))
+# we use the alt2 method
+Ie[:,:] = Ie_alt2
 
 # Allocate space for visible information
 vis_bfek = numpy.zeros((ny,nx,5,5))
@@ -381,8 +400,7 @@ for iy in range(ny):
         predictmed = (tslicesk[2]*Ie[iy,ix]*(1. - numpy.sum(beta_in_e * (tslicesk[2]*Ie[iy,ix])**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1)) )\
                      - tslicesk[1]*Ie[iy,ix]*(1. - numpy.sum(beta_in_e * (tslicesk[1]*Ie[iy,ix])**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1)) ))\
                      / basicinfo[pyirc.swi.g]
-        #print('->', iy, ix, k, med21, predictmed, med21/predictmed)
-        if basicpar.vis_med_correct: corr_matrix[2][2] *= med21/predictmed
+        if basicpar.vis_med_correct: corr_matrix[2][2] /= med21/predictmed
 
         corr_stack.append(corr_matrix)
         # end loop over k
@@ -422,7 +440,7 @@ for iy in range(ny):
                                        beta_in_e,sigma_a,tslices_vis1,avals,omega=omega,p2=p2))[2][2]
         diff = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*tchar2_vis) * (corr_mean - truecorr)
         diff[2][2] = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*(tchar2_vis-tchar1_vis)) * (corr_mean[2][2] - truecorr[2][2])
-        bfepar.Phi += diff
+        bfepar.Phi += .5*(diff + numpy.flip(diff)) # force symmetrization here to avoid instability
     
         # update BFE
         bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) 

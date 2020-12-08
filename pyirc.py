@@ -21,7 +21,7 @@ Test_SubBeta = False
 
 # Version number of script
 def get_version():
-  return 29
+  return 30
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to

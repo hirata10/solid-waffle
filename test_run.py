@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import re
@@ -191,6 +192,9 @@ for line in content:
   # Control figures
   m = re.search(r'^NARROWFIG', line)
   if m: narrowfig = True
+
+# copy to output file
+os.system('cp ' + config_file + ' ' + outstem + '_config.txt')
 
 # set up array size parameters
 pyirc.swi.addbfe(s_bfe)
