@@ -21,7 +21,7 @@ Test_SubBeta = False
 
 # Version number of script
 def get_version():
-  return 27
+  return 30
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -174,12 +174,24 @@ class IndexDictionary:
 swi = IndexDictionary(0)
 
 # Routine to get percentile cuts with a mask removed
+# disc flag if True (default) tells the code to interpolate based on the assumption
+# that the input data are integers
 #
 # mask consists of 0's and 1's and is the same size as this_array
-def pyIRC_percentile(this_array, mask, perc):
+def pyIRC_percentile(this_array, mask, perc, disc=True):
   val = this_array.flatten()
   ma = mask.flatten()
   w = numpy.array([val[x] for x in numpy.where(ma>.5)])
+  n = numpy.size(w)
+  if disc:
+    ctr = numpy.percentile(w,perc)
+    n1 = numpy.count_nonzero(w<ctr-.499999)
+    n2 = numpy.count_nonzero(w<=ctr+.499999)
+    assert n1<=n2
+    if n1==n2: return(ctr)
+    dctr = (perc/100.*n-(n1+n2)/2.)/float(n2-n1)
+    return(ctr + dctr)
+  #w -= numpy.modf(numpy.linspace(0,(1.+numpy.sqrt(5.))/2*(n-1), num=n))[0] - .5
   return numpy.percentile(w,perc)
 
 # Routine to get mean with a mask removed
@@ -933,6 +945,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
   mean2 = numpy.mean(box2, axis=0)
   med1 = numpy.median(mean1)
   med2 = numpy.median(mean2)
+  med21 = numpy.median(mean2-mean1)
   var1 = 0
   var2 = 0
   corr_mask = region_cube[-1,0,:,:]
@@ -962,7 +975,7 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
 
       # Run through twice if we have noise, otherwise once
       nrun = 2 if noise_corr else 1
-      print("if1,if2=", if1, if2, " nrun: ",nrun)
+      if verbose: print("if1,if2=", if1, if2, " nrun: ",nrun)
       for icorr in range (nrun):
         # clipping
         cmin = pyIRC_percentile(temp_box,corr_mask,100*epsilon)
@@ -1035,10 +1048,10 @@ def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verb
     c_x=dx/2 - 1
   tC_all_5x5 = tC_all[c_y-3:c_y+2,c_x-3:c_x+2]
   decenter_tC_all = decenter(tC_all_5x5)  # Might come in handy
-  print('tCH, tCV: ', decenter_tC_all[0,1], decenter_tC_all[1,0])
+  if verbose: print('tCH, tCV: ', decenter_tC_all[0,1], decenter_tC_all[1,0])
 
   # Return the correlations
-  return [numpy.sum(this_mask), med2, var1, var2, tC_all_5x5]
+  return [numpy.sum(this_mask), med21, var1, var2, tC_all_5x5]
 
 # Routine to obtain statistical properties of a region of the detector across many time slices
 #
@@ -1265,7 +1278,7 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
 #   ctrl_pars_bfe.treset = reset frame (default to 0)
 #   ctrl_pars_bfe.BSub = baseline subtraction? (default to True)
 #   ctrl_pars_bfe.vis = has visible? (default to False)
-#   ctrl_pars.Phi = omega*p2/(1+omega) kernel (only used if ctrl_pars_bfe.vis is true)
+#   ctrl_pars_bfe.Phi = omega*p2/(1+omega) kernel (only used if ctrl_pars_bfe.vis is true)
 # verbose = True or False (recommend True only for debugging)
 #
 # output is a fsBFE x fsBFE (default: 5x5) BFE kernel in inverse electrons
@@ -1302,7 +1315,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
       omega = normPhi / (1-normPhi)
       p2 = numpy.zeros_like(ctrl_pars_bfe.Phi)
       if numpy.abs(normPhi)>1e-49: p2 = ctrl_pars_bfe.Phi / normPhi # this prevents an exception if omega=0
-      p2 = decenter(pad_to_N(p2,N))
+      p2 = pad_to_N(p2,N) # still centered
 
   # BFE kernel size:
   # sBFE = range; fsBFE = full size

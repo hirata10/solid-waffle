@@ -125,8 +125,7 @@ def op2_to_pars(op2, cmin=.025):
     p2 = p2kernel([cxx,cxy,cyy],this_np2,N)
     err = this_op2 - omegabar*p2
     dcxy = .1*np.sqrt(cxx*cyy)
-    if cxy>0: dcxy=-dcxy
-    derr = -omegabar*(p2kernel([cxx,cxy+dcxy,cyy],this_np2,N) - p2)/dcxy
+    derr = -omegabar*(p2kernel([cxx,cxy+dcxy/2,cyy],this_np2,N) - p2kernel([cxx,cxy-dcxy/2,cyy],this_np2,N))/dcxy
     cxy -= cf*np.sum(err*derr)/np.sum(derr**2)
     cxylim = np.sqrt((cxx-cmin**2)*(cyy-cmin**2))/1.000001
     if cxy<-cxylim: cxy=-cxylim
@@ -136,7 +135,7 @@ def op2_to_pars(op2, cmin=.025):
     eps = np.max(np.abs(np.asarray([omegabar-omegabar_old, cxx-cxx_old, cxy-cxy_old, cyy-cyy_old])))
     #print(omegabar, cxx, cxy, cyy, eps, j_iter)
 
-  if j_iter==512: warnings.warn('op2_to_pars: failed to converge', [omegabar, cxx, cxy, cyy, eps])
+  if j_iter==512: warnings.warn('op2_to_pars: failed to converge')
   omega = omegabar/(1-omegabar)
   return([omega, cxx, cxy, cyy, eps, j_iter])
 
@@ -216,6 +215,7 @@ def solve_corr(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2
         X = I*t1*(afsq+afsq_p-sigma_a)
         qq = (np.where(np.abs(X)>1e-4, (np.exp(X)-1)/np.where(np.abs(X)>1e-5,X,X+1),
                           1+X/2.+X**2/6.+X**3/24.))*I*t1*np.exp(I*afsq*(t-t1))*np.exp(I*sigma_a*t1)                          
+        if ts[1]<ts[0]: qq = np.conjugate(qq)
 
         qqs.append(qq)
     
@@ -249,11 +249,12 @@ def solve_corr_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outs
    
 # Make a new function for visible wavelengths that returns the default
 # behavior of solve_corr if omega = 0. Otherwise, it takes in p2 and omega != 0.
+# input p2 is *centered*
 def solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2,omega=0,p2=0):
     if omega == 0:
         return solve_corr(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize)
     else:
-        p2_sq = fft2(p2)
+        p2_sq = fft2(decenter(pad_to_N(p2,N)))
         ta, tb, tc, td = tslices
         aV, aH, aD = avals
         aV_nl, aH_nl, aD_nl = avals_nl
@@ -305,10 +306,10 @@ def solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsi
             X = I*t1*(afsq+afsq_p-sigma_a)
             qq = ((2*omega*p2_sq+1+omega)/(1+omega))*(np.where(np.abs(X)>1e-4, (np.exp(X)-1)/np.where(np.abs(X)>1e-5,X,X+1),
                           1+X/2.+X**2/6.+X**3/24.))*I*t1*np.exp(I*afsq*(t-t1))*np.exp(I*sigma_a*t1)                          
+            if ts[1]<ts[0]: qq = np.conjugate(qq)
 
             qqs.append(qq)
             
-    
         # Plug into correlation function (see eqn 51)
         csq_abcd =(1/g**2
            *(eval_cnl(betas,I,ta)*eval_cnl(betas,I,tc)*(ksq+knl_sq*I*ta)*(ksq_p+knl_sq_p*I*tc)*qqs[0] 
@@ -323,10 +324,10 @@ def solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsi
 def solve_corr_vis_many(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl=[0,0,0],outsize=2,omega=0,p2=0):
    this_t = tslices[:-1]
    tn = tslices[-1]
-   cf = solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize,omega,p2)
+   cf = solve_corr_vis(bfek,N,I,g,betas,sigma_a,this_t,avals,avals_nl,outsize,omega,p2)
    for j in range(tn-1):
      for k in range(4): this_t[k] += 1
-     cf += solve_corr_vis(bfek,N,I,g,betas,sigma_a,tslices,avals,avals_nl,outsize,omega,p2)
+     cf += solve_corr_vis(bfek,N,I,g,betas,sigma_a,this_t,avals,avals_nl,outsize,omega,p2)
    cf /= tn+0.0
    return(cf)
    

@@ -55,6 +55,7 @@ basicpar.leadtrailSub = False
 basicpar.g_ptile = 75.
 basicpar.fullnl = False
 basicpar.use_allorder = False
+basicpar.vis_med_correct = False
 
 # Parameters for BFE
 bfepar = EmptyClass()
@@ -66,6 +67,9 @@ bfepar.vis = True
 
 # Plotting parameters
 narrowfig = False
+
+# Separate parameters for visible BFE?
+has_visbfe = False
 
 # Read in information
 config_file = sys.argv[1]
@@ -156,6 +160,15 @@ for line in content:
      te_vis = int(m.group(2))
      tchar1_vis = int(m.group(3))
      tchar2_vis = int(m.group(4))
+  #
+  m = re.search(r'^VISMEDCORR', line)
+  if m: basicpar.vis_med_correct = True
+  #
+  # Visible BFE
+  m = re.search(r'^VISBFETIME:\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
+  if m:
+    tslices_visbfe = [ int(m.group(x)) for x in range(1,5)]
+    has_visbfe = True
 
   # Time slices
   m = re.search(r'^TIME:\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)', line)
@@ -234,6 +247,9 @@ for line in content:
   m = re.search(r'^NARROWFIG', line)
   if m: narrowfig = True
 
+# replace visible time slices for BFE
+if has_visbfe: tslices = tslices_visbfe
+
 # set up array size parameters
 pyirc.swi.addbfe(s_bfe)
 pyirc.swi.addhnl(p_order)
@@ -294,6 +310,7 @@ if p_order==0:
 # Get Ie
 Ie = numpy.zeros((ny,nx))
 Ie_alt = numpy.zeros((ny,nx))
+Ie_alt2 = numpy.zeros((ny,nx))
 
 print('computing Ie using', ts_vis, te_vis)
 nlcubeX, nlfitX, nlderX, pcoefX = pyirc.gen_nl_cube(
@@ -307,19 +324,33 @@ for iy in range(ny):
       for ae in range(pyirc.swi.p+1): Signal += pcoefX[ae,iy,ix]*t**ae
       # iterative NL correction
       LinSignal = numpy.copy(Signal)
-      for k in range(5):
+      for k in range(32):
         LS2 = numpy.copy(LinSignal)
         LinSignal = numpy.copy(Signal)
         LS2 += (LinSignal[-1]-LinSignal[0])/(te_vis-ts_vis) * (ts_vis-basicpar.reset_frame)
         for o in range(2,pyirc.swi.p+1): LinSignal -= full_info[iy,ix,pyirc.swi.Nbb+o-1]*LS2**o
       Ie[iy,ix] = pcoefX[1,iy,ix] * full_info[iy,ix,pyirc.swi.g]
       Ie_alt[iy,ix] = (LinSignal[-1]-LinSignal[0])/(te_vis-ts_vis) * full_info[iy,ix,pyirc.swi.g]
+      Sab = Signal[-1]-Signal[0]
+      Ie_alt2[iy,ix] = full_info[iy,ix,pyirc.swi.g]*Sab/(te_vis-ts_vis)
+      beta_in_e = -full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p]/full_info[iy,ix,pyirc.swi.g]**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1) # in e , -
+      for k in range(32):
+        btcorr = 0
+        for j in range(2,pyirc.swi.p+1): btcorr += beta_in_e[j-2]*Ie_alt2[iy,ix]**(j-1)*(t[-1]**j-t[0]**j)
+        Ie_alt2[iy,ix] = full_info[iy,ix,pyirc.swi.g]*Sab/(te_vis-ts_vis-btcorr)
     else:
       is_good[iy,ix] = 0 # error
 
-for iy in range(ny):
-  for ix in range(nx):
-    print('{:3d} {:3d} {:12.5E} {:12.5E} {:12.5E}'.format(iy,ix,full_info[iy,ix,pyirc.swi.g],Ie[iy,ix],Ie_alt[iy,ix]))
+# we use the alt2 method
+Ie[:,:] = Ie_alt2
+
+# Allocate space for visible information
+vis_bfek = numpy.zeros((ny,nx,5,5))
+vis_Phi = numpy.zeros((ny,nx,5,5))
+# omega and charge diffusion covariance
+QYomega = numpy.zeros((ny,nx))
+cdCov = numpy.zeros((ny,nx,3))
+cdNiter = numpy.zeros((ny,nx))
 
 # Get correlation functions in each block
 nvis = te_vis - ts_vis - tchar2_vis + 1
@@ -331,112 +362,153 @@ sys.stdout.write('|')
 for iy in range(ny):
   sys.stdout.write('*'); sys.stdout.flush()
   for ix in range(nx):
-    tslices0 = numpy.asarray([ts_vis, ts_vis+tchar1_vis, ts_vis+tchar2_vis])
-    # initialize vector to stack correlation matrices:
-    corr_stack = []
-    for k in range(nvis):
-      tslicesk = (tslices0+k).tolist()
-      region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslicesk,
+    if is_good[iy,ix]>.5:
+      # pull out basic parameters
+      basicinfo = full_info[iy,ix,:pyirc.swi.Nb].tolist()
+      #print('old current ->', basicinfo[pyirc.swi.I])
+      basicinfo[pyirc.swi.I] = Ie[iy,ix]
+      basicinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p] # in DN, +
+      beta_in_e = -basicinfo[pyirc.swi.beta]/basicinfo[pyirc.swi.g]**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1) # in e , -
+
+      tslices0 = numpy.asarray([ts_vis, ts_vis+tchar1_vis, ts_vis+tchar2_vis])
+      # initialize vector to stack correlation matrices:
+      corr_stack = []
+      for k in range(nvis):
+        tslicesk = (tslices0+k).tolist()
+        region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslicesk,
+                      [sensitivity_spread_cut, True], False)
+        dark_cube = pyirc.pixel_data(visdarkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslicesk,
+                      [sensitivity_spread_cut, False], False)
+        if fullref:
+          lightref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
+          darkref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
+        else:
+          lightref = numpy.zeros((len(vislightfiles), ny, 2*len(tslicesk)+1))
+          darkref = numpy.zeros((len(visdarkfiles), ny, 2*len(tslicesk)+1))
+        info = pyirc.corr_5x5(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
+
+        corr_matrix = info[4]
+        var1 = info[2]
+        var2 = info[3]
+        # center of corr_matrix is element (2, 2) of the numpy array
+        corr_matrix[2][2] = var2 - var1
+
+        # median corrections to the central array of the auto-correlation matrix
+        # (so we multiply the measured variance by the measured/predicted median,
+        # this would perfectly correct for errors in Ie if the detector were exactly linear)
+        med21 = info[1]
+        predictmed = (tslicesk[2]*Ie[iy,ix]*(1. - numpy.sum(beta_in_e * (tslicesk[2]*Ie[iy,ix])**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1)) )\
+                     - tslicesk[1]*Ie[iy,ix]*(1. - numpy.sum(beta_in_e * (tslicesk[1]*Ie[iy,ix])**numpy.linspace(1,pyirc.swi.p-1,num=pyirc.swi.p-1)) ))\
+                     / basicinfo[pyirc.swi.g]
+        if basicpar.vis_med_correct: corr_matrix[2][2] /= med21/predictmed
+
+        corr_stack.append(corr_matrix)
+        # end loop over k
+
+      corr_mean = numpy.mean(corr_stack, axis=0)
+      # corr_mean is the v vector of eq. 34
+
+      # now get the cube of data for BFE
+      region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
                     [sensitivity_spread_cut, True], False)
-      dark_cube = pyirc.pixel_data(visdarkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslicesk,
-                    [sensitivity_spread_cut, False], False)
-      if fullref:
-        lightref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
-        darkref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
-      else:
-        lightref = numpy.zeros((len(vislightfiles), ny, 2*len(tslicesk)+1))
-        darkref = numpy.zeros((len(visdarkfiles), ny, 2*len(tslicesk)+1))
-      info = pyirc.corr_5x5(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar, False)
-      print(k, nvis, info)
-
-      corr_matrix = info[4]
-      var1 = info[2]
-      var2 = info[3]
-      # center of corr_matrix is element (2, 2) of the numpy array
-      corr_matrix[2][2] = var2 - var1
-
-      corr_stack.append(corr_matrix)
-
-    corr_mean = numpy.mean(corr_stack, axis=0)
-    # corr_mean is the v vector of eq. 34
-    print("Average of corr. functions correcting the center by Delta variance:", corr_mean)
-
-      #basicpar2 = copy.copy(basicpar)
-      #basicpar2.full_corr = False
-      #info2 = pyirc.basic(region_cube, dark_cube, tslicesk, lightref[:,iy,:], darkref[:,iy,:], basicpar2, False)
-      #print(info2)
-      # [number of good pixels, median, variance, tCH, tCV, tCD]
-
-      # end loop over k
-
-    # pull out basic parameters
-    basicinfo = full_info[iy,ix,:pyirc.swi.Nb].tolist()
-    print('old current ->', basicinfo[pyirc.swi.I])
-    basicinfo[pyirc.swi.I] = Ie[iy,ix]
-    basicinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p]
-    print(basicinfo)
-
-
-    # now get the cube of data for BFE
-    print(tslices)
-    region_cube = pyirc.pixel_data(vislightfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslices,
-                  [sensitivity_spread_cut, True], False)
     
-    # iterate to solve BFE, Phi
+      # iterate to solve BFE, Phi
     
-    om = 0.08
-    cov = [0.2**2, 0, 0.2**2]
-    np2 = 2
-    p2_init = ftsolve.p2kernel(cov, np2)
-    bfepar.Phi = om/(1+om) * p2_init
-    bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) 
-    #datacorr = pyirc.corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose)
-    tol = 1e-6
-    diff = 1
-    count = 0
+      np2 = 2
+      bfepar.Phi = numpy.zeros((2*np2+1,2*np2+1)); bfepar.Phi[np2,np2] = 1.e-12 # initialize to essentially zero
+      bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) 
+      tol = 1e-9
+      diff = 1
+      count = 0
+      NN = 21
     
-    print('Initial BFE kernel:')
-    print(bfek)
-    
-    while numpy.max(numpy.abs(diff)) > tol:   
-        # update Phi
-        # check Ie param notation?
-        
-        tslices_vis = [ts_vis,ts_vis+tchar2_vis,ts_vis,ts_vis+tchar2_vis,nvis]
-        tslices_vis1 = [ts_vis,ts_vis+tchar1_vis,ts_vis,ts_vis+tchar1_vis,nvis]
+      while numpy.max(numpy.abs(diff)) > tol:   
+
+        ts_vis_ref = ts_vis - basicpar.reset_frame
+        tslices_vis = [ts_vis_ref,ts_vis_ref+tchar2_vis,ts_vis_ref,ts_vis_ref+tchar2_vis,nvis]
+        tslices_vis1 = [ts_vis_ref,ts_vis_ref+tchar1_vis,ts_vis_ref,ts_vis_ref+tchar1_vis,nvis]
         normPhi = numpy.sum(bfepar.Phi) # this is omega/(1+omega)
         omega = normPhi / (1-normPhi)
-        p2 = bfepar.Phi/omega
-        truecorr = solve_corr_vis_many(bfek,N,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
-                                       basicinfo[pyirc.swi.beta],sigma_a,tslices_vis,avals,omega=omega,p2=p2)
-        truecorr[2][2] = (truecorr-solve_corr_vis_many(bfek,N,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
-                                       basicinfo[pyirc.swi.beta],sigma_a,tslices_vis1,avals,omega=omega,p2=p2))[2][2]
+        p2 = bfepar.Phi/normPhi
+        sigma_a = 0.
+        avals = [basicinfo[pyirc.swi.alphaV], basicinfo[pyirc.swi.alphaH], basicinfo[pyirc.swi.alphaD]] # (aV, aH, aD)
+        truecorr = ftsolve.solve_corr_vis_many(bfek,NN,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
+                                       beta_in_e,sigma_a,tslices_vis,avals,omega=omega,p2=p2)
+        #if count==0:
+        #  print(tslices_vis, p2, truecorr)
+        truecorr[2][2] = (truecorr-ftsolve.solve_corr_vis_many(bfek,NN,basicinfo[pyirc.swi.I],basicinfo[pyirc.swi.g],
+                                       beta_in_e,sigma_a,tslices_vis1,avals,omega=omega,p2=p2))[2][2]
         diff = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*tchar2_vis) * (corr_mean - truecorr)
         diff[2][2] = basicinfo[pyirc.swi.g]**2/(2*basicinfo[pyirc.swi.I]*(tchar2_vis-tchar1_vis)) * (corr_mean[2][2] - truecorr[2][2])
-        if count==0:
-            print('Diff: ',diff)
-            print('Truecorr: ',truecorr)
-        bfepar.Phi += diff
+        bfepar.Phi += .5*(diff + numpy.flip(diff)) # force symmetrization here to avoid instability
     
         # update BFE
         bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) 
         count += 1
         
         if count>100:
-            print('100 iterations of BFE/Phi solver reached, diff={:0.6f}'.format(diff))
+            print('100 iterations of BFE/Phi solver reached, diff={:0.6f}'.format(numpy.max(numpy.abs(diff))))
             break
-    
-    print('Final BFE kernel:')
-    print(bfek)   
-    
-    #for iter in range(1):  
-      # this is a test, will put Jahmour's block here
-      #bfepar.Phi = numpy.zeros((5,5)); bfepar.Phi[2,2] = 0.02
-      #bfepar.Phi = 0.08/1.08*ftsolve.p2kernel([0.2**2, 0, 0.2**2], 2)
-      #bfek  = pyirc.bfe(region_cube, tslices, basicinfo, bfepar, False) # <- verbose
-      #print(bfek)
 
-    exit() # to make sure we only go through once
+      #print('iter', count, 'omega = ',omega, 'max diff =', numpy.max(numpy.abs(diff)))
+
+      # save information
+      vis_bfek[iy,ix,:,:] = bfek
+      vis_Phi[iy,ix,:,:] = bfepar.Phi
+      op2 = ftsolve.op2_to_pars(bfepar.Phi)
+      QYomega[iy,ix] = op2[0]
+      cdCov[iy,ix,0] = op2[1]
+      cdCov[iy,ix,1] = op2[2]
+      cdCov[iy,ix,2] = op2[3]
+      cdNiter[iy,ix] = op2[-1]
+
+      # end loop over super-pixels
+print('|')
+print('')
+
+# Now get ready to write information
+print('Mean BFE kernel:')
+print(numpy.mean(vis_bfek,axis=(0,1)))
+print('Mean Phi kernel:')
+print(numpy.mean(vis_Phi,axis=(0,1)))
+print('sigma Phi kernel:')
+print(numpy.std(vis_Phi,axis=(0,1)))
+print('Charge diffusion parameters:')
+print(ftsolve.op2_to_pars(numpy.mean(vis_Phi,axis=(0,1))))
+
+# put all information into a gigantic array
+vis_out_data = numpy.zeros((ny,nx,56))
+vis_out_data[:,:,:25] = vis_bfek.reshape(ny,nx,25)
+vis_out_data[:,:,25:50] = vis_Phi.reshape(ny,nx,25)
+vis_out_data[:,:,50] = QYomega
+vis_out_data[:,:,51:54] = cdCov
+vis_out_data[:,:,54] = Ie
+vis_out_data[:,:,55] = cdNiter
+ncol = 56
+#
+# now we have in each super-pixel, 55 "columns" of data
+# columns  0 .. 24 are the visible BFE kernel in e^-1 (order: dy=-2 dx=-2; dy=-2 dx=-1; dy=-2 dx=0; ...)
+# columns 25 .. 49 are the visible Phi kernel (order: dy=-2 dx=-2; dy=-2 dx=-1; dy=-2 dx=0; ...)
+# column 50 is the quantum yield omega parameter
+# column 51 is Cxx charge diffusion in pixels^2
+# column 52 is Cxy charge diffusion in pixels^2
+# column 53 is Cyy charge diffusion in pixels^2
+# column 54 is visible current Ie (e per frame)
+# column 55 is number of iterations in p2 kernel
+
+print ('')
+print (vis_out_data.shape)
+print ('Number of good regions =', numpy.sum(is_good))
+mean_vis_out_data = numpy.mean(numpy.mean(vis_out_data, axis=0), axis=0)/numpy.mean(is_good)
+std_vis_out_data = numpy.sqrt(numpy.mean(numpy.mean(vis_out_data**2, axis=0), axis=0)/numpy.mean(is_good) - mean_vis_out_data**2)
+print('column, mean, stdev, stdev on the mean:')
+for k in range(ncol):
+  print('{:2d} {:12.5E} {:12.5E} {:12.5E}'.format(k, mean_vis_out_data[k], std_vis_out_data[k], std_vis_out_data[k]/numpy.sqrt(numpy.sum(is_good)-1)))
+print ('')
+#
+# save to file
+numpy.savetxt(outstem+'_visinfo.txt', vis_out_data.reshape(ny*nx, ncol))
+numpy.save(outstem+'_visinfo.npy', vis_out_data)
 
 print('END')
 exit()
