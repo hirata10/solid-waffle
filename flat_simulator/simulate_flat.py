@@ -78,13 +78,18 @@ for line in content:
   if m: gain = float(m.group(1))
 
   # Quantum yield
-  m = re.search(r'^QY:\s*(\S+)\s+(\S+)', line)
+  m = re.search(r'^QY:\s*(\d.*)', line)
   if m:
-    QY_omega = float(m.group(1))
-    sig = float(m.group(2))
+    QY_pars_str = m.group(1).split(" ")
+    QY_omega = float(QY_pars_str[0])
+    #sig = float(m.group(2))
+    QY_cov = [ float(QY_pars_str[x]) for x in range(1, len(QY_pars_str)) ]
+    #QY_cxx = float(m.group(2))
+    #QY_cxy = float(m.group(3))
+    #QY_cyy = float(m.group(4))
     QY_offset = 2
-    QY_p2 = p2kernel(np.asarray([sig**2,0,sig**2]), QY_offset, 256)
-
+    #QY_p2 = p2kernel(np.asarray([sig**2,0,sig**2]), QY_offset, 256)
+    QY_p2 = p2kernel(np.asarray(QY_cov), QY_offset, 256)
   # Illumination (photons/s/pixel)
   m = re.search(r'^ILLUMINATION:\s*(\S+)', line)
   if m: I = float(m.group(1))
