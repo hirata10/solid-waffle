@@ -1,7 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib
 import pandas as pd
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+plt.switch_backend('agg')
  
 sim_gain = 2.06
 sim_alpha = 1.69
@@ -13,8 +15,8 @@ sim_beta4 = -1.4099e-10*1e-6
 sim_ipnl = -1.1590
 sim_ipnlNN = 0.2034
 sim_omega = 0.02 # TEMPORARY
-#sim_phi =
-#sim_phiNN =
+sim_phi = 0
+sim_phiNN = 0
 
 sim_truevals = [sim_alphaV,sim_alphaH,sim_beta2*sim_gain*-1e6,sim_beta3*sim_gain**2*-1e10,
                 sim_beta4*sim_gain**3*-1e15,sim_gain,sim_ipnl,sim_ipnlNN,sim_omega,
@@ -70,7 +72,6 @@ def read_visinfo(fname):
     # Adjust units as appropriate to this plot
     table['bfevisNN'] = 1e6*(table['bfevis(0,1)']+table['bfevis(0,-1)']
                     + table['bfevis(1,0)']+table['bfevis(-1,0)'])/4.0
-    table['ipnl(0,0)'] *= 1e6
     table['phiNN'] = 1e6*(table['phi(0,1)']+table['phi(0,-1)']
                     + table['phi(1,0)']+table['phi(-1,0)'])/4.0
     table['phi(0,0)'] *= 1e6
@@ -83,31 +84,31 @@ font = {'family' : 'normal',
 matplotlib.rc('font', **font)
 
 prefix = '/users/PCON0003/cond0088/Projects/detectors/sw_outputs/'
-summary_files = [prefix+'chris_20663st_summary.txt',
-	             prefix+'chris_20663st_128x16_summary.txt',
-	             prefix+'chris_20663st-cub_summary.txt',
-	             prefix+'chris_20663st-lo_summary.txt',
-	             prefix+'chris_20663st-short_summary.txt',
-                 prefix+'chris_20663st-med_summary.txt',        
-	             prefix+'chris_20828st_summary.txt',
-	             prefix+'chris_20828st_128x16_summary.txt',
-	             prefix+'chris_20828st-cub_summary.txt',
- 	             prefix+'chris_20828st-lo_summary.txt',
-	             prefix+'chris_20828st-short_summary.txt',
-                 prefix+'chris_20828st-med_summary.txt',
-                 prefix+'chris_20829st_summary.txt',
-	             prefix+'chris_20829st_128x16_summary.txt',
-	             prefix+'chris_20829st-cub_summary.txt',
-	             prefix+'chris_20829st-lo_summary.txt',
-	             prefix+'chris_20829st-short_summary.txt',
-	             prefix+'chris_20829st-med_summary.txt',
-                 prefix+'chris_20829vis_test09_summary.txt'
-	             prefix+'full_quart_nl_paperI_JG_pyircv25_16by16_summary.txt',
-	             prefix+'full_quart_nl_paperI_JG_pyircv25_32by32_summary.txt']
+summary_files = [prefix+'PaperIII/chris_20663st_summary.txt',
+	             prefix+'PaperIII/chris_20663st_128x16_summary.txt',
+	             prefix+'PaperIII/chris_20663st-cub_summary.txt',
+	             prefix+'PaperIII/chris_20663st-lo_summary.txt',
+	             prefix+'PaperIII/chris_20663st-short_summary.txt',
+                 prefix+'PaperIII/chris_20663st-med_summary.txt',        
+	             prefix+'PaperIII/chris_20828st_summary.txt',
+	             prefix+'PaperIII/chris_20828st_128x16_summary.txt',
+	             prefix+'PaperIII/chris_20828st-cub_summary.txt',
+ 	             prefix+'PaperIII/chris_20828st-lo_summary.txt',
+	             prefix+'PaperIII/chris_20828st-short_summary.txt',
+                 prefix+'PaperIII/chris_20828st-med_summary.txt',
+                 prefix+'PaperIII/chris_20829st_summary.txt',
+	             prefix+'PaperIII/chris_20829st_128x16_summary.txt',
+	             prefix+'PaperIII/chris_20829st-cub_summary.txt',
+	             prefix+'PaperIII/chris_20829st-lo_summary.txt',
+	             prefix+'PaperIII/chris_20829st-short_summary.txt',
+	             prefix+'PaperIII/chris_20829st-med_summary.txt',
+                 prefix+'PaperIV_chargediffusion/chris_20829vis_test09_summary.txt',
+	             prefix+'PaperIII/full_quart_nl_paperI_JG_pyircv25_16by16_summary.txt',
+	             prefix+'PaperIII/full_quart_nl_paperI_JG_pyircv25_32by32_summary.txt']
 
 visinfo_files = [None,None,None,None,None,None,None,None,None,None,None,None,
                  None,None,None,None,None,None,
-                 prefix+'chris_20829vis_test09_visinfo.txt'
+                 prefix+'PaperIV_chargediffusion/chris_20829vis_test09_visinfo.txt',
 	             None,None]
 
 # Set up figure
@@ -179,21 +180,26 @@ for i,ax in enumerate(axes):
 
     for j,run in enumerate(ylabels):
         # standard summary values
-        if i<=len(i)-3:
+        if i<len(axes)-3:
             mean = np.mean(summary_tables[j][xdata_labels[i]])
             stdev = np.std(summary_tables[j][xdata_labels[i]])
             error = stdev#/len(summary_tables[j]**0.5)
         
         #visinfo values
         else:
-            mean = np.mean(visinfo_tables[j][xdata_labels[i]])
-            stdev = np.std(visinfo_tables[j][xdata_labels[i]])
-            error = stdev#/len(visinfo_tables[j]**0.5 
+	    if not visinfo_tables[j] is None:
+                mean = np.mean(visinfo_tables[j][xdata_labels[i]])
+                stdev = np.std(visinfo_tables[j][xdata_labels[i]])
+                error = stdev#/len(visinfo_tables[j]**0.5
+	    else:
+		mean = 0
+		stdev = 0
+		error = 0 
         
         if j==18: # i.e. if vis run
             clr = 'darkblue'
         else:
-            colors[j%(divisions[1]-divisions[0])]
+            clr = colors[j%(divisions[1]-divisions[0])]
             
         ax.errorbar([mean],[j],xerr=[error],capsize=8.0,markersize=10,marker='o',color=clr)
         if j==0:
@@ -208,7 +214,7 @@ for i,ax in enumerate(axes):
                 ax.fill_betweenx([j-0.5,j+divisions[2]-divisions[1]-0.5],[mean-error,mean-error],
                                  [mean+error,mean+error], color = 'grey', alpha = 0.5)
             
-sim_tables = tables[-1*len(sim_ylabels):]
+sim_tables = summary_tables[-1*len(sim_ylabels):]
 
 for i,sax in enumerate(sim_axes):
     sax.set_ylim(len(sim_ylabels)-0.5,-0.5)
@@ -221,18 +227,18 @@ for i,sax in enumerate(sim_axes):
         sax.set_ylim(len(sim_ylabels)-0.5,-0.5)
 
     sax.tick_params(axis='y',which='both',left=False)
-    
-    for j,run in enumerate(sim_ylabels):
-	mean = np.mean(sim_tables[j][xdata_labels[i]])
-	stdev = np.std(tables[j][xdata_labels[i]])
-        error = stdev#/len(tables[j]**0.5)
-	sax.errorbar([mean],[j],xerr=[error],capsize=8.0,markersize=10,marker='o',
-                    color=colors[j%(divisions[1]-divisions[0])])
-
-        if j%(divisions[1]-divisions[0])==0:
-	    sax.axvline(x=sim_truevals[i],linestyle='--',color='k')
-            #sax.fill_betweenx([j-0.5,j+len(sim_ylabels)-0.5],[mean-stdev,mean-stdev],
-            #                 [mean+stdev,mean+stdev], color = 'grey', alpha = 0.5)
+#    
+#    for j,run in enumerate(sim_ylabels):
+#	mean = np.mean(sim_tables[j][xdata_labels[i]])
+#	stdev = np.std(sim_tables[j][xdata_labels[i]]) # Possible error in paramplot.py?????
+#       error = stdev#/len(tables[j]**0.5)
+#	sax.errorbar([mean],[j],xerr=[error],capsize=8.0,markersize=10,marker='o',
+#                    color=colors[j%(divisions[1]-divisions[0])])
+#
+#        if j%(divisions[1]-divisions[0])==0:
+#	    sax.axvline(x=sim_truevals[i],linestyle='--',color='k')
+#            #sax.fill_betweenx([j-0.5,j+len(sim_ylabels)-0.5],[mean-stdev,mean-stdev],
+#            #                 [mean+stdev,mean+stdev], color = 'grey', alpha = 0.5)
 
 plt.tight_layout()
 
