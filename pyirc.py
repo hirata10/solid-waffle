@@ -21,7 +21,7 @@ Test_SubBeta = False
 
 # Version number of script
 def get_version():
-  return 30
+  return 32
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -223,8 +223,11 @@ def ref_corr(filename, formatpars, yrange, tslices, verbose):
   output_ref = []
 
   # Build arrays of reference pixels
-  my_array_L = load_segment(filename, formatpars, [0,4]+yrange, tslices, False)
-  my_array_R = load_segment(filename, formatpars, [N-4,N]+yrange, tslices, False)
+  my_array_band = load_segment(filename, formatpars, [0,N]+yrange, tslices, False)
+  my_array_L = my_array_band[:,:,:4]
+  my_array_R = my_array_band[:,:,-4:]
+  #my_array_L = load_segment(filename, formatpars, [0,4]+yrange, tslices, False)
+  #my_array_R = load_segment(filename, formatpars, [N-4,N]+yrange, tslices, False)
   my_array_LR = numpy.concatenate((my_array_L, my_array_R), axis=2)
   if verbose: print (N, my_array_LR.shape)
 
