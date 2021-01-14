@@ -11,6 +11,11 @@ DT: 2.75
 # gain in e/DN
 GAIN: 1.5
 
+# Quantum yield
+# Format is QY_omega sig and then ftsolve.p2kernel takes as first arg cov
+# list or np array, length 3: xx, xy, yy
+QY: 0.08 0.04 0.008 0.04
+
 # Illumination & QE
 ILLUMINATION: 3.0e1
 QE: 8e-1
@@ -27,8 +32,9 @@ RESET_E: 1.0e2
 #  'none' = do not include the noise (no need for file name)
 #  'last' = add noise file to the last frame
 #  'full' = add noise file to all frames
+#  any other option here will add a small amount of Gaussian noise
 # 
-#NOISE: none
+#NOISE: Gauss
 NOISE: last ex_2.2.1.fits
 
 BFE: true

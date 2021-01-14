@@ -87,7 +87,7 @@ def p2kernel(cov, np2, N_integ=256):
 # given omegabar*p2 kernel -> get [omega, cxx, cxy, cyy, change in last step, number of iterations]
 # omegabar = omega/(1+omega)
 # cmin = minimum semi-minor axis of the covariance
-def op2_to_pars(op2, cmin=.025):
+def op2_to_pars(op2, cmin=.01):
   cf = 1.
   np2 = np.shape(op2)[0]//2
   omegabar = np.sum(op2)
@@ -95,6 +95,7 @@ def op2_to_pars(op2, cmin=.025):
   eps = 1; j_iter = 0
   N = 96 # low resolution at first, upgrade when we get close
   this_np2 = 1; this_op2 = op2[np2-1:np2+2, np2-1:np2+2] # extract 3x3 for initial fitting
+  dstep = .1
   while (eps>1e-8 and j_iter<512) or N<256:
     # flag to go to full fitting
     if eps<1e-5 or j_iter==496:
@@ -110,30 +111,32 @@ def op2_to_pars(op2, cmin=.025):
     # update cxx
     # p2 doesn't need to be updated when we change omegabar
     err = this_op2 - omegabar*p2
-    derr = -omegabar*(p2kernel([1.1*cxx,cxy,cyy],this_np2,N) - p2)/(.1*cxx)
+    derr = -omegabar*(p2kernel([(1+dstep)*cxx,cxy,cyy],this_np2,N) - p2)/(dstep*cxx)
     cxx -= cf*np.sum(err*derr)/np.sum(derr**2)
     cxxmin = cxy**2/(cyy-cmin**2) + cmin**2
-    if cxx<cxxmin: cxx=cxxmin*1.000001
+    if cxx<cxxmin: cxx=cxxmin*1.000000001
     # update cyy
     p2 = p2kernel([cxx,cxy,cyy],this_np2,N)
     err = this_op2 - omegabar*p2
-    derr = -omegabar*(p2kernel([cxx,cxy,1.1*cyy],this_np2) - p2)/(.1*cyy)
+    derr = -omegabar*(p2kernel([cxx,cxy,(1+dstep)*cyy],this_np2) - p2)/(dstep*cyy)
     cyy -= cf*np.sum(err*derr)/np.sum(derr**2)
     cyymin = cxy**2/(cxx-cmin**2) + cmin**2
-    if cyy<cyymin: cyy=cyymin*1.000001
+    if cyy<cyymin: cyy=cyymin*1.000000001
     # update cxy
     p2 = p2kernel([cxx,cxy,cyy],this_np2,N)
     err = this_op2 - omegabar*p2
-    dcxy = .1*np.sqrt(cxx*cyy)
+    dcxy = dstep*np.sqrt(cxx*cyy)
+    cxylim = np.sqrt((cxx-cmin**2)*(cyy-cmin**2))/1.000000001
+    if dcxy>np.abs(cxylim-cxy): dcxy=np.abs(cxylim-cxy)
     derr = -omegabar*(p2kernel([cxx,cxy+dcxy/2,cyy],this_np2,N) - p2kernel([cxx,cxy-dcxy/2,cyy],this_np2,N))/dcxy
     cxy -= cf*np.sum(err*derr)/np.sum(derr**2)
-    cxylim = np.sqrt((cxx-cmin**2)*(cyy-cmin**2))/1.000001
     if cxy<-cxylim: cxy=-cxylim
     if cxy>cxylim: cxy=cxylim
 
     j_iter+=1
     eps = np.max(np.abs(np.asarray([omegabar-omegabar_old, cxx-cxx_old, cxy-cxy_old, cyy-cyy_old])))
-    #print(omegabar, cxx, cxy, cyy, eps, j_iter)
+    lambda1 = (cxx+cyy-np.sqrt( (cxx-cyy)**2 + (2*cxy)**2 ))/2.
+    #print(omegabar, cxx, cxy, cyy, lambda1, eps, j_iter)
 
   if j_iter==512: warnings.warn('op2_to_pars: failed to converge')
   omega = omegabar/(1-omegabar)

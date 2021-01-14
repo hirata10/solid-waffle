@@ -361,6 +361,14 @@ print ('| <- 100%')
 sys.stdout.write('|')
 for iy in range(ny):
   sys.stdout.write('*'); sys.stdout.flush()
+  if fullref:
+    tslices0 = numpy.asarray([ts_vis, ts_vis+tchar1_vis, ts_vis+tchar2_vis])
+    lightref_array = []
+    darkref_array = []
+    for k in range(nvis):
+     tslicesk = (tslices0+k).tolist()
+     lightref_array.append(pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False))
+     darkref_array.append(pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False))
   for ix in range(nx):
     if is_good[iy,ix]>.5:
       # pull out basic parameters
@@ -380,8 +388,10 @@ for iy in range(ny):
         dark_cube = pyirc.pixel_data(visdarkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)], tslicesk,
                       [sensitivity_spread_cut, False], False)
         if fullref:
-          lightref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
-          darkref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
+          lightref = lightref_array[k]
+          darkref = darkref_array[k]
+          #lightref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
+          #darkref = pyirc.ref_array(vislightfiles, formatpars, ny, tslicesk, False)
         else:
           lightref = numpy.zeros((len(vislightfiles), ny, 2*len(tslicesk)+1))
           darkref = numpy.zeros((len(visdarkfiles), ny, 2*len(tslicesk)+1))
