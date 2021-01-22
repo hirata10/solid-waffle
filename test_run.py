@@ -282,14 +282,18 @@ for iy in range(ny):
       if basicpar.use_allorder:
         thisinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p]
       if mychar.lower()=='advanced':
+        boxpar = [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)]
+        tpar_polychar = [tslices[0], tslices[-1]+1, tchar1, tchar2]
+        corrstats_data = pyirc.corrstats(lightfiles, darkfiles, formatpars, boxpar,
+                         tpar_polychar+[1], sensitivity_spread_cut, basicpar)
         for iCycle in range(ncycle):
           bfeCoefs = pyirc.bfe(region_cube, tslices, thisinfo, bfepar, False)
           if numpy.isnan(bfeCoefs).any():
             bfeCoefs = numpy.zeros((2*pyirc.swi.s+1,2*pyirc.swi.s+1))
             is_good[iy,ix] = 0
-          Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)],
-                 [tslices[0], tslices[-1]+1, tchar1, tchar2], sensitivity_spread_cut, basicpar,
-                 [ipnltype, bfeCoefs, thisinfo[pyirc.swi.beta]])
+          Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, boxpar,
+                 tpar_polychar, sensitivity_spread_cut, basicpar,
+                 [ipnltype, bfeCoefs, thisinfo[pyirc.swi.beta]], corrstats_data = corrstats_data)
           info[pyirc.swi.ind1:pyirc.swi.ind2] = numpy.asarray(Cdata[pyirc.swi.indp1:pyirc.swi.indp2])
           thisinfo = info.copy()
           if basicpar.use_allorder:

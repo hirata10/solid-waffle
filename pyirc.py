@@ -21,7 +21,7 @@ Test_SubBeta = False
 
 # Version number of script
 def get_version():
-  return 33
+  return 34
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -117,7 +117,10 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
       N = get_nside(formatpars)
       for ts in range(ntslice_use):
         t = tslices[ts]
-        output_cube[ts,:,:] = numpy.array(fileh[1][0, t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
+        if ts>=1 and t==tslices[ts-1]:
+          output_cube[ts,:,:] = output_cube[ts-1,:,:] # asked for same slice again
+        else:
+          output_cube[ts,:,:] = numpy.array(fileh[1][0, t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
       fileh.close()
     else:
       print ('Error: non-fitsio methods not yet supported for formatpars=4')
@@ -1118,10 +1121,11 @@ def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_sprea
 # sensitivity_spread_cut = for good pixels (typically 0.1)
 # ctrl_pars = parameters for basic
 # addInfo = additional information (sometimes needed)
+# corrstats_data = data for this slice from corrstats (if given; if not given, computes it)
 # 
 # return value is [isgood (1/0), g, aH, aV, beta, I, aD, da (residual)]
 #
-def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars, addInfo):
+def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars, addInfo, corrstats_data=None):
 
   # Check whether we have non-linearity information
   if ctrl_pars.use_allorder:
@@ -1138,7 +1142,10 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
     return []
 
   # Get correlation function data (including adjacent steps))
-  data = corrstats(lightfiles, darkfiles, formatpars, box, tslices+[1], sensitivity_spread_cut, ctrl_pars)
+  if corrstats_data is None:
+    data = corrstats(lightfiles, darkfiles, formatpars, box, tslices+[1], sensitivity_spread_cut, ctrl_pars)
+  else:
+    data = numpy.copy(corrstats_data)
 
   # check if this is good
   nt = tslices[1]-tslices[0]
