@@ -529,6 +529,73 @@ print ('')
 numpy.savetxt(outstem+'_visinfo.txt', vis_out_data.reshape(ny*nx, ncol))
 numpy.save(outstem+'_visinfo.npy', vis_out_data)
 
+# Saving some figures of these quantities:
+matplotlib.rcParams.update({'font.size': 12})
+num_bins = 30
+F = plt.figure(figsize=(8,6))
+S = F.add_subplot(2,2,1)
+S.hist(QYomega.ravel(),bins=np.linspace(0, 0.1, num=num_bins))
+S.set_xlabel(r'$\omega$')
+
+S = F.add_subplot(2,2,2)
+S.hist(Ie.ravel(),bins=np.linspace(850, 1100, num=num_bins))
+S.set_xlabel(r'$I_e$')
+
+S = F.add_subplot(2,2,3)
+S.hist(cdNiter.ravel(),bins=np.linspace(0, 100, num=num_bins))
+S.set_xlabel(r'Number of iterations')
+
+S = F.add_subplot(2,2,4)
+S.hist(vis_out_data[:,:,51].ravel(), num_bins, histtype='step', label=r'$C_{xx}$', linewidth=1.5, linestyle='-')
+S.hist(vis_out_data[:,:,52].ravel(), num_bins, histtype='step', label=r'$C_{xy}$', linewidth=1.5, linestyle='--')
+S.hist(vis_out_data[:,:,53].ravel(), num_bins, histtype='step', label=r'$C_{yy}$', linewidth=1.5, linestyle='-.')
+S.set_xlabel(r'Charge diffusion component in pixels$^2$')
+S.legend(loc='best', fontsize=12,frameon=False)
+F.set_tight_layout(True)
+F.savefig(outstem+'_vis_hist.pdf', bbox_inches='tight')
+plt.close(F)
+
+F = plt.figure(figsize=(8,8))
+S = F.add_subplot(2,3,1)
+S.set_title(r'$\omega$')
+S.set_xlabel('Super pixel X/{:d}'.format(dx))
+S.set_ylabel('Super pixel Y/{:d}'.format(dy))
+im = S.imshow(QYomega, cmap=use_cmap, origin='lower')
+
+S = F.add_subplot(2,3,2)
+S.set_title(r'$I_e$')
+S.set_xlabel('Super pixel X/{:d}'.format(dx))
+S.set_ylabel('Super pixel Y/{:d}'.format(dy))
+im = S.imshow(Ie, cmap=use_cmap, origin='lower')
+
+S = F.add_subplot(2,3,3)
+S.set_title(r'Number of iterations')
+S.set_xlabel('Super pixel X/{:d}'.format(dx))
+S.set_ylabel('Super pixel Y/{:d}'.format(dy))
+im = S.imshow(cdNiter, cmap=use_cmap, origin='lower')
+
+S = F.add_subplot(2,3,4)
+S.set_title(r'$C_{xx}$')
+S.set_xlabel('Super pixel X/{:d}'.format(dx))
+S.set_ylabel('Super pixel Y/{:d}'.format(dy))
+im = S.imshow(vis_out_data[:,:,51], cmap=use_cmap, origin='lower')
+
+S = F.add_subplot(2,3,5)
+S.set_title(r'$C_{xy}$')
+S.set_xlabel('Super pixel X/{:d}'.format(dx))
+S.set_ylabel('Super pixel Y/{:d}'.format(dy))
+im = S.imshow(vis_out_data[:,:,52], cmap=use_cmap, origin='lower')
+
+S = F.add_subplot(2,3,6)
+S.set_title(r'$C_{yy}$')
+S.set_xlabel('Super pixel X/{:d}'.format(dx))
+S.set_ylabel('Super pixel Y/{:d}'.format(dy))
+im = S.imshow(vis_out_data[:,:,53], cmap=use_cmap, origin='lower')
+
+F.set_tight_layout(True)
+F.savefig(outstem+'_vis_matrices.pdf', bbox_inches='tight')
+plt.close(F)
+
 print('END')
 exit()
 
