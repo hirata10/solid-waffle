@@ -534,15 +534,15 @@ matplotlib.rcParams.update({'font.size': 12})
 num_bins = 30
 F = plt.figure(figsize=(8,6))
 S = F.add_subplot(2,2,1)
-S.hist(QYomega.ravel(),bins=np.linspace(0, 0.1, num=num_bins))
+S.hist(QYomega.ravel(),bins=numpy.linspace(0, 0.1, num=num_bins))
 S.set_xlabel(r'$\omega$')
 
 S = F.add_subplot(2,2,2)
-S.hist(Ie.ravel(),bins=np.linspace(850, 1100, num=num_bins))
+S.hist(Ie.ravel(),bins=numpy.linspace(850, 1100, num=num_bins))
 S.set_xlabel(r'$I_e$')
 
 S = F.add_subplot(2,2,3)
-S.hist(cdNiter.ravel(),bins=np.linspace(0, 100, num=num_bins))
+S.hist(cdNiter.ravel(),bins=numpy.linspace(0, 100, num=num_bins))
 S.set_xlabel(r'Number of iterations')
 
 S = F.add_subplot(2,2,4)
