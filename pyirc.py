@@ -32,12 +32,13 @@ def get_nside(formatpars):
   if formatpars==2: return 2048
   if formatpars==3: return 4096
   if formatpars==4: return 4096
+  if formatpars==5: return 4096
 
 # Get number of time slices
 def get_num_slices(formatpars, filename):
 
   # Switch based on input format
-  if formatpars==1 or formatpars==2:
+  if formatpars==1 or formatpars==2 or formatpars==5:
     hdus = fits.open(filename)
     ntslice = int(hdus[0].header['NAXIS3'])
     hdus.close()
@@ -124,6 +125,20 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
       fileh.close()
     else:
       print ('Error: non-fitsio methods not yet supported for formatpars=4')
+      exit()
+  elif formatpars==5:
+    if use_fitsio:
+      fileh = fitsio.FITS(filename)
+      N = get_nside(formatpars)
+      for ts in range(ntslice_use):
+        t = tslices[ts]
+        if ts>=1 and t==tslices[ts-1]:
+          output_cube[ts,:,:] = output_cube[ts-1,:,:] # asked for same slice again
+        else:
+           output_cube[ts,:,:] = numpy.array(fileh[0][t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
+      fileh.close()
+    else:
+      print ('Error: non-fitsio methods not yet supported for formatpars=5')
       exit()
   else:
     print ('Error! Invalid formatpars =', formatpars)
