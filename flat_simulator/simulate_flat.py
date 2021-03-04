@@ -38,6 +38,7 @@ QE = 0.8
 delta_tsamp = 3.0 # arbitrary for now (s)
 gain = 1.5 # arbitrary scalar e-/DN
 outfile = 'DefaultOutput.fits'
+wavemode = 'ir' # options are 'ir' or 'vis'; used only for BFE kernel choice
 rngseed = 1000
 noisemode = 'none'
 bfemode = 'true'
@@ -107,6 +108,10 @@ for line in content:
     noisemode = m.group(1)
     if noisemode != 'none':
       noisefile = m.group(2)
+
+  # Wavelength mode, affects BFE choice
+  m = re.search(r'^WAVEMODE:\s*(\S+)', line)
+  if m: wavemode = m.group(1)
 
   # BFE
   m = re.search(r'^BFE:\s*(\S+)', line)
@@ -197,7 +202,13 @@ for tdx in range(1, nt_step):
       # kernel (flipped in the calc_area_defect function) and the charge Q
       # Area defects are magnified by (1+QY_omega)/(1-QY_omega) since I am only applying them
       # to the 1-electron events
-      a_coeff = get_bfe_kernel_5x5()
+      if wavemode=='ir':
+        a_coeff = get_bfe_kernel_5x5()
+      elif wavemode=='vis':
+        a_coeff = get_bfe_kernel_5x5()
+      else:
+        print("wavemode set to unknown value, defaulting BFE to IR")
+        a_coeff = get_bfe_kernel_5x5()
       area_defect = calc_area_defect(
         (1.+QY_omega)/(1.-QY_omega)*a_coeff, allQ[idx-1,xmin:xmax,ymin:ymax])
       meanQ = area_defect*mean*QE*(1.-QY_omega)/(1.+QY_omega)

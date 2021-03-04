@@ -36,7 +36,7 @@ RESET_E: 1.0e2
 # 
 #NOISE: Gauss
 NOISE: last ex_2.2.1.fits
-
+WAVEMODE: ir
 BFE: true
 # Linear IPC mode L_IPC can be 'false'
 # or 'true' followed by single value for symmetric alpha
