@@ -68,9 +68,33 @@ def get_bfe_kernel_3x3():
   # Currently symmetrical but can put in something more complex
   return bfe_kernel_3x3
 
-def get_bfe_kernel_5x5():
+def get_bfe_kernel_5x5_ir():
+  """ Returns a bfe 5x5 kernel like for SCA 20829 ir
+  units of 10^-6 per electron.
+  """
+  bfe_kernel_5x5 = 1.E-6*np.array(
+    [[-0.010,  0.0055,  0.0216,  0.0043, -0.0071],
+     [-0.002 ,  0.0903,  0.3764,  0.1021, -0.003 ],
+     [ 0.0107,  0.35  , -1.9841,  0.373 ,  0.0188],
+     [ 0.0032,  0.1054,  0.4282,  0.098 , -0.0018],
+     [-0.0059,  0.0038,  0.0191,  0.009 , -0.0055]])
+  return np.fliplr(bfe_kernel_5x5)
+
+def get_bfe_kernel_5x5_vis():
+  """ Returns a bfe 5x5 kernel like for SCA 20829 vis
+  units of 10^-6 per electron.
+  """
+  bfe_kernel_5x5 = 1.E-6*np.array(
+    [[ 0.0013, -0.0008,  0.0133,  0.0094, -0.005 ],
+     [ 0.0118,  0.1   ,  0.3807,  0.1131,  0.0237],
+     [ 0.0179,  0.3434, -3.0862,  0.363 ,  0.0189],
+     [ 0.0088,  0.1066,  0.4233,  0.102 ,  0.0099],
+     [ 0.0046,  0.0003,  0.0293,  0.0048,  0.0061]])
+  return np.fliplr(bfe_kernel_5x5)
+
+def get_bfe_kernel_5x5_18237ir():
   """ Returns an arbitrary bfe 5x5 kernel
-  units of 10^-6 per electron
+  units of 10^-6 per electron. These numbers are similar to SCA 18237
   """
   bfe_kernel_5x5 = 1.E-6*np.array(
     [[-0.01, 0.0020, -0.0210, -0.019, 0.028],

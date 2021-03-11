@@ -203,9 +203,9 @@ for tdx in range(1, nt_step):
       # Area defects are magnified by (1+QY_omega)/(1-QY_omega) since I am only applying them
       # to the 1-electron events
       if wavemode=='ir':
-        a_coeff = get_bfe_kernel_5x5()
+        a_coeff = get_bfe_kernel_5x5_ir()
       elif wavemode=='vis':
-        a_coeff = get_bfe_kernel_5x5()
+        a_coeff = get_bfe_kernel_5x5_vis()
       else:
         print("wavemode set to unknown value, defaulting BFE to IR")
         a_coeff = get_bfe_kernel_5x5()
