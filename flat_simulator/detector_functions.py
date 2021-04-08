@@ -78,7 +78,8 @@ def get_bfe_kernel_5x5_ir():
         [ 0.0077,  0.3598, -2.0356,  0.3797,  0.0157],
         [-0.0047,  0.0835,  0.3807,  0.1068, -0.0083],
         [-0.0048,  0.0051,  0.0297, -0.0023, -0.0036]])
-
+  # If the sum of this isn't close to 0, this will cause issues in the sim
+  assert (np.sum(bfe_kernel_5x5)<1.E-9)
   return np.fliplr(bfe_kernel_5x5)
 
 def get_bfe_kernel_5x5_vis():
@@ -91,7 +92,8 @@ def get_bfe_kernel_5x5_vis():
        [ 0.0579,  0.3834, -3.0462,  0.403 ,  0.0589],
        [ 0.0488,  0.1466,  0.4633,  0.142 ,  0.0499],
        [ 0.0446,  0.0403,  0.0693,  0.0448,  0.0459]])
-
+  # If the sum of this isn't close to 0, this will cause issues in the sim
+  assert (np.sum(bfe_kernel_5x5)<1.E-9)
   return np.fliplr(bfe_kernel_5x5)
 
 def get_bfe_kernel_5x5_18237ir():
