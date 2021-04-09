@@ -538,7 +538,7 @@ S.hist(QYomega.ravel(),bins=numpy.linspace(0, 0.1, num=num_bins))
 S.set_xlabel(r'$\omega$')
 
 S = F.add_subplot(2,2,2)
-S.hist(Ie.ravel(),bins=numpy.linspace(850, 1100, num=num_bins))
+S.hist(Ie.ravel(),bins=num_bins)
 S.set_xlabel(r'$I_e$')
 
 S = F.add_subplot(2,2,3)
@@ -555,7 +555,7 @@ F.set_tight_layout(True)
 F.savefig(outstem+'_vis_hist.pdf', bbox_inches='tight')
 plt.close(F)
 
-F = plt.figure(figsize=(9,6))
+F = plt.figure(figsize=(12,8))
 S = F.add_subplot(2,3,1)
 S.set_title(r'$\omega$')
 S.set_xlabel('Super pixel X/{:d}'.format(dx))
@@ -598,7 +598,7 @@ S.set_ylabel('Super pixel Y/{:d}'.format(dy))
 im = S.imshow(vis_out_data[:,:,53], cmap=use_cmap, origin='lower')
 F.colorbar(im, orientation='vertical')
 
-F.set_tight_layout(True)
+# F.set_tight_layout(True)
 F.savefig(outstem+'_vis_matrices.pdf', bbox_inches='tight')
 plt.close(F)
 
