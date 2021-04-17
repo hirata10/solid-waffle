@@ -3,6 +3,7 @@ import re
 import numpy
 import time
 from scipy import linalg
+from scipy.signal import convolve
 from astropy.io import fits
 from os import path
 
@@ -14,12 +15,14 @@ nfile = 2
 infile = outfile = ''
 t_init = 2
 rowh = 7
+cds_cut = 10.
 for i in range(1, len(sys.argv)-1):
   if sys.argv[i] == '-f': fileformat = int(sys.argv[i+1])
   if sys.argv[i] == '-i': infile = sys.argv[i+1]
   if sys.argv[i] == '-o': outfile = sys.argv[i+1]
   if sys.argv[i] == '-n': nfile = int(sys.argv[i+1])
   if sys.argv[i] == '-t': t_init = int(sys.argv[i+1])
+  if sys.argv[i] == '-cd': cds_cut = float(sys.argv[i+1])
   if sys.argv[i] == '-rh': rowh = int(sys.argv[i+1])
 
 if infile == '':
@@ -77,11 +80,13 @@ del firstframe
 darkcds = numpy.zeros((nfile, nside, nside), dtype=numpy.float32)
 for k in range(nfile):
   darkcds[k,:,:] = (pyirc.load_segment(filelist[k], fileformat, [0,nside,0,nside], [t_init], False).astype(numpy.float32)\
-                      -pyirc.load_segment(filelist[k], fileformat, [0,nside,0,nside], [t_init+1], False).astype(numpy.float32))
+                      -pyirc.load_segment(filelist[k], fileformat, [0,nside,0,nside], [t_init+1], False).astype(numpy.float32))\
+                      + ( (k+.5)/nfile - .5)
 dark1 = numpy.median(darkcds, axis=0)/tgroup
 for k in range(nfile):
   darkcds[k,:,:] = (pyirc.load_segment(filelist[k], fileformat, [0,nside,0,nside], [t_init], False).astype(numpy.float32)\
-                      -pyirc.load_segment(filelist[k], fileformat, [0,nside,0,nside], [ntslice], False).astype(numpy.float32))
+                      -pyirc.load_segment(filelist[k], fileformat, [0,nside,0,nside], [ntslice], False).astype(numpy.float32))\
+       	       	      +	( (k+.5)/nfile - .5)
 dark2 = numpy.median(darkcds, axis=0)/tgroup/(ntslice-t_init)
 del darkcds
 
@@ -90,18 +95,40 @@ nband = 32
 nstep = ntslice//2 - 2
 print('nstep =', nstep)
 for j in range(nband):
-  bandData = numpy.zeros((nfile, nstep, nside//nband, nside), dtype=numpy.int32)
+  bandData = numpy.zeros((nfile, nstep, nside//nband, nside), dtype=numpy.float32)
   ymin = j*nside//nband
   ymax = ymin + nside//nband
   for k in range(nfile):
-    print('band', j, 'file', k); sys.stdout.flush()
+    print('CDS band', j, 'file', k); sys.stdout.flush()
     for kb in range(nstep):
-      bandData[k,kb,:,:] = pyirc.load_segment(filelist[k], fileformat, [0,nside,ymin,ymax], [t_init+2*kb  ], False).astype(numpy.int32)\
-                             - pyirc.load_segment(filelist[k], fileformat, [0,nside,ymin,ymax], [t_init+2*kb+1], False).astype(numpy.int32)
+      bandData[k,kb,:,:] = pyirc.load_segment(filelist[k], fileformat, [0,nside,ymin,ymax], [t_init+2*kb  ], False).astype(numpy.float32)\
+                             - pyirc.load_segment(filelist[k], fileformat, [0,nside,ymin,ymax], [t_init+2*kb+1], False).astype(numpy.float32)\
+                           + ( (k+.5)/nfile + (kb+.5)/nstep -1.) # uniformly distribute to avoid quantization
   cdsnoise[ymin:ymax,:] = numpy.percentile(bandData, 75, axis=(0,1), interpolation='linear')\
                             - numpy.percentile(bandData, 25, axis=(0,1), interpolation='linear')
   del bandData
 cdsnoise /= 1.34896
+
+# total noise
+tnoiseframe = 55
+tnoise = numpy.zeros((nside,nside))
+nband = 32
+for j in range(nband):
+  bandData = numpy.zeros((nfile, nside//nband, nside))
+  ymin = j*nside//nband
+  ymax = ymin + nside//nband
+  for k in range(nfile):
+    print('TN band', j, 'file', k); sys.stdout.flush()
+    for kb in range(tnoiseframe):
+      bandData[k,:,:] = bandData[k,:,:]\
+                         + (pyirc.load_segment(filelist[k], fileformat, [0,nside,ymin,ymax], [t_init+kb], False)\
+                           + ((k+.5)/nfile - .5) )* (kb-(tnoiseframe-1)/2.) # weight by how far from center
+  tnoise[ymin:ymax,:] = numpy.percentile(bandData, 75, axis=0, interpolation='linear')\
+                            - numpy.percentile(bandData, 25, axis=0, interpolation='linear')
+  del bandData
+tnoise /= tnoiseframe*(tnoiseframe+1.)/12. # normalize so -1/2 --> +1/2 DN (change of 1) corresponds to one unit
+  # this is sum (kb-(tnoiseframe-1)/2.) [ (kb-(tnoiseframe-1)/2.) / (tnoiseframe-1) ]
+tnoise /= 1.34896
 
 # ACN noise information
 nband = 32 # number of channels
@@ -254,13 +281,23 @@ print('stdev of pca0 =', pca0_stdev)
 del med_cdsFL; del iqr_cdsFL; del cdsFL
 
 # Generate output cube
-outcube = numpy.zeros((6,nside,nside))
+outcube = numpy.zeros((8,nside,nside))
 outcube[0,:,:] = 65535 - medarray
 outcube[1,:,:] = iqrarray/1.34896
-outcube[2,:,:] = cdsnoise/1.34896
+outcube[2,:,:] = cdsnoise
 outcube[3,:,:] = PCA0
 outcube[4,:,:] = dark1
 outcube[5,:,:] = dark2
+outcube[6,:,:] = tnoise
+# low CDS, high total noise pixels
+outcube[7,:,:] = numpy.where(numpy.logical_and(cdsnoise<cds_cut,tnoise>numpy.median(tnoise)), 1, 0)
+outcube[7,:4,:] = 0.; outcube[7,-4:,:] = 0.; outcube[7,:,:4] = 0.; outcube[7,:,-4:] = 0.
+
+# array information on low CDS, high total noise pixels
+badmap = outcube[7,4:-4,4:-4]
+nbad1 = numpy.sum(badmap>.5)
+nbad3 = numpy.sum(convolve(badmap,numpy.ones((3,3)),mode='same')>.5)
+nbad5 = numpy.sum(convolve(badmap,numpy.ones((5,5)),mode='same')>.5)
 
 primary_hdu = fits.PrimaryHDU()
 out_hdu = fits.ImageHDU(outcube)
@@ -273,10 +310,38 @@ out_hdu.header['C_PINK'] = c_pink
 out_hdu.header['U_PINK'] = u_pink
 out_hdu.header['PCA0_AMP'] = pca0_stdev
 for k in range(nfile): out_hdu.header['NR_MF{:03d}'.format(k+1)] = filelist[k].strip()
+# median information
+out_hdu.header['CDS_CUT'] = (cds_cut, 'DN')
+out_hdu.header['CDS_MED'] = (numpy.median(cdsnoise), 'DN')
+out_hdu.header['TOT_MED'] = (numpy.median(tnoise), 'DN')
+out_hdu.header['LCHTN1'] = (nbad1, 'low CDS, high total noise pixels')
+out_hdu.header['LCHTN3'] = (nbad3, 'low CDS, high total noise pixels, 3x3 expanded')
+out_hdu.header['LCHTN5'] = (nbad5, 'low CDS, high total noise pixels, 5x5 expanded')
 out_hdu.header['NR_DATE'] = time.asctime(time.localtime(time.time()))
 
 ps_hdu = fits.ImageHDU(PS)
 
-hdul = fits.HDUList([primary_hdu, out_hdu, ps_hdu])
+# CDS vs total noise 2D plot
+d_np = .25
+N_np = 80
+ctnplot = numpy.zeros((N_np,N_np))
+for j in range(N_np):
+  tnmin = j*d_np; tnmax = tnmin + d_np
+  if j==0: tnmin = -1e49
+  if j==N_np-1: tnmax = 1e49
+  for i in range(N_np):
+    cnmin = i*d_np; cnmax = cnmin + d_np
+    if i==0: cnmin = -1e49
+    if i==N_np-1: cnmax = 1e49
+    ctnplot[j,i] = numpy.count_nonzero(numpy.logical_and( numpy.logical_and(tnoise>=tnmin,tnoise<tnmax) ,
+      numpy.logical_and(cdsnoise>=cnmin,cdsnoise<cnmax) ))
+plot_hdu = fits.ImageHDU(ctnplot)
+plot_hdu.header['INFO'] = '2D plot, CDS vs total noise'
+plot_hdu.header['XDEF'] = ('CDS noise', 'DN')
+plot_hdu.header['YDEF'] = ('total noise', 'DN')
+plot_hdu.header['DNOISE'] = (d_np, 'DN')
+plot_hdu.header['MAXNOISE'] = (d_np*N_np, 'DN')
+
+hdul = fits.HDUList([primary_hdu, out_hdu, ps_hdu, plot_hdu])
 hdul.writeto(outfile, overwrite=True)
 
