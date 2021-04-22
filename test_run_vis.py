@@ -346,8 +346,8 @@ Ie[:,:] = Ie_alt2
 
 # get vis:IR Ie ratio information
 vis_ir_ratio = Ie/full_info[:,:,pyirc.swi.I]
-vis_ir_ratio_good = vis_ir_ratio[is_good]
-print('VIS:IR ration information: ', numpy.shape(vis_ir_ratio_good))
+vis_ir_ratio_good = vis_ir_ratio[is_good>.5]
+print('VIS:IR ratio information: ', numpy.shape(vis_ir_ratio_good))
 print('min, max =', numpy.amin(vis_ir_ratio_good), numpy.amax(vis_ir_ratio_good))
 print('percentiles (5th,50th,95th)', numpy.percentile(vis_ir_ratio_good, 5), numpy.percentile(vis_ir_ratio_good, 50),
   numpy.percentile(vis_ir_ratio_good, 95))
