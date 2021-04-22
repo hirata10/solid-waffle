@@ -321,6 +321,12 @@ for mask_index in range(len(maskX)):
   is_good[iy,ix] = 0
   full_info[iy,ix,:] = 0 # wipe out this super-pixel
 
+# if a pixel was set to not good for any other reason
+for iy in range(ny):
+  for ix in range(nx):
+    if is_good[iy,ix]<.5:
+      full_info[iy,ix,:] = 0 # wipe out this super-pixel
+
 print (full_info.shape)
 print ('Number of good regions =', numpy.sum(is_good))
 mean_full_info = numpy.mean(numpy.mean(full_info, axis=0), axis=0)/numpy.mean(is_good)
