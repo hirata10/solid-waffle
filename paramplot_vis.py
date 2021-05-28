@@ -4,27 +4,12 @@ import pandas as pd
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
- 
-sim_gain = 2.06
-sim_alpha = 1.69
-sim_alphaH = 1.69
-sim_alphaV = 1.69
-sim_beta2 = -1.5725*1e-6
-sim_beta3 = 1.9307e-5*1e-6
-sim_beta4 = -1.4099e-10*1e-6
-sim_ipnl = -1.1590
-sim_ipnlNN = 0.2034
-sim_omega = 0.02 # TEMPORARY
-sim_phi = 0
-sim_phiNN = 0
 
-sim_truevals = [sim_alphaV,sim_alphaH,sim_beta2*sim_gain*-1e6,sim_beta3*sim_gain**2*-1e10,
-                sim_beta4*sim_gain**3*-1e15,sim_gain,sim_ipnl,sim_ipnlNN,sim_omega,
-                sim_phi,sim_phiNN]
-                
-sim_ylabels = ['simulations, 16x16','simulations, 32x32']
- 
- 
+plt.rcParams['axes.labelsize'] = 16
+plt.rcParams['axes.titlesize'] = 16
+plt.rcParams['xtick.labelsize'] = 16
+plt.rcParams['ytick.labelsize'] = 16
+
 def read_summary(fname):
     if fname is None:
         return None
@@ -47,10 +32,10 @@ def read_summary(fname):
     table['alphaH'] *= 100
     table['alphaV'] *= 100
     table['alphaD'] *= 100
-
     table['beta2'] *= -1e6
     table['beta3'] *= -1e10
     table['beta4'] *= -1e15
+    
     return table
     
 def read_visinfo(fname):
@@ -77,6 +62,7 @@ def read_visinfo(fname):
     table['phiNN'] = 1e6*(table['phi(0,1)']+table['phi(0,-1)']
                     + table['phi(1,0)']+table['phi(-1,0)'])/4.0
     table['phi(0,0)'] *= 1e6
+    table['omega'] *= 100
     return table
 
 font = {'family' : 'normal',
@@ -86,24 +72,18 @@ font = {'family' : 'normal',
 matplotlib.rc('font', **font)
 
 prefix = '/users/PCON0003/cond0088/Projects/detectors/sw_outputs/PaperIV_chargediffusion/'
-summary_files = [prefix+'ami_20663vis_fid1_summary.txt',
-	             prefix+'ami_20663vis_shorterend_summary.txt',
-                 prefix+'ami_20828vis_fid1_summary.txt',
-	             prefix+'ami_20828vis_shorterend_summary.txt',
-	             prefix+'chris_20829vis_fid1_summary.txt']
+summary_files = [prefix+'anna_20663vis_fid1_flatspaperiii_summary.txt',
+                 prefix+'ami_modmask_20828vis_fid1_summary.txt',
+                 prefix+'anna_20829vis_fid1_summary.txt']
 
-visinfo_files = [prefix+'ami_20663vis_fid1_visinfo.txt',
-	             prefix+'ami_20663vis_shorterend_visinfo.txt',
-                 prefix+'ami_20828vis_fid1_visinfo.txt',
-	             prefix+'ami_20828vis_shorterend_visinfo.txt',
-	             prefix+'chris_20829vis_fid1_visinfo.txt']
+visinfo_files = [prefix+'anna_20663vis_fid1_flatspaperiii_visinfo.txt',
+                 prefix+'ami_modmask_20828vis_fid1_visinfo.txt',
+                 prefix+'anna_20829vis_fid1_visinfo.txt']
 
 # Set up figure
-ylabels = ['SCA 20663, fid1 (Ami)',
-           'SCA 20663, shorter_end (Ami)',
-           'SCA 20828, fid1 (Ami)',
-           'SCA 20828, shorter_end (Ami)',
-           'SCA 20829, fid1 (Chris)']
+ylabels = ['SCA 20663',
+           'SCA 20828',
+           'SCA 20829']
            
 divisions = [1,3,5]
 axis_names = [r'$\alpha_V$',
@@ -112,11 +92,12 @@ axis_names = [r'$\alpha_V$',
               r'$\beta_3g^2$',
               r'$\beta_4g^3$',
               r'$g$',
-              r'$[K^2a+KK^I]_{0,0}$',
-              r'$[K^2a+KK^I]_{<1,0>}$',
+              r'$[K^2a+KK^I]_{0,0,\mathrm{\;vis}}$',
+              r'$[K^2a+KK^I]_{<1,0>,\mathrm{\;vis}}$',
               r'$\omega$',
-              r'$\Phi_{0,0}$',
-              r'$\Phi_{<1,0>}$']
+              r'$C_{xx}$',
+              r'$C_{yy}$',
+              r'$C_{xy}$']
 units = ['%',
          '%',
          r'$10^6\times$DN$^{-1}$',
@@ -125,27 +106,26 @@ units = ['%',
          r'e/DN',
          r'ppm/e',
          r'ppm/e',
-         r'',
-         r'',
-         r'']
+         r'%',
+         r'pix$^2$',
+         r'pix$^2$',
+         r'pix$^2$']
 
 xdata_labels = ['alphaV','alphaH','beta2','beta3','beta4',
-                'gain_alphabeta','ipnl(0,0)','ipnlNN','omega','phi(0,0)','phiNN']
+                'gain_alphabeta','ipnl(0,0)','ipnlNN','omega','Cxx','Cyy','Cxy']
 
 colors = plt.rcParams['axes.prop_cycle'].by_key()['color'][:(divisions[1]-divisions[0])]
 
-fsize = (2*len(axis_names),6) 
+fsize = (2*len(axis_names)+5,6) 
 
 fig = plt.figure(figsize=fsize)
 grid = plt.GridSpec(16,len(axis_names))
 axes=[]
-#sim_axes = []
+
 for i in range(len(axis_names)):
     ax = fig.add_subplot(grid[:-2,i])
     axes.append(ax)
-#
-#    sax = fig.add_subplot(grid[-2:,i])
-#    sim_axes.append(sax)
+
 
 summary_tables = [read_summary(f) for f in summary_files]
 visinfo_tables = [read_visinfo(f) for f in visinfo_files]
@@ -167,7 +147,7 @@ for i,ax in enumerate(axes):
 
     for j,run in enumerate(ylabels):
         # standard summary values
-        if i<len(axes)-3:
+        if i<len(axes)-4:
             mean = np.mean(summary_tables[j][xdata_labels[i]])
             stdev = np.std(summary_tables[j][xdata_labels[i]])
             error = stdev#/len(summary_tables[j]**0.5)
@@ -178,46 +158,21 @@ for i,ax in enumerate(axes):
             stdev = np.std(visinfo_tables[j][xdata_labels[i]])
             error = stdev#/len(visinfo_tables[j]**0.5 
         
-        clr = colors[j%(divisions[1]-divisions[0])]
+        #clr = colors[j%(divisions[1]-divisions[0])]
             
-        ax.errorbar([mean],[j],xerr=[error],capsize=8.0,markersize=10,marker='o',color=clr)
-        if j==0:
-            for k, div in enumerate(divisions):
-                ax.axhline(y=div+0.5,color='k',linewidth=0.75,linestyle='-')
+        ax.errorbar([mean],[j],xerr=[error],capsize=8.0,markersize=10,marker='o')#,color=clr)
+        #if j==0:
+        #    for k, div in enumerate(divisions):
+        #        ax.axhline(y=div+0.5,color='k',linewidth=0.75,linestyle='-')
 
-        if j%(divisions[1]-divisions[0])==0:
-            if j==0 or j==2:
-                ax.fill_betweenx([j-0.5,j+divisions[1]-divisions[0]-0.5],[mean-error,mean-error],
-                                 [mean+error,mean+error], color = 'grey', alpha = 0.5)
-            elif j==4:
-                ax.fill_betweenx([j-0.5,j+divisions[2]-divisions[1]-0.5],[mean-error,mean-error],
-                                 [mean+error,mean+error], color = 'grey', alpha = 0.5)
+        #if j%(divisions[1]-divisions[0])==0:
+        #    if j==0 or j==2:
+        #        ax.fill_betweenx([j-0.5,j+divisions[1]-divisions[0]-0.5],[mean-error,mean-error],
+        #                         [mean+error,mean+error], color = 'grey', alpha = 0.5)
+        #    elif j==4:
+        #        ax.fill_betweenx([j-0.5,j+divisions[2]-divisions[1]-0.5],[mean-error,mean-error],
+        #                         [mean+error,mean+error], color = 'grey', alpha = 0.5)
             
-sim_tables = summary_tables[-1*len(sim_ylabels):]
-
-#for i,sax in enumerate(sim_axes):
-#    sax.set_ylim(len(sim_ylabels)-0.5,-0.5)
-#    sax.ticklabel_format(axis='x', style='sci', scilimits=(-3,3))
-#    sax.set_yticklabels([])
-#    
-#    if i==0:
-#        sax.set_yticks([n for n in range(len(sim_ylabels))])
-#        sax.set_yticklabels(sim_ylabels)
-#        sax.set_ylim(len(sim_ylabels)-0.5,-0.5)
-#
-#    sax.tick_params(axis='y',which='both',left=False)
-#    
-#    for j,run in enumerate(sim_ylabels):
-#	mean = np.mean(sim_tables[j][xdata_labels[i]])
-#	stdev = np.std(sim_tables[j][xdata_labels[i]]) # Possible error in paramplot.py?????
-#       error = stdev#/len(tables[j]**0.5)
-#	sax.errorbar([mean],[j],xerr=[error],capsize=8.0,markersize=10,marker='o',
-#                    color=colors[j%(divisions[1]-divisions[0])])
-#
-#        if j%(divisions[1]-divisions[0])==0:
-#	    sax.axvline(x=sim_truevals[i],linestyle='--',color='k')
-#            #sax.fill_betweenx([j-0.5,j+len(sim_ylabels)-0.5],[mean-stdev,mean-stdev],
-#            #                 [mean+stdev,mean+stdev], color = 'grey', alpha = 0.5)
 
 plt.tight_layout()
 
