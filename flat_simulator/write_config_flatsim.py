@@ -36,10 +36,10 @@ outdir = '/fs/project/PCON0003/ami/simulated_detector/'
 today = datetime.date.today()
 # Write out the first config file
 if flatflag=='flat':
-  file = open('%s/sim_config_%s_rng%d' %(tdir,name,int(rng)),'w')
+  file = open('%s/%ssim_config_%s_rng%d' %(tdir,waveflag,name,int(rng)),'w')
 else:
-  file = open('%s/sim_config_%s_%s_rng%d' %(
-      tdir,name,flatflag,int(rng)),'w')
+  file = open('%s/%ssim_config_%s_%s_rng%d' %(
+      tdir,waveflag,name,flatflag,int(rng)),'w')
     
 file.write('# Generated %s\n' %str(today))
 file.write('# Format (1 = H4RG, WFIRST-like, 2 is an H2RG)\n') 
@@ -47,7 +47,7 @@ file.write('FORMAT: 1\n')
 file.write('NREADS: 64\n')  # Earlier prototype SCAs had 66 reads
 file.write('SUBSTEPS: 20\n')
 file.write('DT: 2.75\n')
-file.write('GAIN: 1.725\n')  # Gain similar to SCA 20829
+file.write('GAIN: 1.7285\n')  # Gain similar to SCA 20829
 if waveflag=='ir':
   pass
 elif waveflag=='vis':
