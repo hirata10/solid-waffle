@@ -5,6 +5,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 from matplotlib.ticker import FormatStrFormatter
+#from matplotlib.ticker import (MultipleLocator, FormatStrFormatter, AutoMinorLocator)
 
 sim_gain_od = 1.5
 sim_gain = 1.73
@@ -110,7 +111,7 @@ def read_visinfo(fname):
 
 font = {'family' : 'normal',
         'weight' : 'regular',
-        'size'   : 13}
+        'size'   : 14}
 
 matplotlib.rc('font', **font)
 
@@ -128,7 +129,7 @@ visinfo_files = [prefix+'vis-sim.offdiagp_jun8_visinfo.txt',
 	             prefix+'vis-sim.diffbfe_apr7withlinipc_visinfo.txt']
 
 # Set up figure
-ylabels = ['Sim, \nnon-zero Cxy',
+ylabels = ['Sim, \nnon-zero $C_{12}$',
            'Sim, \ndiff ir/vis BFE, \nno IPC',
            'Sim, \ndiff ir/vis BFE, \nno IPC 16x16',
            'Sim, \ndiff ir/vis BFE, \n with IPC']
@@ -145,9 +146,9 @@ axis_names = [r'$\alpha_V$',
               r'$[K^2a]_{0,0,vis}$',
               r'$[K^2a]_{<1,0>,vis}$',
               r'$\omega$',
-              r'$C_{xx}$',
-              r'$C_{yy}$',
-              r'$C_{xy}$']
+              r'$C_{11}$',
+              r'$C_{22}$',
+              r'$C_{12}$']
 units = ['%',
          '%',
 #         r'$10^6\times$DN$^{-1}$',
@@ -185,7 +186,7 @@ summary_tables = [read_summary(f) for f in summary_files]
 visinfo_tables = [read_visinfo(f) for f in visinfo_files]
 
 for i,ax in enumerate(axes):
-    ax.set_title(axis_names[i])
+    ax.set_title(axis_names[i], fontsize=16)
     ax.set_ylim(len(ylabels)-0.5,-0.5)
     ax.ticklabel_format(axis='x', style='sci', scilimits=(-3,3))
     ax.set_yticklabels([])
@@ -193,11 +194,14 @@ for i,ax in enumerate(axes):
     if i==0:
         ax.set_yticks([n for n in range(len(ylabels))])
         ax.set_yticklabels(ylabels)
+        ax.tick_params(axis='y', labelsize= 16)
         ax.set_ylim(len(ylabels)-0.5,-0.5)
 
     ax.tick_params(axis='y',which='both',left=False)
-    ax.set_xlabel(units[i])
-    #ax.xaxis.set_major_formatter('%3.1f')  # This not working yet
+    ax.set_xlabel(units[i], fontsize=16)
+    ax.xaxis.set_major_locator(plt.MaxNLocator(2))
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    ax.tick_params(axis='x', labelsize= 13)
     ax.xaxis.labelpad=15
 
     for j,run in enumerate(ylabels):
