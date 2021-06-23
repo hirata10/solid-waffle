@@ -129,7 +129,7 @@ visinfo_files = [prefix+'vis-sim.offdiagp_jun8_visinfo.txt',
 	             prefix+'vis-sim.diffbfe_apr7withlinipc_visinfo.txt']
 
 # Set up figure
-ylabels = ['Sim, \nnon-zero Cxy',
+ylabels = ['Sim, \nnon-zero $C_{12}$',
            'Sim, \ndiff ir/vis BFE, \nno IPC',
            'Sim, \ndiff ir/vis BFE, \nno IPC 16x16',
            'Sim, \ndiff ir/vis BFE, \n with IPC']
