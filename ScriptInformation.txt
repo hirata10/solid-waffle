@@ -387,3 +387,10 @@ VISMEDCORR
 
 then in the visible characterization, the variance C_{adad}(0,0)-C_{abab}(0,0) is re-scaled by the predicted / measured value of M_{bd} so that the slope of the photon transfer curve is corrected for errors in the current Ie. We recommend this option only as a test case.
 
+-- COPYIRBFE --
+
+If you add this keyword to the configuration file:
+
+COPYIRBFE
+
+and do a visible run, then instead of fitting a visible BFE kernel, we copy the IR BFE kernel. This is recommended when the visible data goes only to a low signal level and a visible BFE fit would be unstable.
