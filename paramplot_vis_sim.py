@@ -117,20 +117,19 @@ matplotlib.rc('font', **font)
 
 prefix = '/users/PCON0003/cond0088/Projects/detectors/sw_outputs/PaperIV_chargediffusion/sim_out/'
 #summary_files = [prefix+'vis-sim.offdiagp_feb3_summary.txt',
-summary_files = [prefix+'vis-sim.offdiagp_jun8_summary.txt',
-	             prefix+'vis-sim.diffbfe_mar30_summary.txt',
+#[prefix+'vis-sim.offdiagp_jun8_summary.txt',
+summary_files = [     prefix+'vis-sim.diffbfe_mar30_summary.txt',
                  prefix+'vis-sim.diffbfe_16x16_summary.txt',
 	             prefix+'vis-sim.diffbfe_apr7withlinipc_summary.txt']
 
 #visinfo_files = [prefix+'vis-sim.offdiagp_feb3_visinfo.txt',
-visinfo_files = [prefix+'vis-sim.offdiagp_jun8_visinfo.txt',
-	             prefix+'vis-sim.diffbfe_mar30_visinfo.txt',
+visinfo_files = [     prefix+'vis-sim.diffbfe_mar30_visinfo.txt',
                  prefix+'vis-sim.diffbfe_16x16_visinfo.txt',
 	             prefix+'vis-sim.diffbfe_apr7withlinipc_visinfo.txt']
 
 # Set up figure
-ylabels = ['Sim, \nnon-zero $C_{12}$',
-           'Sim, \ndiff ir/vis BFE, \nno IPC',
+#'Sim, \nnon-zero $C_{12}$',
+ylabels = [           'Sim, \ndiff ir/vis BFE, \nno IPC',
            'Sim, \ndiff ir/vis BFE, \nno IPC 16x16',
            'Sim, \ndiff ir/vis BFE, \n with IPC']
            
@@ -221,10 +220,10 @@ for i,ax in enumerate(axes):
         # This makes the script way messier than Jenna's original code
         if (j==0):
             ax.errorbar([mean],[j],xerr=[error],capsize=8.0,markersize=10,marker='o',color=clr)
-        elif ((j>0)&(j<3)):
+        elif ((j>0)&(j<2)):
             ax.errorbar([mean],[j],xerr=[error],capsize=8.0,markersize=10,marker='o',color=colors[2])
         else:
-            ax.errorbar([mean],[j],xerr=[error],capsize=8.0,markersize=10,marker='o',color=clr)
+            ax.errorbar([mean],[j],xerr=[error],capsize=8.0,markersize=10,marker='o',color=colors[1])
         #if j==0:
         #    for k, div in enumerate(divisions):
         #        ax.axhline(y=div+0.5,color='k',linewidth=0.75,linestyle='-')
