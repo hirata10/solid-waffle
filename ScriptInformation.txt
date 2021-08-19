@@ -81,6 +81,8 @@ The options are:
 
 (*) 5: H4RG-10, descending ramps.  The images are in HDU #1, with NAXIS1=NAXIS2=4096, NAXIS3=[number of time slices]. (Used by PPL.)
 
+(*) 6: H4RG-10, ascending ramps. The images are in HDU #1, with NAXIS=4, NAXIS1=4096 or 4224 (latter includes reference output as 33rd channel), NAXIS2=4096, NAXIS3=[number of time slices], and NAXIS4=1. (Used for triplet testing.)
+
 -- NBIN --
 
 The way the data are binned into super-pixels for statistical analysis:
