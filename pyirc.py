@@ -103,7 +103,7 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
         t = tslices[ts]
         output_cube[ts,:,:] = 65535 - in_hdu.data[t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]]
       hdus.close()
-  elif formatpars==3:
+  elif formatpars==3 or formatpars==7:
     if use_fitsio:
       fileh = fitsio.FITS(filename)
       N = get_nside(formatpars)
@@ -112,7 +112,7 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
         output_cube[ts,:,:] = numpy.array(fileh[t][xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
       fileh.close()
     else:
-      print ('Error: non-fitsio methods not yet supported for formatpars=3')
+      print ('Error: non-fitsio methods not yet supported for formatpars=3 or 7')
       exit()
   elif formatpars==4:
     if use_fitsio:
@@ -156,18 +156,6 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
     else:
       print ('Error: non-fitsio methods not yet supported for formatpars=6')
       exit()
-  elif formatpars==7:
-    if use_fitsio:
-      fileh = fitsio.FITS(filename)
-      N = get_nside(formatpars)
-      for ts in range(ntslice_use):
-        t = tslices[ts]
-        output_cube[ts,:,:] = 65535 - numpy.array(fileh[t][xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
-      fileh.close()
-    else:
-      print ('Error: non-fitsio methods not yet supported for formatpars=7')
-      exit()
-
   else:
     print ('Error! Invalid formatpars =', formatpars)
     exit()
