@@ -7,6 +7,7 @@ from scipy.ndimage.filters import convolve
 from scipy import ndimage
 import astromutils
 
+startInput = 1
 inputdata = []
 nrepeat = []
 dir = []
@@ -68,6 +69,10 @@ for line in content:
 
   m = re.search(r'^INPUT\:', line)
   if m: is_input = True
+
+  # File number to start
+  m = re.search(r'^START:\s*(\d+)', line)
+  if m: startInput = int(m.group(1))
 
   # Bin sizes
   m = re.search(r'^NBIN:\s*(\d+)\s+(\d+)', line)
@@ -142,8 +147,8 @@ MM = 4
 qnorm = numpy.zeros((ntot,MM*ny,MM*nx))
 for k in range(n_input_group):
   for ik in range(nrepeat[k]):
-    print('FT FILE:', re.sub(r'\*', '{:03d}'.format(ik+1), inputdata[k]))
-    map = astromutils.read_segment(re.sub(r'\*', '{:03d}'.format(ik+1), inputdata[k]))/cflat_image
+    print('FT FILE:', re.sub(r'\*', '{:03d}'.format(ik+startInput), inputdata[k]))
+    map = astromutils.read_segment(re.sub(r'\*', '{:03d}'.format(ik+startInput), inputdata[k]))/cflat_image
     # normalize, remove zero mode & reference pixels
     norm[k,ik] = numpy.mean(map[4:-4,4:-4])
     map[4:-4,4:-4] /= norm[k,ik]
@@ -245,7 +250,7 @@ for ty in range(buildRange[0], buildRange[1]):
         # get datasum (to subtract)
         datasum = numpy.zeros((ny,nx))
         for ik in range(nrepeat[k]):
-          data = astromutils.read_segment(re.sub(r'\*', '{:03d}'.format(ik+1), inputdata[k]), bounds=[ymin,ymax,xmin,xmax])\
+          data = astromutils.read_segment(re.sub(r'\*', '{:03d}'.format(ik+startInput), inputdata[k]), bounds=[ymin,ymax,xmin,xmax])\
                   /norm[k,ik]/cflat_image[ymin:ymax,xmin:xmax]
           data = data/(1.+qnorm[ty,tx]) -1.
           datasum = datasum+data
@@ -255,7 +260,7 @@ for ty in range(buildRange[0], buildRange[1]):
         #
         # now main loop
         for ik in range(nrepeat[k]):
-          data = astromutils.read_segment(re.sub(r'\*', '{:03d}'.format(ik+1), inputdata[k]), bounds=[ymin,ymax,xmin,xmax])\
+          data = astromutils.read_segment(re.sub(r'\*', '{:03d}'.format(ik+startInput), inputdata[k]), bounds=[ymin,ymax,xmin,xmax])\
                   /norm[k,ik]/cflat_image[ymin:ymax,xmin:xmax]
           data = data/(1.+qnorm[ty,tx]) -1. - datasum
           Cid = Cinv@data.flatten()
