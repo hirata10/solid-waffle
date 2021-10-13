@@ -273,8 +273,8 @@ for ty in range(buildRange[0], buildRange[1]):
           myT += numpy.sum(data.flatten()*Cid)
           mysq += numpy.mean(data**2)
         mysq /= nrepeat[k]-1
-        print('     T = {:12.5E} ref = {:12.5E} ratio = {:12.5E} var = {:12.5E} (th) {:12.5E} (obs)'.format(
-          myT,Tref,myT/Tref,numpy.mean(numpy.diagonal(thisC)), mysq))
+        #print('     T = {:12.5E} ref = {:12.5E} ratio = {:12.5E} var = {:12.5E} (th) {:12.5E} (obs)'.format(
+        #  myT,Tref,myT/Tref,numpy.mean(numpy.diagonal(thisC)), mysq))
 
         # get response matrix (if not done already)
         cprod = numpy.zeros((astromutils.nTemplate,dy*dx,dy*dx))
@@ -331,7 +331,7 @@ for ty in range(buildRange[0], buildRange[1]):
       # print temporary dxmap to a file
       hdu = fits.PrimaryHDU(dxmap.astype(numpy.float32))
       hdu.writeto(outstem+'_dx.fits', overwrite=True)
-
+      sys.stdout.flush()
         
 
 # initial offsets -- filtering
