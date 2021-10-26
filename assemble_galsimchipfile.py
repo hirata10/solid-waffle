@@ -17,6 +17,8 @@ noise_frame_cds = 2
 noise_frame_pca0 = 3
 noise_frame_dark1 = 4
 noise_frame_dark2 = 5
+noise_frame_total = 6
+noise_frame_lowcdshightot = 7
 
 # Choice of input format
 informat = 4
@@ -82,7 +84,7 @@ if not hasattr(configInfo, 'NOISE'):
 # Get information from the summary file
 #######################################################################
 
-badpix = numpy.zeros((4096,4096), dtype=numpy.uint16)
+badpix = numpy.zeros((4096,4096), dtype=numpy.uint32)
 
 # Get information from summary file
 # data
@@ -121,6 +123,13 @@ print('.. length:', nmask)
 # ... we're going to replace masked data with the median of the array
 medgain = numpy.median(gain)
 gain[SuperPixelMask] = medgain
+#
+# flag in badpix
+for imask in range(nmask):
+  iy = SuperPixelMask[0][imask]
+  ix = SuperPixelMask[1][imask]
+  dy = 4096//ny; dx = 4096//nx
+  badpix[iy*dy:(iy+1)*dy,ix*dx:(ix+1)*dx] = numpy.bitwise_or(0x40, badpix[iy*dy:(iy+1)*dy,ix*dx:(ix+1)*dx])
 
 # Output information
 primary_hdu = fits.PrimaryHDU()
@@ -156,6 +165,39 @@ for x in range(ssbfe):
     bfeData[y,x,:,:] = thisdata
 bfe_hdu = fits.ImageHDU(bfeData.astype(numpy.float32))
 bfe_hdu.header['EXTNAME'] = 'BFE'
+
+# flattened BFE image
+bfeflat_hdu = fits.ImageHDU(numpy.transpose(bfeData,(0,2,1,3)).astype(numpy.float32).reshape(ssbfe*ny,ssbfe*nx))
+bfeflat_hdu.header['EXTNAME'] = 'BFEFLAT'
+
+# charge diffusion information
+visdata = False
+if visdata:
+  pass
+else:
+  # placeholder information
+  nl = 50
+  qy = numpy.zeros((nl,ny,nx), dtype=numpy.float32)
+  lmin = .4; lmax = 2.4
+  for k in range(nl):
+    linv = 1./lmax + k/(nl-1)*(1./lmin-1./lmax) # 1/lambda in inverse microns
+    if linv>1.25: qy[k,:,:] = .04*(linv-1.25)
+  qyield_hdu = fits.ImageHDU(qy)
+  qyield_hdu.header['LAMBMIN'] = (lmin, 'microns')
+  qyield_hdu.header['LAMBMAX'] = (lmax, 'microns')
+  qyield_hdu.header['COMMENT'] = 'Placeholder'
+  qyield_hdu.header['EXTNAME'] = 'QYIELD'
+  chrgdiff = numpy.zeros((3,ny,nx), dtype=numpy.float32)
+  chrgdiff[0,:,:] = .294**2
+  chrgdiff[1,:,:] = 0.
+  chrgdiff[2,:,:] = .294**2
+  chrgdiff_hdu = fits.ImageHDU(chrgdiff)
+  chrgdiff_hdu.header['SLICE01'] = ('Cxx', 'pixel**2')
+  chrgdiff_hdu.header['SLICE02'] = ('Cxy', 'pixel**2')
+  chrgdiff_hdu.header['SLICE03'] = ('Cyy', 'pixel**2')
+  chrgdiff_hdu.header['COMMENT'] = 'Placeholder'
+  chrgdiff_hdu.header['EXTNAME'] = 'CHRGDIFF'
+
 
 #######################################################################
 # IPC & VTPE HDUs
@@ -306,7 +348,7 @@ ipc_hdu = fits.ImageHDU(ipc_full.astype(numpy.float32))
 ipc_hdu.header['EXTNAME'] = 'IPC'
 
 (ay,ax,nyi,nxi)=numpy.shape(ipc_full)
-ipcflat_hdu = fits.ImageHDU(ipc_full.astype(numpy.float32).reshape((ay*ax,nyi,nxi)))
+ipcflat_hdu = fits.ImageHDU(numpy.transpose(ipc_full,(0,2,1,3)).astype(numpy.float32).reshape((ay*nyi,ax*nxi)))
 ipcflat_hdu.header['EXTNAME'] = 'IPCFLAT'
 
 # VTPE information
@@ -344,8 +386,22 @@ else:
 #
 for noisekey in noisefile['NOISE'].header.keys():
   this_metadata.append('Noise header:' + noisekey + '        ' + str(noisefile['NOISE'].header[noisekey]))
-noise_hdu = fits.ImageHDU(noisefile['NOISE'].data[noise_frame_pca0,:,:])
+noisedata = numpy.zeros((3,4096,4096))
+noisedata[0,:,:] = noisefile['NOISE'].data[noise_frame_pca0,:,:]
+# gain map
+fullgain = numpy.zeros((4096,4096))
+for j in range(ny):
+  for i in range(nx):
+    fullgain[j*(4096//ny):(j+1)*(4096//ny),i*(4096//nx):(i+1)*(4096//nx)] = gain[j,i]
+noisedata[1,:,:] = noisefile['NOISE'].data[noise_frame_cds,:,:] * fullgain
+noisedata[2,:,:] = noisefile['NOISE'].data[noise_frame_total,:,:] * fullgain
+#
+noise_hdu = fits.ImageHDU(noisedata)
 noise_hdu.header['EXTNAME'] = 'READ'
+# information on the slices
+noise_hdu.header['SLICE01'] = ('PCA0', 'principal component for NGHXRG')
+noise_hdu.header['SLICE02'] = ('CDS noise', 'e')
+noise_hdu.header['SLICE03'] = ('total noise', 'e in 150 s')
 # additional keywords
 noise_hdu.header['NGNAXIS1'] = 4096
 noise_hdu.header['NGNAXIS2'] = 4096
@@ -370,6 +426,9 @@ noise_hdu.header['REFPIXNR'] = med_cdsnoise_DN_ref/med_cdsnoise_DN
 noise_hdu.header['KTCNOISE'] = med_ktcnoise_DN*numpy.median(gain) # convert from DN --> e
 
 noise_hdu.header.add_comment('Noise properties in electrons, not DN')
+
+# low CDS high total noise map
+badpix = numpy.bitwise_or(numpy.where(noisefile['NOISE'].data[noise_frame_lowcdshightot,:,:]<.5, 0, 0x10).astype(badpix.dtype), badpix)
 
 # Get the bias information
 bias_hdu = fits.ImageHDU(numpy.clip(noisefile['NOISE'].data[noise_frame_bias,:,:], 0, 65535).astype(numpy.uint16))
@@ -526,6 +585,8 @@ if configInfo.FW:
       poly_coefs = numpy.where(BadMask, these_poly_coefs, poly_coefs)
       tmax = numpy.where(BadMask, tm, tmax)
   del these_poly_coefs
+  # report pixels where we got to the minimum number of points for the CNL fit
+  badpix[4:-4,4:-4] = numpy.bitwise_or(numpy.where(tmax[4:-4,4:-4]==configInfo.NLD+1, 0x20, 0).astype(badpix.dtype), badpix[4:-4,4:-4])
   #
   for tm in range(1,configInfo.NLD+1)[::-1]:
     der = numpy.zeros((4096,4096))
@@ -542,7 +603,9 @@ if configInfo.FW:
   for iy in range(ny):
     for ix in range(nx):
       sat_level[dy*iy:dy*(iy+1),dx*ix:dx*(ix+1)] *= gain[iy,ix] # convert to electrons
+  # remove reference pixels & negative saturation
   sat_level[:4,:] = 0.; sat_level[-4:,:] = 0.; sat_level[:,:4] = 0.; sat_level[:,-4:] = 0.
+  sat_level = numpy.maximum(sat_level, numpy.zeros_like(sat_level))
   print('saturation', sat_level[4:-4:113,4:-4:113]) # sample every 113th in x,y for display
   # make error map
   err_level = numpy.zeros((4096,4096), dtype=numpy.float32)
@@ -556,7 +619,7 @@ if configInfo.FW:
   # (and zero out reference pixels)
   poly_coefs[:,:4,:] = 0.; poly_coefs[:,-4:,:] = 0.; poly_coefs[:,:,:4] = 0.; poly_coefs[:,:,-4:] = 0.
   poly_coefs[1,:4,:] = 1.; poly_coefs[1,-4:,:] = 1.; poly_coefs[1,:,:4] = 1.; poly_coefs[1,:,-4:] = 1.
-  for q in range(1,configInfo.NLD-1):
+  for q in range(1,configInfo.NLD):
     poly_coefs[1+q,:,:] = -poly_coefs[1+q,:,:]/poly_coefs[1,:,:]**(1+q) # write in terms of DN_lin
     dx = 4096//nx; dy = 4096//ny
     for iy in range(ny):
@@ -594,6 +657,13 @@ saturate_hdu.header['EXTNAME'] = 'SATURATE'
 # relative QE
 relqe1_hdu = fits.ImageHDU(flat_field.astype(numpy.float32))
 relqe1_hdu.header['EXTNAME'] = 'RELQE1'
+#
+# wavelength dependent relative QE is a placeholder right now
+relqe2_hdu = fits.ImageHDU(numpy.ones((50,64,64), dtype = numpy.float32))
+relqe2_hdu.header['LAMBMIN'] = (0.45, 'microns')
+relqe2_hdu.header['LAMBMAX'] = (2.40, 'microns')
+relqe2_hdu.header['COMMENT'] = 'Placeholder'
+relqe2_hdu.header['EXTNAME'] = 'RELQE2'
 #
 this_metadata.append('')
 
@@ -675,6 +745,12 @@ if configInfo.PersistScript:
     st += ' (filt)'
     print(st); this_metadata.append(st)
   #
+  # remove reference pixels
+  persistence_map[:,:4,:] = 0.
+  persistence_map[:,-4:,:] = 0.
+  persistence_map[:,:,:4] = 0.
+  persistence_map[:,:,-4:] = 0.
+  #
   persist_hdu = fits.ImageHDU(persistence_map[1:,:,:])
   persist_hdu.header['EXTNAME'] = 'PERSIST'
   persist_hdu.header['PERSIST'] = (True, 'Persistence implemented')
@@ -695,6 +771,28 @@ else:
 this_metadata.append('')
 
 #######################################################################
+# CRNL
+#######################################################################
+
+crnl_input = False
+if crnl_input:
+  pass
+else:
+  crnl_hdu = fits.ImageHDU(1.0003*numpy.ones((1,4096,4096), dtype=numpy.float32))
+  crnl_hdu.header['CR_REF'] = (500, 'e/s')
+  crnl_hdu.header['COMMENT'] = 'Placeholder'
+  crnl_hdu.header['EXTNAME'] = 'CRNL'
+
+#######################################################################
+# Burn-in
+#######################################################################
+
+# right now a null HDU
+burnin_hdu = fits.ImageHDU()
+burnin_hdu.header['EXTNAME'] = 'BURNIN'
+burnin_hdu.header['COMMENT'] = 'Empty for now'
+
+#######################################################################
 # General output
 #######################################################################
 
@@ -709,6 +807,8 @@ badpix_hdu.header['BIT00'] = 'Disconnected or low response pixel'
 badpix_hdu.header['BIT01'] = 'Hot pixel (used TDARK2)'
 badpix_hdu.header['BIT02'] = 'Very hot pixel (used TDARK1)'
 badpix_hdu.header['BIT03'] = 'Adjacent to pixel with strange response'
+badpix_hdu.header['BIT04'] = 'low CDS high total noise pixel'
+badpix_hdu.header['BIT05'] = 'CNL fit with dof=0'
 
 # Source information
 for k in range(len(this_metadata)): this_metadata[k] = this_metadata[k][:512]
@@ -717,6 +817,9 @@ src_hdu = fits.BinTableHDU.from_columns([metadata_col])
 src_hdu.header['EXTNAME'] = 'SOURCES'
 
 # Final output step
-hdul = fits.HDUList([primary_hdu, src_hdu, relqe1_hdu, bfe_hdu, dark_hdu, darkvar_hdu, persist_hdu,\
-  saturate_hdu, cnl_hdu, ipc_hdu, ipcflat_hdu, vtpe_hdu, badpix_hdu, noise_hdu, gain_hdu, bias_hdu])
+hdul = fits.HDUList([primary_hdu, src_hdu, relqe1_hdu, relqe2_hdu, qyield_hdu, chrgdiff_hdu,\
+  bfe_hdu, bfeflat_hdu, persist_hdu, dark_hdu, crnl_hdu,\
+  saturate_hdu, cnl_hdu, burnin_hdu, ipc_hdu, ipcflat_hdu, vtpe_hdu, badpix_hdu, noise_hdu, gain_hdu, bias_hdu])
 hdul.writeto(configInfo.OUT, overwrite=True)
+
+# not written: darkvar_hdu

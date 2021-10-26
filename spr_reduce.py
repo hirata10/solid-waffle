@@ -90,8 +90,11 @@ if use_nl:
 
 # IPC patterns:
 #
+# pattern 1 = original dx=8,dy=8, start at (8,7)
+# pattern 2 = original dx=8,dy=8, start at (6,7)
+#
 dx = dy = 8
-if ipc_pattern==1:
+if ipc_pattern==1 or ipc_pattern==2:
   dx = dy = 8
 # < alternate dx,dy would go here >
 
@@ -107,6 +110,11 @@ if ipc_pattern==1:
   for j in range(16):
     rx[32*j:32*j+16] = numpy.arange(0,128,8) + 256*j + 8
     rx[32*j+16:32*j+32] = 256*j + 247 - numpy.arange(0,128,8)[::-1]
+  ry = numpy.arange(dy-1,N,dy)
+if ipc_pattern==2:
+  for j in range(16):
+    rx[32*j:32*j+16] = numpy.arange(0,128,8) + 256*j + 6
+    rx[32*j+16:32*j+32] = 256*j + 249 - numpy.arange(0,128,8)[::-1]
   ry = numpy.arange(dy-1,N,dy)
 
 # Make dark map
