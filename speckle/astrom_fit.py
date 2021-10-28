@@ -43,6 +43,7 @@ flatprior = 1.0e-4
 bgSmooth = 3
 
 cflat = None # no input flat field
+use_subregion = False
 
 # only compute diagonal blocks in Fisher
 DiagFisher = True
@@ -90,6 +91,9 @@ for line in content:
   m = re.search(r'^CFLAT:\s*(\S+)', line)
   if m: cflat = m.group(1)
 
+  m = re.search(r'^POWERSUB', line)
+  if m: use_subregion = True
+
 # end read config
 
 # get a particular row
@@ -128,18 +132,33 @@ if buildRange[0]<0 or buildRange[1]>ny or buildRange[2]<0 or buildRange[3]>nx:
 cflat_image = numpy.ones((4096,4096))
 if cflat:
   with fits.open(cflat) as hdul: cflat_image = hdul[0].data
+  cflat_image2 = numpy.copy(cflat_image)
+  cflat_image2[:4,:] = 1.
+  cflat_image2[-4:,:] = 1.
+  cflat_image2[:,:4] = 1.
+  cflat_image2[:,-4:] = 1.
   for k in range(n_input_group):
-    SCAMask[k][numpy.where(cflat_image<0.5)] |= 2
-    SCAMask[k][numpy.where(cflat_image>1.5)] |= 2
+    SCAMask[k][numpy.where(cflat_image2<0.5)] |= 2
+    SCAMask[k][numpy.where(cflat_image2>1.5)] |= 2
+    # now mask 8-pixel region around the defect
+    block = numpy.where(numpy.bitwise_and(SCAMask[k,4:-4,4:-4],2)>0, 1, 0).astype(numpy.int16)
+    block2 = numpy.zeros((4096,4096), dtype=numpy.int16)
+    for ddy in [-1,0,1]:
+      for ddx in [-1,0,1]:
+        block2[4+ddy:-4+ddy,4+ddx:-4+ddx] += block
+    SCAMask[k][numpy.where(block2>0)] |= 4
+    del block; del block2
   cflat_image = numpy.where(numpy.bitwise_or(cflat_image<0.5,cflat_image>1.5), 1., cflat_image)
 
 # Tell us about the mask
 print('bit true count in mask:')
-for x in range(2): print('    bit', x, numpy.sum(numpy.where(numpy.bitwise_or.reduce(SCAMask,axis=0)&(1<<x)!=0, 1, 0)))
+for x in range(3): print('    bit', x, numpy.sum(1-numpy.prod(numpy.where(numpy.bitwise_and(SCAMask,1<<x)==0,1,0),axis=0)))
 print('')
 
 # Get the power spectrum of each class of files
+downsample = 4 # down-sampling factor of power spectrum
 PS = numpy.zeros((n_input_group,nside,nside))
+PS_downsample = numpy.zeros((n_input_group,downsample,downsample,nside//downsample,nside//downsample))
 norm = numpy.zeros((n_input_group, max_nrepeat))
 ntot = numpy.sum(nrepeat)
 j=0
@@ -156,12 +175,20 @@ for k in range(n_input_group):
     map[:4,:] = 0.; map[-4:,:] = 0.; map[:,:4] = 0.; map[:,-4:] = 0.
     PS[k,:,:] = PS[k,:,:] + numpy.abs(numpy.fft.fft2(map)**2)/nrepeat[k]
 
+    for yblock in range(downsample):
+      for xblock in range(downsample):
+        PS_downsample[k,yblock,xblock,:,:] = PS_downsample[k,yblock,xblock,:,:] +\
+          numpy.abs(numpy.fft.fft2(map[yblock*nside//downsample:(yblock+1)*nside//downsample,\
+          xblock*nside//downsample:(xblock+1)*nside//downsample])**2)/nrepeat[k]
+
     for ty in range(MM*ny):
       ymin = ty*dy//MM; ymax = ymin+dy//MM
       for tx in range(MM*nx):
         xmin = tx*dx//MM; xmax = xmin+dx//MM
         qnorm[j,ty,tx] = numpy.mean(map[ymin:ymax,xmin:xmax])
     j+=1
+del map
+PS_downsample *= (downsample/float(nside))**4 # new version of power spectrum
 
 qnorm = numpy.mean(qnorm, axis=0)
 qnorm = numpy.median(qnorm.reshape((ny,MM,nx,MM)), axis=(1,3))
@@ -177,7 +204,6 @@ hdu = fits.PrimaryHDU(numpy.fft.fftshift(PS, axes=(1,2)).astype(numpy.float32))
 hdu.writeto(outstem+'_powerspec.fits', overwrite=True)
 #
 # smeared version
-downsample = 4
 smooth_length = 9 # make odd
 PS_smooth = numpy.zeros((n_input_group,nside//downsample,nside//downsample))
 for k in range(n_input_group):
@@ -192,24 +218,31 @@ for k in range(n_input_group):
   varsub = numpy.sum(PS_smooth[k,cy:-cy,cx:-cx])
   print('total variance in group {:2d} is {:9.6f}, per superpix {:9.6f}'.format(k,var,varsub))
 
-# get the weighting covariance matrices
-print('postage stamp size -->', (dy, dx))
-CovWT = numpy.zeros((n_input_group,dy*dx,dy*dx))
-for k in range(n_input_group):
-  print('Computing covariance matrix for group {:2d} ...'.format(k))
-  CovWT[k,:,:] = astromutils.getCovar((dy,dx), PS_smooth[k,:,:])
-
 # and dx map
 dxmap = numpy.zeros((astromutils.nTemplate, nside, nside))
 # and dx map with filtering
 sigmaprior = numpy.asarray([1e-4,.1,.1,1e-4,1e-4,1e-4])
 dxfiltmap = numpy.zeros((astromutils.nTemplate, nside, nside))
 
+# mask here
+hdu = fits.PrimaryHDU(SCAMask)
+hdu.writeto(outstem+'_mask.fits', overwrite=True)
+
 # change to ty in range(ny), tx in range(nx) for full coverage
 for ty in range(buildRange[0], buildRange[1]):
   ymin = ty*dy; ymax = ymin+dy
   for tx in range(buildRange[2], buildRange[3]):
     xmin = tx*dx; xmax = xmin+dx
+
+    # get the weighting covariance matrices
+    yblock = ty*dy//(nside//downsample)
+    xblock = tx*dx//(nside//downsample)
+    print('super-pixel', ty, tx, yblock, xblock)
+    if use_subregion: PS_smooth = PS_downsample[:,yblock,xblock,:,:]
+    CovWT = numpy.zeros((n_input_group,dy*dx,dy*dx))
+    for k in range(n_input_group):
+      print('Computing covariance matrix for group {:2d} ...'.format(k))
+      CovWT[k,:,:] = astromutils.getCovar((dy,dx), PS_smooth[k,:,:])
 
     for cy in range(niter):
       Fisher = numpy.zeros((astromutils.nTemplate*dy*dx,astromutils.nTemplate*dy*dx))
