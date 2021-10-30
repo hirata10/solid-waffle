@@ -44,6 +44,7 @@ bgSmooth = 3
 
 cflat = None # no input flat field
 use_subregion = False
+downsample = 4 # down-sampling factor of power spectrum; 4 = default
 
 # only compute diagonal blocks in Fisher
 DiagFisher = True
@@ -91,8 +92,10 @@ for line in content:
   m = re.search(r'^CFLAT:\s*(\S+)', line)
   if m: cflat = m.group(1)
 
-  m = re.search(r'^POWERSUB', line)
-  if m: use_subregion = True
+  m = re.search(r'^POWERSUB:\s*(\d+)', line)
+  if m:
+    use_subregion = True
+    downsample = int(m.group(1))
 
 # end read config
 
@@ -120,6 +123,7 @@ for k in range(n_input_group): print('   ',inputdata[k], 'repeats:', nrepeat[k])
 print('max. number of repeats =', max_nrepeat)
 print('number of superpixels: {:d} (in y) x {:d} (in x) = {:d} (total)'.format(ny,nx,nx*ny))
 print('flat fields in', cflat)
+print('power spectrum subregions', use_subregion, downsample)
 
 # Check build ranges
 if buildRange is None: buildRange = [0,ny,0,nx]
@@ -156,7 +160,6 @@ for x in range(3): print('    bit', x, numpy.sum(1-numpy.prod(numpy.where(numpy.
 print('')
 
 # Get the power spectrum of each class of files
-downsample = 4 # down-sampling factor of power spectrum
 PS = numpy.zeros((n_input_group,nside,nside))
 PS_downsample = numpy.zeros((n_input_group,downsample,downsample,nside//downsample,nside//downsample))
 norm = numpy.zeros((n_input_group, max_nrepeat))
@@ -237,7 +240,7 @@ for ty in range(buildRange[0], buildRange[1]):
     # get the weighting covariance matrices
     yblock = ty*dy//(nside//downsample)
     xblock = tx*dx//(nside//downsample)
-    print('super-pixel', ty, tx, yblock, xblock)
+    print('super-pixel', ty, tx, yblock, xblock, use_subregion)
     if use_subregion: PS_smooth = PS_downsample[:,yblock,xblock,:,:]
     CovWT = numpy.zeros((n_input_group,dy*dx,dy*dx))
     for k in range(n_input_group):
