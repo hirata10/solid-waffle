@@ -809,6 +809,7 @@ badpix_hdu.header['BIT02'] = 'Very hot pixel (used TDARK1)'
 badpix_hdu.header['BIT03'] = 'Adjacent to pixel with strange response'
 badpix_hdu.header['BIT04'] = 'low CDS high total noise pixel'
 badpix_hdu.header['BIT05'] = 'CNL fit with dof=0'
+badpix_hdu.header['BIT06'] = 'invalid gain in superpixel, used median'
 
 # Source information
 for k in range(len(this_metadata)): this_metadata[k] = this_metadata[k][:512]
