@@ -725,6 +725,9 @@ if configInfo.PersistScript:
         xmin = ix*4096//nx; xmax = xmin+4096//nx
         persistence_map[j,ymin:ymax,xmin:xmax] *= gain[iy,ix]
     persistence_map[j,:,:] = persistence_map[j,:,:] - tgroup*dark_current*(ngroups/2.)
+    # prevent large over-subtraction by clipping at -60 e
+    persistence_map[j,:,:] = numpy.where(numpy.logical_and(persistence_map[j,:,:]<-60., tgroup*dark_current*(ngroups/2.)>60),
+      -60., persistence_map[j,:,:])
     # convert from e in tgroup to e per ln t
     X = numpy.average( numpy.log(1.+tgroup/frtime*numpy.linspace(1,ngroups-1,ngroups-1)) )
     persistence_map[j,:,:] /= X
