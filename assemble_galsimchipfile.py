@@ -40,6 +40,7 @@ configInfo.flatBFE = False
 configInfo.FW = False
 configInfo.Dark = False
 configInfo.PersistScript = ''
+maskX = []; maskY = []
 for line in content:
   #
   # Label
@@ -74,6 +75,11 @@ for line in content:
     configInfo.Dark = True
   m = re.search(r'^PERSIST\:\s*(\S*)', line)
   if m: configInfo.PersistScript = m.group(1)
+
+  m = re.search(r'^MASK:\s*(\d+)\s+(\d+)', line)
+  if m:
+    maskX = maskX + [int(m.group(1))]
+    maskY = maskY + [int(m.group(2))]
 
 # Check for information being there
 if not hasattr(configInfo, 'NOISE'):
@@ -116,6 +122,8 @@ gain = summaryData[:,col.g+2].reshape((ny,nx))
 #
 # ... and here, SuperPixelMask tells us which super-pixels were masked
 SuperPixelMask = numpy.where(gain<1e-99)
+SuperPixelMask[0] += maskY
+SuperPixelMask[1] += maskX
 nmask = numpy.size(SuperPixelMask[0])
 print('SuperPixelMask:', SuperPixelMask)
 print('.. length:', nmask)
@@ -151,6 +159,11 @@ for k in range(len(summaryMetadata)):
   this_metadata.append(summaryMetadata[k])
 for k in range(len(colData)):
   this_metadata.append(colData[k])
+for mask_index in range(len(maskX)):
+  ix = maskX[mask_index]
+  iy = maskY[mask_index]
+  this_metadata.append('manual mask superpix iy={:3d} ix={:3d}'.format(iy,ix))
+  print('manual mask superpix iy={:3d} ix={:3d}'.format(iy,ix))
 
 # Get BFE information
 ssbfe = 2*sbfe+1
