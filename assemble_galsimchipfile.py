@@ -122,8 +122,8 @@ gain = summaryData[:,col.g+2].reshape((ny,nx))
 #
 # ... and here, SuperPixelMask tells us which super-pixels were masked
 SuperPixelMask = numpy.where(gain<1e-99)
-SuperPixelMask[0] += maskY
-SuperPixelMask[1] += maskX
+SuperPixelMask[0] += tuple(maskY)
+SuperPixelMask[1] += tuple(maskX)
 nmask = numpy.size(SuperPixelMask[0])
 print('SuperPixelMask:', SuperPixelMask)
 print('.. length:', nmask)
