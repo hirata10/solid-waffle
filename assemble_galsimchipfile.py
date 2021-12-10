@@ -711,6 +711,7 @@ if configInfo.PersistScript:
       with fits.open(DarkFile[0]) as G:
         frtime = float(G[0].header['FRTIME'])
         tgroup = float(G[0].header['TGROUP'])
+        if tgroup<0.01: tgroup = float(G[0].header['TFRAME'])*(1+float(G[0].header['GROUPGAP']))
         ngroups = float(G[0].header['NGROUPS'])
       ngroups = min(4,ngroups) # stop after 4th group
       print('<--', fn); sys.stdout.flush()
