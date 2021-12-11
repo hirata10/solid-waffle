@@ -480,6 +480,7 @@ if configInfo.Dark:
   NFowler = 4
   with fits.open(DarkFile[0]) as G:
     td3 = float(G[0].header['TGROUP'])*(nt-NFowler)
+    if td3<0.01: td3 = float(G[0].header['TFRAME'])*(1+float(G[0].header['GROUPGAP'])) * (nt-NFowler)
   darkimage = numpy.zeros((configInfo.NDarkFile, 4096, 4096), dtype=numpy.float32)   # Fowler 4
   for j in range(configInfo.NDarkFile):
     for k in range(NFowler):
@@ -549,7 +550,9 @@ if configInfo.FW:
     en+=1
   nt = pyirc.get_num_slices(informat, FWFile[0])
   print('Files:', FWFile[0], ' ... ', FWFile[-1], ', nt=', nt)
-  with fits.open(FWFile[0]) as G: tgfw = float(G[0].header['TGROUP']) # get group time
+  with fits.open(FWFile[0]) as G:
+    tgfw = float(G[0].header['TGROUP']) # get group time
+    if tgfw<0.01: tgfw = float(G[0].header['TFRAME'])*(1+float(G[0].header['GROUPGAP']))
   print('tgfw =', tgfw, 's')
   my_stack = numpy.zeros((nt, 4096, 4096))
   tempstack = numpy.zeros((configInfo.NFullWellFile, 4096, 4096), dtype=numpy.float32)
