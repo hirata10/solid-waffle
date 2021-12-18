@@ -636,7 +636,7 @@ if configInfo.FW:
   poly_coefs[:,:4,:] = 0.; poly_coefs[:,-4:,:] = 0.; poly_coefs[:,:,:4] = 0.; poly_coefs[:,:,-4:] = 0.
   poly_coefs[1,:4,:] = 1.; poly_coefs[1,-4:,:] = 1.; poly_coefs[1,:,:4] = 1.; poly_coefs[1,:,-4:] = 1.
   for q in range(1,configInfo.NLD):
-    poly_coefs[1+q,:,:] = -poly_coefs[1+q,:,:]/poly_coefs[1,:,:]**(1+q) # write in terms of DN_lin
+    poly_coefs[1+q,:,:] = numpy.where(poly_coefs[1,:,:]==0, 0., -poly_coefs[1+q,:,:]/poly_coefs[1,:,:]**(1+q)) # write in terms of DN_lin
     dx = 4096//nx; dy = 4096//ny
     for iy in range(ny):
       for ix in range(nx):
