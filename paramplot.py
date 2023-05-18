@@ -1,7 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib
 import pandas as pd
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+plt.switch_backend('agg')
  
 sim_gain = 2.06
 sim_alpha = 1.69
@@ -50,7 +52,7 @@ font = {'family' : 'normal',
 
 matplotlib.rc('font', **font)
 
-prefix = '/users/PCON0003/cond0088/Projects/detectors/sw_outputs/'
+prefix = '/users/PCON0003/cond0088/Projects/detectors/sw_outputs/PaperIII/'
 files = [prefix+'chris_20663st_summary.txt',
 	 prefix+'chris_20663st_128x16_summary.txt',
 	 prefix+'chris_20663st-cub_summary.txt',
@@ -148,8 +150,8 @@ for i,sax in enumerate(sim_axes):
     
     for j,run in enumerate(sim_ylabels):
 	mean = np.mean(sim_tables[j][xdata_labels[i]])
-	stdev = np.std(tables[j][xdata_labels[i]])
-        error = stdev#/len(tables[j]**0.5)
+	stdev = np.std(sim_tables[j][xdata_labels[i]])
+        error = stdev#/len(sim_tables[j]**0.5)
 	sax.errorbar([mean],[j],xerr=[error],capsize=8.0,markersize=10,marker='o',
                     color=colors[j%(divisions[1]-divisions[0])])
 
@@ -160,6 +162,6 @@ for i,sax in enumerate(sim_axes):
 
 plt.tight_layout()
 
-plt.savefig('paramplot.pdf',format='pdf')
+plt.savefig('paramplot_test.pdf',format='pdf')
 plt.show()
 

@@ -5,7 +5,7 @@ import re
 import pyirc
 import time
 
-thisversion = 3
+thisversion = 4
 
 Narg = len(sys.argv)
 if Narg<3:
@@ -90,8 +90,11 @@ if use_nl:
 
 # IPC patterns:
 #
+# pattern 1 = original dx=8,dy=8, start at (8,7)
+# pattern 2 = original dx=8,dy=8, start at (6,7)
+#
 dx = dy = 8
-if ipc_pattern==1:
+if ipc_pattern==1 or ipc_pattern==2:
   dx = dy = 8
 # < alternate dx,dy would go here >
 
@@ -107,6 +110,11 @@ if ipc_pattern==1:
   for j in range(16):
     rx[32*j:32*j+16] = numpy.arange(0,128,8) + 256*j + 8
     rx[32*j+16:32*j+32] = 256*j + 247 - numpy.arange(0,128,8)[::-1]
+  ry = numpy.arange(dy-1,N,dy)
+if ipc_pattern==2:
+  for j in range(16):
+    rx[32*j:32*j+16] = numpy.arange(0,128,8) + 256*j + 6
+    rx[32*j+16:32*j+32] = 256*j + 249 - numpy.arange(0,128,8)[::-1]
   ry = numpy.arange(dy-1,N,dy)
 
 # Make dark map
@@ -138,6 +146,7 @@ if usedark:
   hdul = fits.HDUList([hdu])
   hdul.writeto(outstem + '_sprdark.fits', overwrite=True)
 
+filelist = []
 for j in range(nfile):
   thisfile = sys.argv[1]
   if j>0:
@@ -157,6 +166,7 @@ for j in range(nfile):
         print('Error: can\'t construct new file name.')
         exit()
 
+  filelist.append(thisfile)
   thisframe = pyirc.load_segment(thisfile, formatpars, [0,N,0,N], [1,2], True)
   dmap[j,:,:] = thisframe[0,:,:] - thisframe[1,:,:]
   if subtr_dark: dmap[j,:,:] -= darkframe
@@ -291,6 +301,9 @@ for k in range(Narg):
   hdu.header[keyword] = sys.argv[k]
 hdu.header['MASKSIZE'] = '{:d}/{:d}'.format(int(numpy.sum(dmask)), nx*ny)
 hdu.header['MEDSIG'] = ('{:8.2f}'.format(numpy.median(medsignals[1,:,:])), 'Median signal in central pixel')
+for k in range(len(filelist)):
+  keyword = 'INF{:02d}'.format(k)
+  hdu.header[keyword] = filelist[k]
 hdul = fits.HDUList([hdu])
 hdul.writeto(outstem + '_alpha.fits', overwrite=True)
 

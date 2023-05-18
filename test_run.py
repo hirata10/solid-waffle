@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import re
@@ -192,6 +193,9 @@ for line in content:
   m = re.search(r'^NARROWFIG', line)
   if m: narrowfig = True
 
+# copy to output file
+os.system('cp ' + config_file + ' ' + outstem + '_config.txt')
+
 # set up array size parameters
 pyirc.swi.addbfe(s_bfe)
 pyirc.swi.addhnl(p_order)
@@ -278,14 +282,18 @@ for iy in range(ny):
       if basicpar.use_allorder:
         thisinfo[pyirc.swi.beta] = full_info[iy,ix,pyirc.swi.Nbb+1:pyirc.swi.Nbb+pyirc.swi.p]
       if mychar.lower()=='advanced':
+        boxpar = [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)]
+        tpar_polychar = [tslices[0], tslices[-1]+1, tchar1, tchar2]
+        corrstats_data = pyirc.corrstats(lightfiles, darkfiles, formatpars, boxpar,
+                         tpar_polychar+[1], sensitivity_spread_cut, basicpar)
         for iCycle in range(ncycle):
           bfeCoefs = pyirc.bfe(region_cube, tslices, thisinfo, bfepar, False)
           if numpy.isnan(bfeCoefs).any():
             bfeCoefs = numpy.zeros((2*pyirc.swi.s+1,2*pyirc.swi.s+1))
             is_good[iy,ix] = 0
-          Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, [dx*ix, dx*(ix+1), dy*iy, dy*(iy+1)],
-                 [tslices[0], tslices[-1]+1, tchar1, tchar2], sensitivity_spread_cut, basicpar,
-                 [ipnltype, bfeCoefs, thisinfo[pyirc.swi.beta]])
+          Cdata = pyirc.polychar(lightfiles, darkfiles, formatpars, boxpar,
+                 tpar_polychar, sensitivity_spread_cut, basicpar,
+                 [ipnltype, bfeCoefs, thisinfo[pyirc.swi.beta]], corrstats_data = corrstats_data)
           info[pyirc.swi.ind1:pyirc.swi.ind2] = numpy.asarray(Cdata[pyirc.swi.indp1:pyirc.swi.indp2])
           thisinfo = info.copy()
           if basicpar.use_allorder:
@@ -313,10 +321,18 @@ for mask_index in range(len(maskX)):
   is_good[iy,ix] = 0
   full_info[iy,ix,:] = 0 # wipe out this super-pixel
 
+# if a pixel was set to not good for any other reason
+for iy in range(ny):
+  for ix in range(nx):
+    if is_good[iy,ix]<.5:
+      full_info[iy,ix,:] = 0 # wipe out this super-pixel
+
 print (full_info.shape)
 print ('Number of good regions =', numpy.sum(is_good))
 mean_full_info = numpy.mean(numpy.mean(full_info, axis=0), axis=0)/numpy.mean(is_good)
 print ('Mean info from good regions =', mean_full_info)
+std_full_info = numpy.sqrt(numpy.mean(numpy.mean(full_info**2, axis=0), axis=0)/numpy.mean(is_good) - mean_full_info**2)
+print ('Stdv info from good regions =', std_full_info)
 print ('')
 
 # Non-linearity cube

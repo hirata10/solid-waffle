@@ -53,7 +53,7 @@ def calculate_ipc(data_cube_Q, ipc_list, npad=2):
     Q_pad_ipc = signal.convolve(Q_pad, ipc_kern)
     # Dimensions/side for Q_pad_ipc are now 
     # data_cube_Q.shape[0]+ipc_kern.shape[0]+npad-1
-    extra_dim = (2*npad+ipc_kern.shape[0]-1)/2
+    extra_dim = (2*npad+ipc_kern.shape[0]-1)//2
     data_cube_Q[tdx,:,:] = Q_pad_ipc[extra_dim:-extra_dim,
                                      extra_dim:-extra_dim]
   return data_cube_Q
@@ -68,9 +68,37 @@ def get_bfe_kernel_3x3():
   # Currently symmetrical but can put in something more complex
   return bfe_kernel_3x3
 
-def get_bfe_kernel_5x5():
+def get_bfe_kernel_5x5_ir():
+  """ Returns a bfe 5x5 kernel like for SCA 20829 ir
+  units of 10^-6 per electron.
+  """
+  bfe_kernel_5x5 = 1.E-6*np.array(
+    [[ 0.0016,  0.0128,  0.02  ,  0.0166, -0.002 ],
+        [-0.0039,  0.1   ,  0.4343,  0.1068,  0.0044],
+        [ 0.0077,  0.3598, -2.0356,  0.3797,  0.0157],
+        [-0.0047,  0.0835,  0.3807,  0.1068, -0.0083],
+        [-0.0048,  0.0051,  0.0297, -0.0023, -0.0036]])
+  # If the sum of this isn't close to 0, this will cause issues in the sim
+  assert (np.sum(bfe_kernel_5x5)<1.E-9)
+  return np.fliplr(bfe_kernel_5x5)
+
+def get_bfe_kernel_5x5_vis():
+  """ Returns a bfe 5x5 kernel like for SCA 20829 vis
+  units of 10^-6 per electron.
+  """
+  bfe_kernel_5x5 = 1.E-6*np.array(
+    [[ 0.0413,  0.0392,  0.0533,  0.0494,  0.035 ],
+       [ 0.0518,  0.14  ,  0.4207,  0.1531,  0.0637],
+       [ 0.0579,  0.3834, -3.0462,  0.403 ,  0.0589],
+       [ 0.0488,  0.1466,  0.4633,  0.142 ,  0.0499],
+       [ 0.0446,  0.0403,  0.0693,  0.0448,  0.0459]])
+  # If the sum of this isn't close to 0, this will cause issues in the sim
+  assert (np.sum(bfe_kernel_5x5)<1.E-9)
+  return np.fliplr(bfe_kernel_5x5)
+
+def get_bfe_kernel_5x5_18237ir():
   """ Returns an arbitrary bfe 5x5 kernel
-  units of 10^-6 per electron
+  units of 10^-6 per electron. These numbers are similar to SCA 18237
   """
   bfe_kernel_5x5 = 1.E-6*np.array(
     [[-0.01, 0.0020, -0.0210, -0.019, 0.028],
@@ -111,7 +139,7 @@ def calc_area_defect(ap, Q, npad=2):
   W = 1 + aQ
   # Final dimensions of W will be 2*npad+Q.shape[0]+ap.shape[0]-1
   # on each side
-  extra_dim = (2*npad+ap.shape[0]-1)/2
+  extra_dim = (2*npad+ap.shape[0]-1)//2
   return W[extra_dim:-extra_dim,extra_dim:-extra_dim]
 
 def ipc_invkernel_HV(alpha_H=0.01,alpha_V=0.01):
@@ -139,7 +167,7 @@ def K2a(ipc_kernel2, bfe_a):
   bfe_a_pad = np.pad(bfe_a, pad_width=(npad,npad), mode='symmetric')
   #ipc2_bfe = signal.convolve(ipc_kernel2, bfe_a_pad)
   ipc2_bfe = signal.convolve(bfe_a_pad, ipc_kernel2)
-  extra_dim = (2*npad+ipc_kernel2.shape[0]-1)/2
+  extra_dim = (2*npad+ipc_kernel2.shape[0]-1)//2
   ipc2_bfe_out = np.around(
       ipc2_bfe[extra_dim:-extra_dim, extra_dim:-extra_dim],4)
   return ipc2_bfe_out

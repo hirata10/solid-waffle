@@ -9,19 +9,19 @@ import fitsio
 import copy
 import warnings
 from fitsio import FITS,FITSHDR
-from ftsolve import center,decenter,solve_corr,solve_corr_many
+from ftsolve import center,decenter,solve_corr,solve_corr_many,solve_corr_vis,solve_corr_vis_many,pad_to_N
+from scipy.signal import correlate2d,fftconvolve
 
 # <== TESTING PARAMETERS ONLY ==>
 #
 # [these are false and should only be set to true for debugging purposes]
-
 Test_SubBeta = False
 
 # <== THESE FUNCTIONS DEPEND ON THE FORMAT OF THE INPUT FILES ==>
 
 # Version number of script
 def get_version():
-  return 25
+  return 36
 
 # Function to get array size from format codes in load_segment
 # (Note: for WFIRST this will be 4096, but we want the capability to
@@ -32,20 +32,23 @@ def get_nside(formatpars):
   if formatpars==2: return 2048
   if formatpars==3: return 4096
   if formatpars==4: return 4096
+  if formatpars==5: return 4096
+  if formatpars==6: return 4096
+  if formatpars==7: return 2048
 
 # Get number of time slices
 def get_num_slices(formatpars, filename):
 
   # Switch based on input format
-  if formatpars==1 or formatpars==2:
+  if formatpars==1 or formatpars==2 or formatpars==5:
     hdus = fits.open(filename)
     ntslice = int(hdus[0].header['NAXIS3'])
     hdus.close()
-  elif formatpars==3:
+  elif formatpars==3 or formatpars==7:
     hdus = fits.open(filename)
     ntslice = len(hdus)-1
     hdus.close()
-  elif formatpars==4:
+  elif formatpars==4 or formatpars==6:
     hdus = fits.open(filename)
     ntslice = int(hdus[1].header['NAXIS3'])
     hdus.close()
@@ -78,7 +81,7 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
   output_cube = numpy.zeros((ntslice_use, nyuse, nxuse))
 
   # Switch based on input format
-  if formatpars==1 or formatpars==2:
+  if formatpars==1 or formatpars==2 or formatpars==5:
     if use_fitsio:
       fileh = fitsio.FITS(filename)
       N = get_nside(formatpars)
@@ -100,7 +103,7 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
         t = tslices[ts]
         output_cube[ts,:,:] = 65535 - in_hdu.data[t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]]
       hdus.close()
-  elif formatpars==3:
+  elif formatpars==3 or formatpars==7:
     if use_fitsio:
       fileh = fitsio.FITS(filename)
       N = get_nside(formatpars)
@@ -109,7 +112,7 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
         output_cube[ts,:,:] = numpy.array(fileh[t][xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
       fileh.close()
     else:
-      print ('Error: non-fitsio methods not yet supported for formatpars=3')
+      print ('Error: non-fitsio methods not yet supported for formatpars=3 or 7')
       exit()
   elif formatpars==4:
     if use_fitsio:
@@ -117,10 +120,41 @@ def load_segment(filename, formatpars, xyrange, tslices, verbose):
       N = get_nside(formatpars)
       for ts in range(ntslice_use):
         t = tslices[ts]
-        output_cube[ts,:,:] = numpy.array(fileh[1][0, t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
+        if ts>=1 and t==tslices[ts-1]:
+          output_cube[ts,:,:] = output_cube[ts-1,:,:] # asked for same slice again
+        else:
+          output_cube[ts,:,:] = numpy.array(fileh[1][0, t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
       fileh.close()
     else:
       print ('Error: non-fitsio methods not yet supported for formatpars=4')
+      exit()
+  elif formatpars==5:
+    if use_fitsio:
+      fileh = fitsio.FITS(filename)
+      N = get_nside(formatpars)
+      for ts in range(ntslice_use):
+        t = tslices[ts]
+        if ts>=1 and t==tslices[ts-1]:
+          output_cube[ts,:,:] = output_cube[ts-1,:,:] # asked for same slice again
+        else:
+           output_cube[ts,:,:] = numpy.array(fileh[0][t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
+      fileh.close()
+    else:
+      print ('Error: non-fitsio methods not yet supported for formatpars=5')
+      exit()
+  elif formatpars==6:
+    if use_fitsio:
+      fileh = fitsio.FITS(filename)
+      N = get_nside(formatpars)
+      for ts in range(ntslice_use):
+        t = tslices[ts]
+        if ts>=1 and t==tslices[ts-1]:
+          output_cube[ts,:,:] = output_cube[ts-1,:,:] # asked for same slice again
+        else:
+          output_cube[ts,:,:] = 65535 - numpy.array(fileh[1][0, t-1, xyrange[2]:xyrange[3], xyrange[0]:xyrange[1]])
+      fileh.close()
+    else:
+      print ('Error: non-fitsio methods not yet supported for formatpars=6')
       exit()
   else:
     print ('Error! Invalid formatpars =', formatpars)
@@ -174,12 +208,24 @@ class IndexDictionary:
 swi = IndexDictionary(0)
 
 # Routine to get percentile cuts with a mask removed
+# disc flag if True (default) tells the code to interpolate based on the assumption
+# that the input data are integers
 #
 # mask consists of 0's and 1's and is the same size as this_array
-def pyIRC_percentile(this_array, mask, perc):
+def pyIRC_percentile(this_array, mask, perc, disc=True):
   val = this_array.flatten()
   ma = mask.flatten()
   w = numpy.array([val[x] for x in numpy.where(ma>.5)])
+  n = numpy.size(w)
+  if disc:
+    ctr = numpy.percentile(w,perc)
+    n1 = numpy.count_nonzero(w<ctr-.499999)
+    n2 = numpy.count_nonzero(w<=ctr+.499999)
+    assert n1<=n2
+    if n1==n2: return(ctr)
+    dctr = (perc/100.*n-(n1+n2)/2.)/float(n2-n1)
+    return(ctr + dctr)
+  #w -= numpy.modf(numpy.linspace(0,(1.+numpy.sqrt(5.))/2*(n-1), num=n))[0] - .5
   return numpy.percentile(w,perc)
 
 # Routine to get mean with a mask removed
@@ -211,8 +257,11 @@ def ref_corr(filename, formatpars, yrange, tslices, verbose):
   output_ref = []
 
   # Build arrays of reference pixels
-  my_array_L = load_segment(filename, formatpars, [0,4]+yrange, tslices, False)
-  my_array_R = load_segment(filename, formatpars, [N-4,N]+yrange, tslices, False)
+  my_array_band = load_segment(filename, formatpars, [0,N]+yrange, tslices, False)
+  my_array_L = my_array_band[:,:,:4]
+  my_array_R = my_array_band[:,:,-4:]
+  #my_array_L = load_segment(filename, formatpars, [0,4]+yrange, tslices, False)
+  #my_array_R = load_segment(filename, formatpars, [N-4,N]+yrange, tslices, False)
   my_array_LR = numpy.concatenate((my_array_L, my_array_R), axis=2)
   if verbose: print (N, my_array_LR.shape)
 
@@ -434,8 +483,7 @@ def gen_nl_cube(filelist, formatpars, timeslice, ngrid, Ib, usemode, verbose):
       q=numpy.poly1d.deriv(p)
       fit_array[:,iy,ix] = p(range(tmin-tref,tmax+1-tref))
       deriv_array[:,iy,ix] = q(range(tmin-tref,tmax+1-tref))
-      coefs_array[:,iy,ix] = p.c[::-1]
-
+      coefs_array[:p.order+1,iy,ix] = p.c[::-1]
   if usemode=='dev':
     return output_array, fit_array, deriv_array
   else:
@@ -872,6 +920,176 @@ def basic(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose
 
   return [numpy.sum(this_mask), gain_raw, gain_acorr, gain_abcorr, aH, aV, beta, I, 0., tCH, tCV]
 
+# Under construction correlation functions for charge diffusion measurements
+# many parts drawn from basic, might want option to do the usual 3x3 vs 5x5 but
+# this could be done in principle just with the usual basic function?
+# There's probably a better way of writing this...?!
+def corr_5x5(region_cube, dark_cube, tslices, lightref, darkref, ctrl_pars, verbose):
+
+  # Settings:
+  newMeanSubMethod = True     # use False only for test/debug
+  leadtrailSub = True         # subtract leading & trailing (by +/-4 pix) from horiz & vert correlations
+
+  g_ptile = 75.               # percentile use for inter-quantile range for variance (default: 75, giving standard IQR)
+
+  # Extract basic parameters
+  num_files = region_cube.shape[0]-1
+  nt = region_cube.shape[1]
+  dy = region_cube.shape[2]
+  dx = region_cube.shape[3]
+  npix = dx*dy
+  if nt!=len(tslices):
+    print ('Error in pyirc.corr_5x5: incompatible number of time slices')
+    exit()
+  if verbose: print ('nfiles = ',num_files,', ntimes = ',nt,', dx,dy=',dx,dy)
+  treset = 0
+  if hasattr(ctrl_pars,'reset_frame'): treset = ctrl_pars.reset_frame
+
+  # First get correlation parameters
+  epsilon = .01
+  if hasattr(ctrl_pars,'epsilon'): epsilon = ctrl_pars.epsilon
+  subtr_corr = True
+  if hasattr(ctrl_pars,'subtr_corr'): subtr_corr = ctrl_pars.subtr_corr
+  noise_corr = True
+  if hasattr(ctrl_pars,'noise_corr'): noise_corr = ctrl_pars.noise_corr
+  if verbose: print ('corr pars =', epsilon, subtr_corr, noise_corr)
+  #
+
+  # Reference pixel subtraction?
+  subtr_href = True
+  if hasattr(ctrl_pars,'subtr_href'): subtr_href = ctrl_pars.subtr_href
+
+  # lead-trail subtraction for IPC correlations?
+  if hasattr(ctrl_pars,'leadtrailSub'): leadtrailSub = ctrl_pars.leadtrailSub
+
+  # quantile for variance?
+  if hasattr(ctrl_pars,'g_ptile'): g_ptile = ctrl_pars.g_ptile
+
+  # Get means and variances at the early and last slices
+  # (i.e. 1-point information)
+  gauss_iqr_in_sigmas = scipy.stats.norm.ppf(g_ptile/100.)*2  # about 1.349 for g_ptile=75.
+  box1 = region_cube[0:num_files,0,:,:] - region_cube[0:num_files,1,:,:]
+  box2 = region_cube[0:num_files,0,:,:] - region_cube[0:num_files,-1,:,:]
+  box2Noise = dark_cube[0:num_files,0,:,:] - dark_cube[0:num_files,-1,:,:]
+  #
+  if subtr_href:
+    for f in range(num_files):
+      if verbose: print ('lightref.shape=',lightref.shape, 'subtr ->', lightref[f,nt+1], lightref[f,2*nt-1], darkref[f,2*nt-1])
+      box1[f,:,:] -= lightref[f,nt+1]
+      box2[f,:,:] -= lightref[f,2*nt-1]
+      box2Noise[f,:,:] -= darkref[f,2*nt-1]
+  mean1 = numpy.mean(box1, axis=0)
+  mean2 = numpy.mean(box2, axis=0)
+  med1 = numpy.median(mean1)
+  med2 = numpy.median(mean2)
+  med21 = numpy.median(mean2-mean1)
+  var1 = 0
+  var2 = 0
+  corr_mask = region_cube[-1,0,:,:]
+
+  C_shift_mean = numpy.zeros((dy,dx))
+  tC_all = numpy.zeros((dy,dx))
+
+  for if1 in range(1,num_files):
+    for if2 in range(if1):
+      temp_box = box1[if1,:,:] - box1[if2,:,:]
+      iqr1 = pyIRC_percentile(temp_box,corr_mask,g_ptile) - pyIRC_percentile(temp_box,corr_mask,100-g_ptile)
+      temp_box = box2[if1,:,:] - box2[if2,:,:]
+      iqr2 = pyIRC_percentile(temp_box,corr_mask,g_ptile) - pyIRC_percentile(temp_box,corr_mask,100-g_ptile)
+      var1 += (iqr1/gauss_iqr_in_sigmas)**2/2.
+      var2 += (iqr2/gauss_iqr_in_sigmas)**2/2.
+      if verbose: print ('Inner loop,', if1, if2, temp_box.shape)
+
+  var1 /= num_files*(num_files-1)/2.
+  var2 /= num_files*(num_files-1)/2.
+  if var2<=var1 and tslices[1]<tslices[-1]: return [] # FAIL!
+
+  # Correlations of neighboring pixels, in DN^2
+  #
+  for if1 in range(1,num_files):
+    for if2 in range(if1):
+      temp_box = box2[if1,:,:] - box2[if2,:,:] 
+
+      # Run through twice if we have noise, otherwise once
+      nrun = 2 if noise_corr else 1
+      if verbose: print("if1,if2=", if1, if2, " nrun: ",nrun)
+      for icorr in range (nrun):
+        # clipping
+        cmin = pyIRC_percentile(temp_box,corr_mask,100*epsilon)
+        cmax = pyIRC_percentile(temp_box,corr_mask,100*(1-epsilon))
+        this_mask = numpy.where(numpy.logical_and(temp_box>cmin,temp_box<cmax),1,0) * corr_mask
+        if numpy.sum(this_mask)<1: return [] # FAIL!
+        # mean subtraction
+        mean_of_temp_box = numpy.sum(temp_box*this_mask)/numpy.sum(this_mask)
+        if subtr_corr and newMeanSubMethod: temp_box -= mean_of_temp_box
+
+        # Correlations in all directions
+        #masktmp = correlate2d(this_mask, this_mask,mode='same')
+        #C_all = correlate2d(this_mask*temp_box, this_mask*temp_box, mode='same')
+        dy2 = dy//2; dx2 = dx//2
+        masktmp = fftconvolve(this_mask, numpy.flip(this_mask),mode='full')[dy2:-dy2+1,dx2:-dx2+1]
+        C_all = fftconvolve(this_mask*temp_box, numpy.flip(this_mask*temp_box), mode='full')[dy2:-dy2+1,dx2:-dx2+1]
+
+        if numpy.any(masktmp<1): return []
+
+        C_all /= masktmp
+
+        if leadtrailSub:
+          C_pos_shift = numpy.zeros_like(C_all)
+          C_neg_shift = numpy.zeros_like(C_all)
+
+          C_pos_shift[:,:-8]=C_all[:,8:] #values of the correlation matrix 8 columns to the right
+          C_neg_shift[:,8:]=C_all[:,:-8] #values of the correlation matrix 8 columns to the left
+
+          """The 8 columns at the right edge just take the negative shift values, 
+             the 8 columns at the left edge just take the positive shift values,
+             and in the middle the mean of the two shifts is computed:
+          """
+          C_shift_mean[:, 8:-8] = numpy.mean([C_pos_shift[:, 8:-8], C_neg_shift[:, 8:-8]], axis=0)
+          C_shift_mean[:, :8] = C_pos_shift[:, :8]
+          C_shift_mean[:, -8:] = C_neg_shift[:, -8:]
+
+          C_all = C_all - C_shift_mean
+
+        #need to update the lines below to use C_all
+        if subtr_corr and not newMeanSubMethod and not leadtrailSub:
+          C_all -= mean_of_temp_box**2
+
+        tC_all += C_all * (1 if icorr==0 else -1)
+
+        if verbose:
+          print ('pos =', if1, if2, 'iteration', icorr, 'cmin,cmax =', cmin, cmax)
+          # Below needs to be adjusted
+          #print ('Mask size', numpy.sum(this_mask), 'correlations =', maskCH, maskCV, 'data:', CH, CV)
+
+        temp_box = box2Noise[if1,:,:] - box2Noise[if2,:,:]
+        # end nested for loop
+
+  #
+  # Normalize covariances. Note that taking the difference of 2 frames doubled the covariance
+  # matrix, so we have introduced cov_clip_corr
+  xi = scipy.stats.norm.ppf(1-epsilon)
+  cov_clip_corr = (1. - numpy.sqrt(2./numpy.pi)*xi*numpy.exp(-xi*xi/2.)/(1.-2.*epsilon) )**2
+  tC_all /= num_files*(num_files-1)*cov_clip_corr
+
+  # extract 5x5 matrix in the center of tC_all here:
+  # hard-coded to return only 5x5 arrays, we should add option to specify
+  # Find the "center" of this array
+  if (dy%2==0):
+    c_y=dy//2
+  else:
+    c_y=dy/2 - 1
+  if (dx%2==0):
+    c_x=dx//2
+  else:
+    c_x=dx/2 - 1
+  tC_all_5x5 = tC_all[c_y-3:c_y+2,c_x-3:c_x+2]
+  decenter_tC_all = decenter(tC_all_5x5)  # Might come in handy
+  if verbose: print('tCH, tCV: ', decenter_tC_all[0,1], decenter_tC_all[1,0])
+
+  # Return the correlations
+  return [numpy.sum(this_mask), med21, var1, var2, tC_all_5x5]
+
 # Routine to obtain statistical properties of a region of the detector across many time slices
 #
 # Inputs:
@@ -934,10 +1152,11 @@ def corrstats(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_sprea
 # sensitivity_spread_cut = for good pixels (typically 0.1)
 # ctrl_pars = parameters for basic
 # addInfo = additional information (sometimes needed)
+# corrstats_data = data for this slice from corrstats (if given; if not given, computes it)
 # 
 # return value is [isgood (1/0), g, aH, aV, beta, I, aD, da (residual)]
 #
-def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars, addInfo):
+def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread_cut, ctrl_pars, addInfo, corrstats_data=None):
 
   # Check whether we have non-linearity information
   if ctrl_pars.use_allorder:
@@ -954,7 +1173,10 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
     return []
 
   # Get correlation function data (including adjacent steps))
-  data = corrstats(lightfiles, darkfiles, formatpars, box, tslices+[1], sensitivity_spread_cut, ctrl_pars)
+  if corrstats_data is None:
+    data = corrstats(lightfiles, darkfiles, formatpars, box, tslices+[1], sensitivity_spread_cut, ctrl_pars)
+  else:
+    data = numpy.copy(corrstats_data)
 
   # check if this is good
   nt = tslices[1]-tslices[0]
@@ -1096,11 +1318,14 @@ def polychar(lightfiles, darkfiles, formatpars, box, tslices, sensitivity_spread
 #   ctrl_pars_bfe.epsilon = cut fraction (default to 0.01)
 #   ctrl_pars_bfe.treset = reset frame (default to 0)
 #   ctrl_pars_bfe.BSub = baseline subtraction? (default to True)
+#   ctrl_pars_bfe.vis = has visible? (default to False)
+#   ctrl_pars_bfe.Phi = omega*p2/(1+omega) kernel (only used if ctrl_pars_bfe.vis is true)
 # verbose = True or False (recommend True only for debugging)
 #
 # output is a fsBFE x fsBFE (default: 5x5) BFE kernel in inverse electrons
 #
 def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
+  N = 21 # <-- size for ftsolve
 
   # Extract parameters from basicinfo
   gain =   basicinfo[swi.g]
@@ -1121,6 +1346,17 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
   if verbose: print ('nfiles = ',num_files,', ntimes = ',nt,', dx,dy=',dx,dy)
   treset = 0
   if hasattr(ctrl_pars_bfe,'treset'): treset = ctrl_pars_bfe.treset
+
+  # for visible flats
+  hasvis = False
+  if hasattr(ctrl_pars_bfe,'vis'):
+    if ctrl_pars_bfe.vis:
+      hasvis = True
+      normPhi = numpy.sum(ctrl_pars_bfe.Phi) # this is omega/(1+omega)
+      omega = normPhi / (1-normPhi)
+      p2 = numpy.zeros_like(ctrl_pars_bfe.Phi)
+      if numpy.abs(normPhi)>1e-49: p2 = ctrl_pars_bfe.Phi / normPhi # this prevents an exception if omega=0
+      p2 = pad_to_N(p2,N) # still centered
 
   # BFE kernel size:
   # sBFE = range; fsBFE = full size
@@ -1216,7 +1452,6 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
 
   # Implement cr_converge.
   if ctrl_pars_bfe.fullnl:
-    N = 21
     avals = [basicinfo[swi.alphaV], basicinfo[swi.alphaH], basicinfo[swi.alphaD]]
     avals_nl = [0,0,0]
     sigma_a = 0
@@ -1228,8 +1463,12 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
     iters = 0
     while element_diff > tol and iters<=100:
         # Note: solve_corr takes centered things, decenters/calculates internally
-        theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,[t-treset for t in tslices],avals,avals_nl)\
-          *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
+        if hasvis:
+          theory_Cr = solve_corr_vis(BFEK_model,N,I,gain,beta,sigma_a,[t-treset for t in tslices],avals,avals_nl,sBFE_out,omega,p2)\
+            *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
+        else:
+          theory_Cr = solve_corr(BFEK_model,N,I,gain,beta,sigma_a,[t-treset for t in tslices],avals,avals_nl)\
+            *((gain**2)/(I**2*(tslices[1]-tslices[0])*(tslices[-1]-tslices[-2])))
         if numpy.isnan(theory_Cr).any():
             warnings.warn('BFE loop diverged, generated NaN')
             return numpy.zeros((fsBFE_out,fsBFE_out)) + numpy.nan
@@ -1237,6 +1476,7 @@ def bfe(region_cube, tslices, basicinfo, ctrl_pars_bfe, verbose):
         element_diff = numpy.amax(abs(difference))
         BFEK_model -= difference[::-1,::-1]
         iters += 1
+        if verbose: print(iter, BFEK_model)
         if iters>99:
            warnings.warn("WARNING: NL loop has iterated 100 times")
            return numpy.zeros((fsBFE_out,fsBFE_out)) + numpy.nan
