@@ -79,6 +79,12 @@ The options are:
 
 (*) 4: H4RG-10, descending ramps (signal level in DN decreases during a flat). The images are in HDU #1, with NAXIS=4, NAXIS1=NAXIS2=4096, NAXIS3=[number of time slices], and NAXIS4=1. (Used for some of the QE data.)
 
+(*) 5: H4RG-10, descending ramps.  The images are in HDU #1, with NAXIS1=NAXIS2=4096, NAXIS3=[number of time slices]. (Used by PPL.)
+
+(*) 6: H4RG-10, ascending ramps. The images are in HDU #1, with NAXIS=4, NAXIS1=4096 or 4224 (latter includes reference output as 33rd channel), NAXIS2=4096, NAXIS3=[number of time slices], and NAXIS4=1. (Used for triplet testing.)
+
+(*) 7: H2RG, similar to 3, but NAXIS1=NAXIS2=2048. (Used for some of the Euclid detector data.)
+
 -- NBIN --
 
 The way the data are binned into super-pixels for statistical analysis:
@@ -335,3 +341,60 @@ A graphical display of the information on the hot pixels. It is a 4-panel plot. 
 (*) A plot of Delta alpha: the IPC inferred from a partial ramp (so the hot pixel does not reach its final deposited charge) minus that inferred from the full ramp. For perfectly linear response (including linear IPC), this will be zero, with some scatter due to noise. The red points denote each sample; the black points are median stacks of the red points with binomial error bars. The last black point is zero by construction.
 
 (*) A scatter plot of the hot pixel and autocorrelation-based IPC measurements, binned into 16 'hyper-pixels', each N/4 x N/4 physical pixels (e.g. 1024x1024 for an H4RG). The red line indicates perfect agreement.
+
+=== Commands for test_run_vis ===
+
+Some commands are used only with test_run_vis (they have no effect on test_run):
+
+-- VISLIGHT --
+
+This is the list of flats for the *visible* data, e.g.:
+
+VISLIGHT:
+../SCA20829/20191018_95K_1p1m0p1_ch21_500nm_gr3_filt6_shutter_open_20829_001.fits
+../SCA20829/20191018_95K_1p1m0p1_ch21_500nm_gr3_filt6_shutter_open_20829_002.fits
+../SCA20829/20191018_95K_1p1m0p1_ch21_500nm_gr3_filt6_shutter_open_20829_003.fits
+
+-- VISDARK --
+
+This is the list of corresponding darks for the visible data, e.g.:
+
+VISDARK:
+../SCA20829/20191018_95K_1p1m0p1_ch0_1400nm_gr3_filt5_shutter_closed_20829_001.fits
+../SCA20829/20191018_95K_1p1m0p1_ch0_1400nm_gr3_filt5_shutter_closed_20829_002.fits
+../SCA20829/20191018_95K_1p1m0p1_ch0_1400nm_gr3_filt5_shutter_closed_20829_003.fits
+
+The number of visible darks must equal the number of visible flats. It is allowed for IR darks to be repeated as visible darks (a dark is a dark, and has no illumination wavelength).
+
+-- VISTIME --
+
+The timestamps to use in the visible data. There are 4 integer arguments, e.g.:
+
+# visible times: start, end, dt1, dt2
+VISTIME: 1 20 1 3
+
+start = beginning of part of ramp to use (1st frame = 1)
+end = ending of visible ramp to use
+dt1, dt2 = time differences for visible autocorrelations (dt2>dt1; use dt2 for charge diffusion correlations, dt1 is for variance subtraction in determining the apparent gain and hence omega)
+
+-- VISBFETIME --
+
+The timestamps to use for BFE determination in the visible data. (The code estimates BFE separately for visible and IR.) BFE measurement uses the non-overlapping correlation function C_{abcd}, where the timestamps a, b, c, and d are in this keyword:
+
+VISBFETIME: 1 9 10 18
+
+-- VISMEDCORR --
+
+If you add this keyword to the configuration file:
+
+VISMEDCORR
+
+then in the visible characterization, the variance C_{adad}(0,0)-C_{abab}(0,0) is re-scaled by the predicted / measured value of M_{bd} so that the slope of the photon transfer curve is corrected for errors in the current Ie. We recommend this option only as a test case.
+
+-- COPYIRBFE --
+
+If you add this keyword to the configuration file:
+
+COPYIRBFE
+
+and do a visible run, then instead of fitting a visible BFE kernel, we copy the IR BFE kernel. This is recommended when the visible data goes only to a low signal level and a visible BFE fit would be unstable.

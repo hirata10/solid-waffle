@@ -13,5 +13,8 @@ VISDARK:
   /fs/scratch/PCON0003/cond0007/SCA20829/20191018_95K_1p1m0p1_ch0_1400nm_gr3_filt5_shutter_closed_20829_002.fits
 FORMAT: 4
 
+#NBIN: 32 32
+NBIN: 128 128
+IPCSUB: True
 TIME:    1 3 4 7
 OUTPUT:		out/this_det12
