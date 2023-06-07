@@ -98,12 +98,20 @@ for iy in range(ny):
       if dir[k]=='V':
         PSuse = numpy.copy(PSV[k,:])
         w = wy
-
+      if iy == 0 and ix == 0 and k == 0 :
+        all_PSuse = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse)))
+      all_PSuse[iy,ix,k,:] = PSuse
+        
       c0,cw,a1,a2,res = mtfutils.get_triangle_from_ps(PSuse,cppinit[k])
       print('{:2d} {:3d} {:3d} {:6.4f} {:6.4f} {:10.4E} {:7.5f} {:9.4E}'.format(k, iy, ix, c0,cw,a1,a2/a1,res))
       # put in cube
       all_cpp[k,iy,ix] = c0
       all_mtf2[k,iy,ix] = a2/a1
+      
+all_PSuse.reshape((ny*nx, n_input_group, numpy.size(PSuse)))
+hdu = fits.PrimaryHDU(all_PSuse)
+hdulist = fits.HDUList([hdu])
+hdulist.writeto('PS_speckle.fits', overwrite = True)
 
 # make output picture
 # 2 slices -- wavenumber & MTF**2
