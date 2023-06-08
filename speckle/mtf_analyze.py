@@ -109,6 +109,7 @@ for iy in range(ny):
       all_mtf2[k,iy,ix] = a2/a1
       
 all_PSuse.reshape((ny*nx, n_input_group, numpy.size(PSuse)))
+all_PSuse.transpose((0,2,1))
 hdu = fits.PrimaryHDU(all_PSuse)
 hdulist = fits.HDUList([hdu])
 hdulist.writeto('PS_speckle.fits', overwrite = True)
