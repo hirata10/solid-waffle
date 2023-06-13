@@ -94,12 +94,20 @@ for iy in range(ny):
         PSH[k,:] = PSH[k,:] + numpy.sum(PS, axis=0)
         PSV[k,:] = PSV[k,:] + numpy.sum(PS, axis=1)
       PSuse = numpy.copy(PSH[k,:])
+      print(numpy.size(PSuse))
       w = wx
       if dir[k]=='V':
         PSuse = numpy.copy(PSV[k,:])
+        print(numpy.size(PSuse))
         w = wy
       if iy == 0 and ix == 0 and k == 0 :
-        all_PSuse = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse)))
+        all_PSuse = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse) + 4)) #def starts in reference pixels, add 4 to accomodate to create large enough PS
+      if ix == 0 and numpy.size(PSuse) < (numpy.size(all_PSuse) - 1): #accomodate for ref pix on left
+        PSuse = numpy.append(PSuse, (0,0,0,0))
+        print(numpy.size(PSuse))
+      if ix == 7 and numpy.size(PSuse) < (numpy.size(all_PSuse) - 1): #accomodate for ref pix on right
+        PSuse = numpy.append(PSuse, (0,0,0,0))
+        print(numpy.size(PSuse))
       all_PSuse[iy,ix,k,:] = PSuse
         
       c0,cw,a1,a2,res = mtfutils.get_triangle_from_ps(PSuse,cppinit[k])
@@ -108,11 +116,20 @@ for iy in range(ny):
       all_cpp[k,iy,ix] = c0
       all_mtf2[k,iy,ix] = a2/a1
       
-all_PSuse.reshape((ny*nx, n_input_group, numpy.size(PSuse)))
-all_PSuse.transpose((0,2,1))
+all_PSuse = all_PSuse.reshape((ny*nx, n_input_group, numpy.size(PSuse)))
+all_PSuse = all_PSuse.transpose((1,0,2))
 hdu = fits.PrimaryHDU(all_PSuse)
 hdulist = fits.HDUList([hdu])
-hdulist.writeto('PS_speckle.fits', overwrite = True)
+if config_file = 'config_2000.txt':
+  hdulist.writeto('PS_2000_speckle.fits', overwrite = True)
+elif config_file = 'config_1550.txt':
+  hdulist.writeto('PS_1550_speckle.fits', overwrite = True)
+elif config_file = 'config_1310.txt':
+  hdulist.writeto('PS_1310_speckle.fits', overwrite = True)
+elif config_file = 'config_980.txt':
+  hdulist.writeto('PS_980_speckle.fits', overwrite = True)
+elif config_file = 'config_850.txt':
+  hdulist.writeto('PS_850_speckle.fits', overwrite = True)
 
 # make output picture
 # 2 slices -- wavenumber & MTF**2
