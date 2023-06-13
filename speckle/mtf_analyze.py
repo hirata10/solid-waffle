@@ -101,7 +101,7 @@ for iy in range(ny):
         print(numpy.size(PSuse))
         w = wy
       if iy == 0 and ix == 0 and k == 0 :
-        all_PSuse = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse) + 4)) #def starts in reference pixels, add 4 to accomodate to create large enough PS
+        all_PSuse = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse) + 4)) #def starts in ref pix, add 4 to accomodate to create large enough PS
       if ix == 0 and numpy.size(PSuse) < (numpy.size(all_PSuse) - 1): #accomodate for ref pix on left
         PSuse = numpy.append(PSuse, (0,0,0,0))
         print(numpy.size(PSuse))
