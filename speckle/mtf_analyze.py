@@ -104,12 +104,12 @@ for iy in range(ny):
         all_PSuse = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse) + 4)) #def starts in ref pix, add 4 to accomodate to create large enough PS
         PS_display = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse) + 4)) #need second definition for display purposes
       if ix == 0 and numpy.size(PSuse) < (numpy.size(all_PSuse) - 1): #accomodate for ref pix on left
+        PSdis = numpy.interp(numpy.linspace(0,507,512),numpy.linspace(0,507,508),PSuse) 
         PSuse = numpy.append(PSuse, (0,0,0,0))
-        PSdis = numpy.interp(numpy.linspace(0,507,512), numpy.linspace(0,507,508),PSuse) 
         print(numpy.size(PSuse))
       if ix == 7 and numpy.size(PSuse) < (numpy.size(all_PSuse) - 1): #accomodate for ref pix on right
-        PSuse = numpy.append(PSuse, (0,0,0,0))
         PSdis = numpy.interp(numpy.linspace(0,507,512), numpy.linspace(0,507,508),PSuse)
+        PSuse = numpy.append(PSuse, (0,0,0,0))
         print(numpy.size(PSuse))
       all_PSuse[iy,ix,k,:] = PSuse
       PS_display[iy,ix,k,:] = PSdis
