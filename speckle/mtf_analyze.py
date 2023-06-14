@@ -102,13 +102,17 @@ for iy in range(ny):
         w = wy
       if iy == 0 and ix == 0 and k == 0 :
         all_PSuse = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse) + 4)) #def starts in ref pix, add 4 to accomodate to create large enough PS
+        PS_display = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse) + 4)) #need second definition for display purposes
       if ix == 0 and numpy.size(PSuse) < (numpy.size(all_PSuse) - 1): #accomodate for ref pix on left
         PSuse = numpy.append(PSuse, (0,0,0,0))
+        PSdis = numpy.interp(numpy.linspace(0,507,512), numpy.linspace(0,507,508),PSuse) 
         print(numpy.size(PSuse))
       if ix == 7 and numpy.size(PSuse) < (numpy.size(all_PSuse) - 1): #accomodate for ref pix on right
         PSuse = numpy.append(PSuse, (0,0,0,0))
+        PSdis = numpy.interp(numpy.linspace(0,507,512), numpy.linspace(0,507,508),PSuse)
         print(numpy.size(PSuse))
       all_PSuse[iy,ix,k,:] = PSuse
+      PS_display[iy,ix,k,:] = PSdis
         
       c0,cw,a1,a2,res = mtfutils.get_triangle_from_ps(PSuse,cppinit[k])
       print('{:2d} {:3d} {:3d} {:6.4f} {:6.4f} {:10.4E} {:7.5f} {:9.4E}'.format(k, iy, ix, c0,cw,a1,a2/a1,res))
@@ -118,8 +122,10 @@ for iy in range(ny):
       
 all_PSuse = all_PSuse.reshape((ny*nx, n_input_group, numpy.size(PSuse)))
 all_PSuse = all_PSuse.transpose((1,0,2))
-hdu = fits.PrimaryHDU(all_PSuse)
-hdulist = fits.HDUList([hdu])
+PS_display = PS_display.reshape((ny*nx, n_input_group, numpy.size(PSdis)))
+PS_display = PS_display.transpose((1,0,2))
+hdu = fits.PrimaryHDU(all_PSuse) #create fits for analysis
+hdulist = fits.HDUList([hdu]) 
 if config_file = 'config_2000.txt':
   hdulist.writeto('PS_2000_speckle.fits', overwrite = True)
 elif config_file = 'config_1550.txt':
@@ -130,6 +136,18 @@ elif config_file = 'config_980.txt':
   hdulist.writeto('PS_980_speckle.fits', overwrite = True)
 elif config_file = 'config_850.txt':
   hdulist.writeto('PS_850_speckle.fits', overwrite = True)
+hdu2 = fits.PrimaryHDU(PS_display) #create fits for display
+hdu2list = fits.HDUlist([hdu2]) 
+if config_file = 'config_2000.txt':
+  hdu2list.writeto('PS_2000_display.fits', overwrite = True)
+elif config_file = 'config_1550.txt':
+  hdu2list.writeto('PS_1550_display.fits', overwrite = True)
+elif config_file = 'config_1310.txt':
+  hdu2list.writeto('PS_1310_display.fits', overwrite = True)
+elif config_file = 'config_980.txt':
+  hdu2list.writeto('PS_980_display.fits', overwrite = True)
+elif config_file = 'config_850.txt':
+  hdu2list.writeto('PS_850_display.fits', overwrite = True)
 
 # make output picture
 # 2 slices -- wavenumber & MTF**2
