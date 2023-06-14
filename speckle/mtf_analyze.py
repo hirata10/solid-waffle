@@ -137,7 +137,7 @@ elif config_file == 'config_980.txt':
 elif config_file == 'config_850.txt':
   hdulist.writeto('PS_850_speckle.fits', overwrite = True)
 hdu2 = fits.PrimaryHDU(PS_display) #create fits for display
-hdu2list = fits.HDUlist([hdu2]) 
+hdu2list = fits.HDUList([hdu2]) 
 if config_file == 'config_2000.txt':
   hdu2list.writeto('PS_2000_display.fits', overwrite = True)
 elif config_file == 'config_1550.txt':
