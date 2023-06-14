@@ -94,10 +94,12 @@ for iy in range(ny):
         PSH[k,:] = PSH[k,:] + numpy.sum(PS, axis=0)
         PSV[k,:] = PSV[k,:] + numpy.sum(PS, axis=1)
       PSuse = numpy.copy(PSH[k,:])
+      PSdis = numpy.copy(PSH[k,:])
       print(numpy.size(PSuse))
       w = wx
       if dir[k]=='V':
         PSuse = numpy.copy(PSV[k,:])
+        PSdis = numpy.copy(PSV[k,:])
         print(numpy.size(PSuse))
         w = wy
       if iy == 0 and ix == 0 and k == 0 :
