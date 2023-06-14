@@ -126,27 +126,27 @@ PS_display = PS_display.reshape((ny*nx, n_input_group, numpy.size(PSdis)))
 PS_display = PS_display.transpose((1,0,2))
 hdu = fits.PrimaryHDU(all_PSuse) #create fits for analysis
 hdulist = fits.HDUList([hdu]) 
-if config_file = 'config_2000.txt':
+if config_file == 'config_2000.txt':
   hdulist.writeto('PS_2000_speckle.fits', overwrite = True)
-elif config_file = 'config_1550.txt':
+elif config_file == 'config_1550.txt':
   hdulist.writeto('PS_1550_speckle.fits', overwrite = True)
-elif config_file = 'config_1310.txt':
+elif config_file == 'config_1310.txt':
   hdulist.writeto('PS_1310_speckle.fits', overwrite = True)
-elif config_file = 'config_980.txt':
+elif config_file == 'config_980.txt':
   hdulist.writeto('PS_980_speckle.fits', overwrite = True)
-elif config_file = 'config_850.txt':
+elif config_file == 'config_850.txt':
   hdulist.writeto('PS_850_speckle.fits', overwrite = True)
 hdu2 = fits.PrimaryHDU(PS_display) #create fits for display
 hdu2list = fits.HDUlist([hdu2]) 
-if config_file = 'config_2000.txt':
+if config_file == 'config_2000.txt':
   hdu2list.writeto('PS_2000_display.fits', overwrite = True)
-elif config_file = 'config_1550.txt':
+elif config_file == 'config_1550.txt':
   hdu2list.writeto('PS_1550_display.fits', overwrite = True)
-elif config_file = 'config_1310.txt':
+elif config_file == 'config_1310.txt':
   hdu2list.writeto('PS_1310_display.fits', overwrite = True)
-elif config_file = 'config_980.txt':
+elif config_file == 'config_980.txt':
   hdu2list.writeto('PS_980_display.fits', overwrite = True)
-elif config_file = 'config_850.txt':
+elif config_file == 'config_850.txt':
   hdu2list.writeto('PS_850_display.fits', overwrite = True)
 
 # make output picture
