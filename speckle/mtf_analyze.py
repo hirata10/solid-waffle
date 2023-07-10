@@ -8,6 +8,11 @@ inputdata = []
 nrepeat = []
 dir = []
 cppinit = []
+wavelen = float()
+d = float()
+s = float()
+z = 127
+P = 0.01
 
 outstem = ''
 
@@ -30,7 +35,10 @@ for line in content:
       nrepeat += [int(m.group(2))]
       dir += [m.group(3).upper()]
       cppinit += [float(m.group(4))]
-
+      wavelen += float(m.group(5)) # wavelength
+      d += float(m.group(6)) # slit spacing
+      s += float(m.group(7)) # slit width
+  
   m = re.search(r'^INPUT\:', line)
   if m: is_input = True
 
@@ -59,6 +67,9 @@ for k in range(n_input_group): print('   ',inputdata[k], 'repeats:', nrepeat[k])
 print('max. number of repeats =', max_nrepeat)
 print('number of superpixels: {:d} (in y) x {:d} (in x) = {:d} (total)'.format(ny,nx,nx*ny))
 
+# create Mxx matrix
+Mxx = numpy.zeros((ny,nx))
+
 # Loop over the superpixels
 all_cpp = numpy.zeros((n_input_group, ny, nx))
 all_mtf2 = numpy.zeros((n_input_group, ny, nx))
@@ -84,6 +95,18 @@ for iy in range(ny):
           data[k,ik,:,:] = hdul[1].data[0,0,ymin:ymax,xmin:xmax].astype(numpy.float64) - hdul[1].data[0,-1,ymin:ymax,xmin:xmax].astype(numpy.float64)
         hdul.close()
 
+    # create values for Mxx
+    x = (wx/2) + xmin
+    x = (x-2048)*P
+    y = (wy/2) + ymin
+    y = (y-2048)*P
+    M = ((1 + ((x**2 + y**2)/127**2))**(-3/2))*(1 + ((y**2/127**2)))
+    Mxx[iy,ix] = M
+
+    # calculate ideal u and delta u
+    u_ideal = ((d*P)/(z*wavelen))*M
+    delta_u_ideal = ((s*P)/(z*wavelen))*M
+    
     # power spectrum analysis
     PSH = numpy.zeros((n_input_group,wx))
     PSV = numpy.zeros((n_input_group,wy))
@@ -95,12 +118,14 @@ for iy in range(ny):
         PSV[k,:] = PSV[k,:] + numpy.sum(PS, axis=1)
       PSuse = numpy.copy(PSH[k,:])
       PSdis = numpy.copy(PSH[k,:])
-      print(numpy.size(PSuse))
+      PSphi = numpy.copy(PSH[k,:]) # need one that will be unchanged
+      #print(numpy.size(PSuse))
       w = wx
       if dir[k]=='V':
         PSuse = numpy.copy(PSV[k,:])
         PSdis = numpy.copy(PSV[k,:])
-        print(numpy.size(PSuse))
+        PSphi = numpy.copy(PSV[k,:])
+        #print(numpy.size(PSuse))
         w = wy
       if iy == 0 and ix == 0 and k == 0 :
         all_PSuse = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse) + 4)) #def starts in ref pix, add 4 to accomodate to create large enough PS
@@ -108,14 +133,19 @@ for iy in range(ny):
       if ix == 0 and numpy.size(PSuse) < (numpy.size(all_PSuse) - 1): #accomodate for ref pix on left
         PSdis = numpy.interp(numpy.linspace(0,507,512),numpy.linspace(0,507,508),PSuse) 
         PSuse = numpy.append(PSuse, (0,0,0,0))
-        print(numpy.size(PSuse))
+        #print(numpy.size(PSuse))
       if ix == 7 and numpy.size(PSuse) < (numpy.size(all_PSuse) - 1): #accomodate for ref pix on right
         PSdis = numpy.interp(numpy.linspace(0,507,512), numpy.linspace(0,507,508),PSuse)
         PSuse = numpy.append(PSuse, (0,0,0,0))
-        print(numpy.size(PSuse))
+        #print(numpy.size(PSuse))
       all_PSuse[iy,ix,k,:] = PSuse
       PS_display[iy,ix,k,:] = PSdis
-        
+
+      phi = mtfutils.make_phi_matrix(PSphi,u_ideal,delta_u_ideal)
+      hdu = fits.PrimaryHDU(phi)
+      hdulist = fits.HDUList([hdu])
+      hdulist.writeto('phi_matrix.fits', overwrite = True)
+      
       c0,cw,a1,a2,res = mtfutils.get_triangle_from_ps(PSuse,cppinit[k])
       print('{:2d} {:3d} {:3d} {:6.4f} {:6.4f} {:10.4E} {:7.5f} {:9.4E}'.format(k, iy, ix, c0,cw,a1,a2/a1,res))
       # put in cube
@@ -150,6 +180,11 @@ elif config_file == 'config_980.txt':
   hdu2list.writeto('PS_980_display.fits', overwrite = True)
 elif config_file == 'config_850.txt':
   hdu2list.writeto('PS_850_display.fits', overwrite = True)
+
+# save Mxx matrix
+hdu = fits.PrimaryHDU(Mxx)
+hdulist = fits.HDUList([hdu])
+hdulist.writeto('Mxx_ref.fits', overwrite = True)
 
 # make output picture
 # 2 slices -- wavenumber & MTF**2
