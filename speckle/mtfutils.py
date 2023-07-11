@@ -67,3 +67,39 @@ def get_triangle_from_ps(ps_in, cppguess):
   a1, a2, ssr = get_ps_err(ps_in, best_cpp0, best_cppw)
 
   return best_cpp0, best_cppw, a1, a2, ssr/numpy.sum(ps_in[1:]**2)
+
+#create the phi matrix using characteristics of the power spectrum
+#
+#
+#return the phi matrix
+def make_phi_matrix(PS,u,delta_u):
+
+  #make the empty array, with the length of the power spectra
+  phi = numpy.empty((0,len(PS)))
+  i_arr = numpy.array(range(len(PS))).astype(numpy.float64)
+
+  #convert u to array values
+  i = u * len(PS)
+  delta_i = delta_u * len(PS)
+  divisor = (delta_i + 2)/2 #this is the value to divide by to make sure I have the right width for the triangle
+  offset = int(int(i) - len(PS)/2)
+
+  #create the first triangle
+  A = 1 - numpy.abs(i_arr - (i - offset))/divisor
+  A = numpy.maximum(A, 0)
+  A = numpy.roll(A, offset)
+  one = numpy.roll(A, int(len(PS) - i))
+
+  #add to the matrix
+  phi = numpy.vstack((phi, one))
+
+  #create the second triangle
+  B = 1 - numpy.abs(i_arr - (len(PS) - (i - offset)))/divisor
+  B = numpy.maximum(B, 0)
+  B = numpy.roll(B, len(PS) - offset)
+  two = A + B
+
+  #add this to the matrix
+  phi = numpy.vstack((phi, two))
+
+  return phi
