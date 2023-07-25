@@ -29,7 +29,7 @@ for line in content:
 
   # Searches for files
   if is_input:
-    m = re.search(r'^\s*(\S+)\s+(\d+)\s+(\w)\s+(\S+)$', line)
+    m = re.search(r'^\s*(\S+)\s+(\d+)\s+(\w)\s+(\S+)\s+(\S+)\s+(\d+\.\d+)\s+(\S+)$', line)
     if m:
       inputdata += [m.group(1)]
       nrepeat += [int(m.group(2))]
@@ -67,10 +67,10 @@ for k in range(n_input_group): print('   ',inputdata[k], 'repeats:', nrepeat[k])
 print('max. number of repeats =', max_nrepeat)
 print('number of superpixels: {:d} (in y) x {:d} (in x) = {:d} (total)'.format(ny,nx,nx*ny))
 
-# create Mxx matrix
+# create empty Mxx matrix
 Mxx = numpy.zeros((ny,nx))
 
-# Loop over the superpixels
+# loop over the superpixels
 all_cpp = numpy.zeros((n_input_group, ny, nx))
 all_mtf2 = numpy.zeros((n_input_group, ny, nx))
 for iy in range(ny):
@@ -97,10 +97,10 @@ for iy in range(ny):
 
     # create values for Mxx
     x = (wx/2) + xmin
-    x = (x-2048)*P
+    x = (x-(nside/2))*P
     y = (wy/2) + ymin
-    y = (y-2048)*P
-    M = ((1 + ((x**2 + y**2)/127**2))**(-3/2))*(1 + ((y**2/127**2)))
+    y = (y-(nside/2))*P
+    M = ((1 + ((x**2 + y**2)/z**2))**(-3/2))*(1 + ((y**2/z**2)))
     Mxx[iy,ix] = M
 
     # calculate ideal u and delta u
@@ -116,75 +116,57 @@ for iy in range(ny):
         PS[0,:] = 0.; PS[:,0] = 0.
         PSH[k,:] = PSH[k,:] + numpy.sum(PS, axis=0)
         PSV[k,:] = PSV[k,:] + numpy.sum(PS, axis=1)
-      PSuse = numpy.copy(PSH[k,:])
-      PSdis = numpy.copy(PSH[k,:])
-      PSphi = numpy.copy(PSH[k,:]) # need one that will be unchanged
-      #print(numpy.size(PSuse))
+      PSuse = PSdis = PSphi = numpy.copy(PSH[k,:]) # multiple copies for various purposes
       w = wx
+      # get the length of power spectrum without reference pixels
+      expected_PSlen = nside//nx
       if dir[k]=='V':
-        PSuse = numpy.copy(PSV[k,:])
-        PSdis = numpy.copy(PSV[k,:])
-        PSphi = numpy.copy(PSV[k,:])
-        #print(numpy.size(PSuse))
+        PSuse = PSdis = PSphi = numpy.copy(PSV[k,:])
         w = wy
-      if iy == 0 and ix == 0 and k == 0 :
-        all_PSuse = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse) + 4)) #def starts in ref pix, add 4 to accomodate to create large enough PS
-        PS_display = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse) + 4)) #need second definition for display purposes
-      if ix == 0 and numpy.size(PSuse) < (numpy.size(all_PSuse) - 1): #accomodate for ref pix on left
-        PSdis = numpy.interp(numpy.linspace(0,507,512),numpy.linspace(0,507,508),PSuse) 
-        PSuse = numpy.append(PSuse, (0,0,0,0))
-        #print(numpy.size(PSuse))
-      if ix == 7 and numpy.size(PSuse) < (numpy.size(all_PSuse) - 1): #accomodate for ref pix on right
-        PSdis = numpy.interp(numpy.linspace(0,507,512), numpy.linspace(0,507,508),PSuse)
-        PSuse = numpy.append(PSuse, (0,0,0,0))
-        #print(numpy.size(PSuse))
+        expected_PSlen = nside//ny
+      if iy == 0 and ix == 0 and k == 0 : # executes first so all_PSuse is defined with correct length, and always has reference pixels despite direction of fringes
+        all_PSuse = PS_display = numpy.zeros((ny,nx,n_input_group,numpy.size(PSuse) + 4)) # definition starts in a super pixel with reference pixels, add 4 to use proper length
+      if numpy.size(PSuse) < (numpy.size(all_PSuse) - 1): # if it does have reference pixels
+        PSdis = numpy.interp(numpy.linspace(0,numpy.size(PSuse)-1,expected_PSlen),numpy.linspace(0,numpy.size(PSuse)-1,numpy.size(PSuse),PSuse))
+        if ix == 0 or ix == 7: # accomodates for both right and left reference pixels
+          PSuse = numpy.append(PSuse, (0,0,0,0))
+
+      # add each super pixel power spectrum to overall matrix 
       all_PSuse[iy,ix,k,:] = PSuse
       PS_display[iy,ix,k,:] = PSdis
 
+      # create and save the phi matrix for each super pixel
       phi = mtfutils.make_phi_matrix(PSphi,u_ideal,delta_u_ideal)
       hdu = fits.PrimaryHDU(phi)
       hdulist = fits.HDUList([hdu])
-      hdulist.writeto('phi_matrix.fits', overwrite = True)
+      hdulist.writeto(iy+'_'+ix+'_'+'phi_matrix.fits', overwrite = True) 
       
       c0,cw,a1,a2,res = mtfutils.get_triangle_from_ps(PSuse,cppinit[k])
       print('{:2d} {:3d} {:3d} {:6.4f} {:6.4f} {:10.4E} {:7.5f} {:9.4E}'.format(k, iy, ix, c0,cw,a1,a2/a1,res))
       # put in cube
       all_cpp[k,iy,ix] = c0
       all_mtf2[k,iy,ix] = a2/a1
-      
+
+# reshape power spectrum
 all_PSuse = all_PSuse.reshape((ny*nx, n_input_group, numpy.size(PSuse)))
 all_PSuse = all_PSuse.transpose((1,0,2))
 PS_display = PS_display.reshape((ny*nx, n_input_group, numpy.size(PSdis)))
 PS_display = PS_display.transpose((1,0,2))
-hdu = fits.PrimaryHDU(all_PSuse) #create fits for analysis
+
+# save power spectrum for analysis
+hdu = fits.PrimaryHDU(all_PSuse) 
 hdulist = fits.HDUList([hdu]) 
-if config_file == 'config_2000.txt':
-  hdulist.writeto('PS_2000_speckle.fits', overwrite = True)
-elif config_file == 'config_1550.txt':
-  hdulist.writeto('PS_1550_speckle.fits', overwrite = True)
-elif config_file == 'config_1310.txt':
-  hdulist.writeto('PS_1310_speckle.fits', overwrite = True)
-elif config_file == 'config_980.txt':
-  hdulist.writeto('PS_980_speckle.fits', overwrite = True)
-elif config_file == 'config_850.txt':
-  hdulist.writeto('PS_850_speckle.fits', overwrite = True)
-hdu2 = fits.PrimaryHDU(PS_display) #create fits for display
-hdu2list = fits.HDUList([hdu2]) 
-if config_file == 'config_2000.txt':
-  hdu2list.writeto('PS_2000_display.fits', overwrite = True)
-elif config_file == 'config_1550.txt':
-  hdu2list.writeto('PS_1550_display.fits', overwrite = True)
-elif config_file == 'config_1310.txt':
-  hdu2list.writeto('PS_1310_display.fits', overwrite = True)
-elif config_file == 'config_980.txt':
-  hdu2list.writeto('PS_980_display.fits', overwrite = True)
-elif config_file == 'config_850.txt':
-  hdu2list.writeto('PS_850_display.fits', overwrite = True)
+hdulist.writeto(outstem+'_PS_speckle.fits', overwrite = True)
+
+# save power spectrum for display
+hdu = fits.PrimaryHDU(PS_display) 
+hdulist = fits.HDUList([hdu]) 
+hdulist.writeto(outstem+'_PS_speckle_display.fits', overwrite = True)
 
 # save Mxx matrix
 hdu = fits.PrimaryHDU(Mxx)
 hdulist = fits.HDUList([hdu])
-hdulist.writeto('Mxx_ref.fits', overwrite = True)
+hdulist.writeto('Mxx_ref.fits', overwrite = True) # does not need outstem as it is dependent on the super pixels themselves and not the data
 
 # make output picture
 # 2 slices -- wavenumber & MTF**2
