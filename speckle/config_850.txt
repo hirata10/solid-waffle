@@ -1,0 +1,17 @@
+INPUT:
+/fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP1/AP1_S1_850nm_95K_*_21536_001.fits 8 H .04 .00085 0.4 .05
+/fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP2/AP2_S3_850nm_95K_*_21536_001.fits 8 H .07 .00085 0.8 .05
+/fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP3/AP3_S5_850nm_95K_*_21536_001.fits 8 H .15 .00085 1.6 .2
+/fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP4/AP4_S6_850nm_95K_*_21536_001.fits 8 H .19 .00085 2.0 .2
+/fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP5/AP5_S7_850nm_95K_*_21536_001.fits 8 H .28 .00085 3.0 .2
+/fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP6/AP6_S8_850nm_95K_*_21536_001.fits 8 H .37 .00085 4.0 .2
+/fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP7/AP7_S9_850nm_95K_*_21536_001.fits 8 H .46 .00085 5.0 .3
+/fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP8/AP8_S10_850nm_95K_*_21536_001.fits 8 H .56 .00085 6.0 .3
+/fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP9/AP9_S11_850nm_95K_*_21536_001.fits 8 H .65 .00085 7.0 .3
+/fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP10/AP10_S13_850nm_95K_*_21536_001.fits 8 H .83 .00085 9.0 .4
+/fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP11/AP11_S14_850nm_95K_*_21536_001.fits 8 H .93 .00085 10.0 .5
+/fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP12/AP12_S15_850nm_95K_*_21536_001.fits 8 H 1.02 .00085 11.0 .5
+
+NBIN: 8 8
+
+OUTPUT: out/850nm
