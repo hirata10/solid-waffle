@@ -13,5 +13,6 @@ INPUT:
 /fs/scratch/PCON0003/cond0007/AutoPiezo/1550nm/AP12/AP12_S15_1550nm_95K_*_21536_001.fits 25 H .56 .00155 11.0 .5
 
 NBIN: 8 8
+NSKIP: 4
 
 OUTPUT: out/1550nm

@@ -68,11 +68,30 @@ def get_triangle_from_ps(ps_in, cppguess):
 
   return best_cpp0, best_cppw, a1, a2, ssr/numpy.sum(ps_in[1:]**2)
 
+# smothed triangle function:
+# length L (x=0 ... x=L-1)
+# peak at x=x0
+# half width dx0
+# smooth with |sin(pi x')/sin(pi x'/N)|^2/N
+#
+# ovsamp = oversampling factor
+def trismooth(N, x0, dx0, ovsamp=16):
+
+  NN = N*ovsamp
+  x_ = numpy.linspace(0, (1-1/NN)*N, NN)
+  S1 = (numpy.sinc(x_)/numpy.sinc(x_/N))**2*N
+  xpk = x0 - N*numpy.floor(x0/N)
+  S2 = numpy.maximum(0, 1-numpy.abs((x_-xpk)/dx0)) + numpy.maximum(0, 1-numpy.abs((x_-xpk-N)/dx0))
+  SF = numpy.real(numpy.fft.ifft(numpy.fft.fft(S1)*numpy.fft.fft(S2)))/NN
+  return SF[::ovsamp]
+
 # create the phi matrix using characteristics of the power spectrum
 #
+# subregion -> only fits the region around the expected peak
+# smoothtri -> uses sinc^2-smoothed instead of sharp triangles
 #
 # return the phi matrix
-def make_phi_matrix(PS,u,delta_u):
+def make_phi_matrix(PS,u,delta_u,subregion=False,smoothtri=True):
 
   # make the empty array, with the length of the power spectra
   phi = numpy.empty((0,len(PS)))
@@ -81,6 +100,7 @@ def make_phi_matrix(PS,u,delta_u):
   # convert u to array values
   i = u * len(PS)
   delta_i = delta_u * len(PS)
+  if not smoothtri: delta_i = numpy.sqrt(delta_i**2 + .886**2) # RSS addition of sinc^2 to FWHM
   offset = int(int(i) - len(PS)/2)
 
   # create the first triangle
@@ -88,6 +108,11 @@ def make_phi_matrix(PS,u,delta_u):
   A = numpy.maximum(A, 0)
   A = numpy.roll(A, offset)
   one = numpy.roll(A, int(len(PS) - i))
+
+  one = numpy.maximum(numpy.roll(1 - numpy.abs(i_arr - len(PS)/2)/delta_i, len(PS)//2), 0.)
+
+  if smoothtri:
+    one = trismooth(len(PS),0.,delta_i)
 
   # add to the matrix
   phi = numpy.vstack((phi, one))
@@ -97,6 +122,9 @@ def make_phi_matrix(PS,u,delta_u):
   B = numpy.maximum(B, 0)
   B = numpy.roll(B, len(PS) - offset)
   two = A + B
+
+  if smoothtri:
+    two = trismooth(len(PS),i,delta_i) + trismooth(len(PS),len(PS)-i,delta_i)
 
   # add to the matrix
   phi = numpy.vstack((phi, two))
@@ -114,5 +142,24 @@ def make_phi_matrix(PS,u,delta_u):
 
   # add to the matrix
   phi = numpy.vstack((phi, P))
+
+  if subregion:
+    i_ = len(PS) * numpy.modf(i/len(PS)+4)[0]
+    im = min(i_,len(PS)-i_)
+    ip = max(i_,len(PS)-i_)
+    imin = int(numpy.floor(im-3*(delta_i+1)))
+    imax = int(numpy.ceil(im+3*(delta_i+1)))
+    if imax>len(PS)//2: imax = int(numpy.ceil(ip+3*(delta_i+1)))
+    imin = max(imin,0)
+    imax = min(imax,len(PS)-1)
+    phi = two
+    for j in range(3):
+      phi = numpy.vstack((phi, ((i_arr-i_)/delta_i)**j))
+    if imin<delta_i or smoothtri: phi = numpy.vstack((phi, one))
+    # now symmetrize the whole thing
+    phi[:,:imin] = 0
+    phi[:,imax+1:] = 0
+    # eliminate zero
+    phi[:,0] = 0.
 
   return phi

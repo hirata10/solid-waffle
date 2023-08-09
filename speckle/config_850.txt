@@ -13,5 +13,6 @@ INPUT:
 /fs/scratch/PCON0003/cond0007/AutoPiezo/850nm/AP12/AP12_S15_850nm_95K_*_21536_001.fits 8 H 1.02 .00085 11.0 .5
 
 NBIN: 8 8
+NSKIP: 4
 
 OUTPUT: out/850nm

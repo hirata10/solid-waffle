@@ -60,8 +60,11 @@ for k in range(nfile):
 
 # get group time
 with fits.open(filelist[0]) as G:
-  tgroup = float(G[0].header['TGROUP'])
-  if tgroup<.01: tgroup = float(G[0].header['TFRAME'])
+  if 'TGROUP' in G[0].header.keys():
+    tgroup = float(G[0].header['TGROUP'])
+    if tgroup<.01: tgroup = float(G[0].header['TFRAME'])
+  else:
+    tgroup = 3.48 # default if not found
 
 # Now get the median of the first stable frames
 nside = pyirc.get_nside(fileformat)
