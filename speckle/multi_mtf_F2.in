@@ -30,7 +30,7 @@ sigmaS = .3279
 plot\
    (1-2*alpha*(1-cos(2*pi*x)))*sin(pi*x)/(pi*x) ls 11 title "No charge diffusion",\
    (1-2*alpha*(1-cos(2*pi*x)))*sin(pi*x)/(pi*x)*exp(-2*pi**2*x**2*sigmaG**2) ls 12 title "Gaussian, {/Symbol s}=0.3140 pix",\
-   (1-2*alpha*(1-cos(2*pi*x)))*sin(pi*x)/(pi*x)/cosh(2*pi*x*sigmaG) ls 13 title "sech, {/Symbol s}=0.3279 pix",\
+   (1-2*alpha*(1-cos(2*pi*x)))*sin(pi*x)/(pi*x)/cosh(2*pi*x*sigmaS) ls 13 title "sech, {/Symbol s}=0.3279 pix",\
    "-" using 1:(sqrt($3)):($4/2./sqrt($3)) with yerrorbars ls 1 title "850 nm",\
    "-" using 1:(sqrt($3)):($4/2./sqrt($3)) with yerrorbars ls 2 title "980 nm",\
    "-" using 1:(sqrt($3)):($4/2./sqrt($3)) with yerrorbars ls 3 title "1310 nm",\
