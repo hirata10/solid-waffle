@@ -105,16 +105,16 @@ for key, value in my_dict.items():
         u_2000 = value[0]
         mtf2_2000 = value[1]
 
-plt.title("u vs mtf2", fontsize = 18) #y vs x
-plt.xlabel('$u$', fontsize = 16)
-plt.ylabel('$mtf2$', fontsize = 16)
-plt.scatter(u_850, mtf2_850, c = 'plum')
-plt.scatter(u_980, mtf2_980, c ='mediumvioletred')
-plt.scatter(u_1310, mtf2_1310, c='darkviolet')
-plt.scatter(u_1550, mtf2_1550, c='mediumblue')
-plt.scatter(u_2000, mtf2_2000, c='cornflowerblue')
-plt.legend(['850nm', '980nm', '1310nm', '1550nm', '2000nm'], loc = 'upper right', fontsize = 12)
-plt.plot(u_values, mtf2_values, c='red')
-#plt.savefig('theory_mtf_signfixes')
+plt.title("MTF determination", fontsize = 18) #y vs x
+plt.xlabel('spatial frequency, u (cyc/pix)', fontsize = 12)
+plt.ylabel('modulation transfer function, MTF$^2$', fontsize = 12)
+plt.scatter(u_850, mtf2_850, c = 'gold')
+plt.scatter(u_980, mtf2_980, c ='orange')
+plt.scatter(u_1310, mtf2_1310, c='coral')
+plt.scatter(u_1550, mtf2_1550, c='mediumvioletred')
+plt.scatter(u_2000, mtf2_2000, c='darkviolet')
+plt.plot(u_values, mtf2_values, c='darkblue')
+plt.legend(['850nm', '980nm', '1310nm', '1550nm', '2000nm', 'robust model'], loc = 'upper right', fontsize = 12)
+plt.savefig('MTF_theory')
 plt.show()
     
