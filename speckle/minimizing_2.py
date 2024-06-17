@@ -90,6 +90,9 @@ def chi_squared(params, my_dict, theory_mtf):
     chi_squared_value = np.sum(chi2)
     return chi_squared_value
 
-result = minimize(chi_squared, params, args=(my_dict, theory_mtf), method = 'TNC') #Nelder-Mead, TNC
-optimized_params = result.x
-print(optimized_params)
+for tier in range(2):
+    result = minimize(chi_squared, params, args=(my_dict, theory_mtf), options = {'disp':True, 'return_all':True,'scale': np.array([1e-6,1]),'maxfun': 1000 ,'initial_simplex': np.array([[6e-6,-.75], [5e-6,-.75], [6e-6,-1.]])}, method = 'TNC') #Nelder-Mead, TNC
+    optimized_params = result.x
+    print(optimized_params)
+    print(chi_squared(optimized_params, my_dict, theory_mtf))
+    params = optimized_params
