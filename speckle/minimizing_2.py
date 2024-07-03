@@ -85,7 +85,7 @@ def chi_squared(params, my_dict, theory_mtf):
         mtf2err_values = value[2]
         for u, mtf2, mtf2err in zip(u_values, mtf2_values, mtf2err_values):
             mtf_theory, error = quad(theory_mtf, 0, h, args=(params_list, u*1e5, w), limit=5000) # u is now cyc/m
-            mtf2_theory = (np.sinc(u)*(1-2*alpha1*(1-np.cos(2*np.pi*u)))*mtf_theory)**2
+            mtf2_theory = (np.sinc(u)*(1-2*alpha1*(1-np.cos(2*np.pi*u)))*mtf_theory)
             chi2 = np.append(chi2, (mtf2-mtf2_theory**2)**2/mtf2err**2)
     chi_squared_value = np.sum(chi2)
     return chi_squared_value
