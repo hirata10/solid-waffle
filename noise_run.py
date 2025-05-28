@@ -16,6 +16,7 @@ infile = outfile = ''
 t_init = 2
 rowh = 7
 cds_cut = 10.
+tnoiseframe = 55
 for i in range(1, len(sys.argv)-1):
   if sys.argv[i] == '-f': fileformat = int(sys.argv[i+1])
   if sys.argv[i] == '-i': infile = sys.argv[i+1]
@@ -24,6 +25,7 @@ for i in range(1, len(sys.argv)-1):
   if sys.argv[i] == '-t': t_init = int(sys.argv[i+1])
   if sys.argv[i] == '-cd': cds_cut = float(sys.argv[i+1])
   if sys.argv[i] == '-rh': rowh = int(sys.argv[i+1])
+  if sys.argv[i] == '-tn': tnoiseframe = int(sys.argv[i+1])
 
 if infile == '':
   print('Error: no infile. Use -i option.')
@@ -84,11 +86,15 @@ for k in range(nfile):
                       -pyirc.load_segment(filelist[k], fileformat, [0,nside,0,nside], [t_init+1], False).astype(numpy.float32))\
                       + ( (k+.5)/nfile - .5)
 dark1 = numpy.median(darkcds, axis=0)/tgroup
+dark1err = (numpy.percentile(darkcds, 75, axis=0) - numpy.percentile(darkcds, 25, axis=0))/tgroup * 0.9291/numpy.sqrt(nfile-1)
+# comment: the "sigma on the median" of a Gaussian distribution is 0.9291 IQR
+# (where IQR is the inter-quartile range)
 for k in range(nfile):
   darkcds[k,:,:] = (pyirc.load_segment(filelist[k], fileformat, [0,nside,0,nside], [t_init], False).astype(numpy.float32)\
                       -pyirc.load_segment(filelist[k], fileformat, [0,nside,0,nside], [ntslice], False).astype(numpy.float32))\
        	       	      +	( (k+.5)/nfile - .5)
 dark2 = numpy.median(darkcds, axis=0)/tgroup/(ntslice-t_init)
+dark2err = (numpy.percentile(darkcds, 75, axis=0) - numpy.percentile(darkcds, 25, axis=0))/tgroup/(ntslice-t_init) * 0.9291/numpy.sqrt(nfile-1)
 del darkcds
 
 cdsnoise = numpy.zeros((nside,nside))
@@ -111,7 +117,6 @@ for j in range(nband):
 cdsnoise /= 1.34896
 
 # total noise
-tnoiseframe = 55
 tnoise = numpy.zeros((nside,nside))
 nband = 32
 for j in range(nband):
@@ -282,7 +287,7 @@ print('stdev of pca0 =', pca0_stdev)
 del med_cdsFL; del iqr_cdsFL; del cdsFL
 
 # Generate output cube
-outcube = numpy.zeros((8,nside,nside))
+outcube = numpy.zeros((10,nside,nside))
 outcube[0,:,:] = 65535 - medarray
 outcube[1,:,:] = iqrarray/1.34896
 outcube[2,:,:] = cdsnoise
@@ -293,6 +298,10 @@ outcube[6,:,:] = tnoise
 # low CDS, high total noise pixels
 outcube[7,:,:] = numpy.where(numpy.logical_and(cdsnoise<cds_cut,tnoise>numpy.median(tnoise)), 1, 0)
 outcube[7,:4,:] = 0.; outcube[7,-4:,:] = 0.; outcube[7,:,:4] = 0.; outcube[7,:,-4:] = 0.
+outcube[8,:,:] = dark1err
+outcube[9,:,:] = dark2err
+# label the slices
+outcubeslices = ['BIAS', 'RESET', 'CDS', 'PCA0', 'DARK1', 'DARK2', 'TNOISE', 'LCDSHTN', 'DARK1ERR', 'DARK2ERR']
 
 # array information on low CDS, high total noise pixels
 badmap = outcube[7,4:-4,4:-4]
@@ -319,6 +328,9 @@ out_hdu.header['LCHTN1'] = (nbad1, 'low CDS, high total noise pixels')
 out_hdu.header['LCHTN3'] = (nbad3, 'low CDS, high total noise pixels, 3x3 expanded')
 out_hdu.header['LCHTN5'] = (nbad5, 'low CDS, high total noise pixels, 5x5 expanded')
 out_hdu.header['NR_DATE'] = time.asctime(time.localtime(time.time()))
+
+for idx in range(numpy.shape(outcube)[0]):
+  out_hdu.header[outcubeslices[idx]] = (idx, 'Index of '+outcubeslices[idx])
 
 ps_hdu = fits.ImageHDU(PS)
 
