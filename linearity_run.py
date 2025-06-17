@@ -76,6 +76,9 @@ def get_median_cube(flist,fileformat=None,xmin=None,xmax=None,tstart=None,tend=N
 # p_order+5 -> quality (0=OK)
 image_all = numpy.zeros((p_order+6,nside,nside))
 
+# full error array, indicating specific ramps
+err_cube = numpy.zeros((nramps,nside,nside), dtype=numpy.uint16)
+
 # pixel flats
 pflat = numpy.zeros((nramps,nside,nside), dtype=numpy.float32)
 
@@ -220,6 +223,7 @@ for i in range(ncblock_use):
 
     # get linearization error
     err = numpy.zeros((nside,dx))
+    err2 = numpy.zeros((nramps,nside,dx))
     for j in range(nramps):
         cube = get_median_cube(flists[j],fileformat=pars['RAMPS'][j]['FORMAT'],xmin=xmin,xmax=xmax,tstart=pars['RAMPS'][j]['TSTART'],tend=ntslice[j])
         for tt in range(numpy.shape(cube)[0]):
@@ -230,6 +234,7 @@ for i in range(ncblock_use):
             this_err = pred - (v[:,:,p_order-1+2*j]*tt + v[:,:,p_order+2*j])
             this_err = numpy.where(numpy.abs(z)<1, this_err, 0.)
             err = numpy.maximum(err,numpy.abs(this_err))
+            err2[j,:,:] = numpy.maximum(err2[j,:,:],numpy.abs(this_err))
 
     # now do the rescaling to slope 1 at the bias point
     zbias = (image_all[p_order+2,:,xmin:xmax]-Smin)/(Smax-Smin)*2. - 1. # z value at the bias
@@ -244,6 +249,7 @@ for i in range(ncblock_use):
     slope *= 2./(Smax-Smin) # this is dz/dS
     coef = coef/slope[None,:,:]
     err = err/slope # also need to re-scale the fit error - this is now in linearized DN
+    err2 = err2/slope[None,:,:] # also need to re-scale the fit error - this is now in linearized DN
 
     print('   err deciles:', [numpy.round(numpy.percentile(err,10*ip),1) for ip in range(1,10)])
 
@@ -278,6 +284,8 @@ for i in range(ncblock_use):
     image_all[p_order+1,:,xmin:xmax] = Smin
     image_all[p_order+3,:,xmin:xmax] = Smax
     image_all[p_order+4,:,xmin:xmax] = err
+
+    err_cube[:,:,xmin:xmax] = numpy.clip(numpy.round(err2),0,65535).astype(numpy.uint16)
 
 # 4D or 3D to 2D projection, displaying lots of strips left to right for visualization
 # (not actually needed in the final script)
@@ -349,11 +357,12 @@ tree = {'roman': {
     'Smin': image_all[p_order+1,:,:],
     'Sref': image_all[p_order+2,:,:],
     'Smax': image_all[p_order+3,:,:],
-    'maxerr': image_all[p_order+4,:,:]
+    'maxerr': numpy.clip(numpy.round(image_all[p_order+4,:,:]),0,65535).astype(numpy.uint16),
+    'ramperr': err_cube
 },
 'notes': {
     'script': script,
-    'units': "data, maxerr: DN_lin; pflat, dark: DN_lin/s; Smin, Sref, Smax: DN_raw"
+    'units': "data, maxerr, ramperr: DN_lin; pflat, dark: DN_lin/s; Smin, Sref, Smax: DN_raw"
 }
 }
 

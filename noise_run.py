@@ -17,7 +17,8 @@ t_init = 2
 rowh = 7
 cds_cut = 10.
 tnoiseframe = 55
-for i in range(1, len(sys.argv)-1):
+refout = False
+for i in range(1, len(sys.argv)):
   if sys.argv[i] == '-f': fileformat = int(sys.argv[i+1])
   if sys.argv[i] == '-i': infile = sys.argv[i+1]
   if sys.argv[i] == '-o': outfile = sys.argv[i+1]
@@ -26,6 +27,7 @@ for i in range(1, len(sys.argv)-1):
   if sys.argv[i] == '-cd': cds_cut = float(sys.argv[i+1])
   if sys.argv[i] == '-rh': rowh = int(sys.argv[i+1])
   if sys.argv[i] == '-tn': tnoiseframe = int(sys.argv[i+1])
+  if sys.argv[i] == '-ro': refout = True # has reference output
 
 if infile == '':
   print('Error: no infile. Use -i option.')
@@ -178,6 +180,9 @@ print('overall ACN', acnnoise)
 
 # 1/f noise information
 nband = 32 # number of channels
+extra_power_spectra = 1
+if refout: extra_power_spectra = 3   # how many additional power spectra we compute
+
 ntslice = pyirc.get_num_slices(fileformat, filelist[k])
 nstep = ntslice//2 - 2
 print('nstep =', nstep)
@@ -185,8 +190,8 @@ acnband = numpy.zeros((nband))
 aclip = 3.*1.34896*numpy.median(cdsnoise)
 avebandData = numpy.zeros((nfile2, nstep, nside, nside//nband))
 slength = 4096*(4096//nband+rowh)
-PS = numpy.zeros((nband+1,slength))
-for j in range(nband+1):
+PS = numpy.zeros((nband+extra_power_spectra,slength))
+for j in range(nband+extra_power_spectra):
   print('1/f, band', j); sys.stdout.flush()
   bandData = numpy.zeros((nfile2, nstep, nside, nside//nband))
   if j<nband:
@@ -207,26 +212,45 @@ for j in range(nband+1):
     if j%2==1: bandData = numpy.flip(bandData, axis=3)
     
     avebandData += bandData/nband
-  else:
+  elif j==nband:
     bandData[:,:,:,:] = avebandData
+  else:
+    # now we are working with the reference output.
+    # get reference +/- average of the other channels
+    xmin = nside
+    xmax = xmin + nside//nband
+    for k in range(nfile2):
+      for kb in range(nstep):
+        bandData[k,kb,:,:] = pyirc.load_segment(filelist[k], fileformat, [xmin,xmax,0,nside], [t_init+2*kb  ], False).astype(numpy.float64)\
+                               - pyirc.load_segment(filelist[k], fileformat, [xmin,xmax,0,nside], [t_init+2*kb+1], False).astype(numpy.float64)
+    for kb in range(nstep):
+      bref = numpy.median(bandData[:,kb,:,:], axis=0)
+      for k in range(nfile2): bandData[k,kb,:,:] -= bref
+    # clip
+    bandData = numpy.clip(bandData,-aclip,aclip)
+
+    if j==nband+1:
+      bandData[:,:,:,:] += avebandData
+    else:
+      bandData[:,:,:,:] -= avebandData
 
   # get power spectrum
   mySeries = numpy.zeros((nfile2, nstep, slength))
   for r in range(4096): mySeries[:,:,r*(4096//nband+rowh):r*(4096//nband+rowh)+4096//nband] = bandData[:,:,r,:]
 
   bandPower = numpy.mean(numpy.absolute(numpy.fft.fft(mySeries, axis=2, norm='ortho'))**2, axis=(0,1))
-  bandPower *= (1.+rowh*nband/4096.)/slength/2. # divide by length; then by 2 to get per sample
+  bandPower *= (1.+rowh*nband/4096.)/slength/2. # divide by length; then by 2 to get per sample instead of CDS
   print('shape of bandPower:', numpy.shape(bandPower))
   PS[j,:] = bandPower
 
   del bandData; del bandPower; del mySeries
 
 for i in range(1024):
-  print('{:6d} {:11.5E} {:12.5E}'.format(i, PS[-1,i], numpy.median(PS[:-1,i])-PS[-1,i]))
+  print('{:6d} {:11.5E} {:12.5E}'.format(i, PS[nband,i], numpy.median(PS[:nband,i])-PS[nband,i]))
 
 ncut = 4096
-c_pink = numpy.sum(PS[-1,1:ncut+1]) - ncut*numpy.median(PS[-1,:])
-u_pink = numpy.sum(PS[:-1,1:ncut+1])/nband - ncut*numpy.median(PS[:-1,:]) - c_pink
+c_pink = numpy.sum(PS[nband,1:ncut+1]) - ncut*numpy.median(PS[nband,:])
+u_pink = numpy.sum(PS[:nband,1:ncut+1])/nband - ncut*numpy.median(PS[:nband,:]) - c_pink
 if c_pink<0:
   c_pink = 0.
 else:
@@ -235,7 +259,35 @@ if u_pink<0:
   u_pink = 0.
 else:
   u_pink = numpy.sqrt(u_pink)
+
+# reference output information
+if refout:
+  PS_plus  = numpy.sum(PS[nband+1,1:ncut+1]) - ncut*numpy.median(PS[nband+1,:])
+  PS_minus = numpy.sum(PS[nband+2,1:ncut+1]) - ncut*numpy.median(PS[nband+2,:])
+  # now need to get:
+  # r_pink = amplitude of reference output 1/f noise
+  # rho = correlation coefficient with common noise
+  r_pink = numpy.sqrt(numpy.clip(PS_plus + PS_minus - 2*c_pink**2,0,None)/2.)
+  rho = (PS_plus - PS_minus)/(4*r_pink*c_pink + 1e-24) # prevent division by zero
+  rho = numpy.clip(rho,-1.,1.)
+  #
+  # and now the slope m (factor by which to multiply the correlated noise
+  # to get what we see in the reference output)
+  m_pink = r_pink*rho/(c_pink+1e-24)
+  ru_pink = r_pink*(1-rho**2)
+
+# normalize to variance (DN^2) per ln frequency
+scale = numpy.sqrt(2/numpy.log(4096))
+u_pink *= scale
+c_pink *= scale
 print('c_pink =', c_pink, 'u_pink =', u_pink)
+if refout:
+  ru_pink *= scale
+  print('m_pink = ', m_pink, 'ru_pink =', ru_pink)
+
+print('>>', c_pink**2, PS_plus, PS_minus)
+for jj in range(numpy.shape(PS)[0]):
+  print(numpy.sum(PS[jj,1:ncut+1]) - ncut*numpy.median(PS[jj,:]))
 
 # Get PCAs
 # split into this many channels
@@ -355,6 +407,29 @@ plot_hdu.header['YDEF'] = ('total noise', 'DN')
 plot_hdu.header['DNOISE'] = (d_np, 'DN')
 plot_hdu.header['MAXNOISE'] = (d_np*N_np, 'DN')
 
-hdul = fits.HDUList([primary_hdu, out_hdu, ps_hdu, plot_hdu])
+outhdus = [primary_hdu, out_hdu, ps_hdu, plot_hdu]
+
+# extra HDU if we asked for the reference output
+if refout:
+
+  extra = numpy.zeros((2,nside,nside//nch))
+
+  xmin = nside
+  xmax = nside + nside//nch
+  nstep = ntslice - 2
+  bandData = numpy.zeros((nfile2,nstep,nside,nside//nch), dtype=numpy.float32)
+  for k in range(nfile2):
+    for kb in range(nstep):
+      bandData[k,kb,:,:] = pyirc.load_segment(filelist[k], fileformat, [xmin,xmax,0,nside], [t_init+kb  ], False).astype(numpy.float64)
+  extra[0,:,:] = 65535-numpy.median(bandData, axis=(0,1))
+  extra[1,:,:] = ( numpy.percentile(bandData, 75, axis=(0,1)) - numpy.percentile(bandData, 25, axis=(0,1)) ) / 1.34896
+
+  amp33_hdu = fits.ImageHDU(extra.astype(numpy.float32))
+  amp33_hdu.header['M_PINK'] = m_pink
+  amp33_hdu.header['RU_PINK'] = ru_pink
+  amp33_hdu.header['EXTNAME'] = 'AMP33'
+  outhdus.append(amp33_hdu)
+
+hdul = fits.HDUList(outhdus)
 hdul.writeto(outfile, overwrite=True)
 
