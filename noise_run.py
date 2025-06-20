@@ -414,6 +414,7 @@ if refout:
 
   extra = numpy.zeros((2,nside,nside//nch))
 
+  # median
   xmin = nside
   xmax = nside + nside//nch
   nstep = ntslice - 2
@@ -422,7 +423,18 @@ if refout:
     for kb in range(nstep):
       bandData[k,kb,:,:] = pyirc.load_segment(filelist[k], fileformat, [xmin,xmax,0,nside], [t_init+kb  ], False).astype(numpy.float64)
   extra[0,:,:] = 65535-numpy.median(bandData, axis=(0,1))
-  extra[1,:,:] = ( numpy.percentile(bandData, 75, axis=(0,1)) - numpy.percentile(bandData, 25, axis=(0,1)) ) / 1.34896
+
+  # noise
+  nstep = ntslice//2 - 2
+  bandData = numpy.zeros((nfile, nstep, nside, nside//nband), dtype=numpy.float32)
+  for k in range(nfile):
+    for kb in range(nstep):
+      bandData[k,kb,:,:] = pyirc.load_segment(filelist[k], fileformat, [xmin,xmax,0,nside], [t_init+2*kb  ], False).astype(numpy.float32)\
+                             - pyirc.load_segment(filelist[k], fileformat, [xmin,xmax,0,nside], [t_init+2*kb+1], False).astype(numpy.float32)\
+                           + ( (k+.5)/nfile + (kb+.5)/nstep -1.) # uniformly distribute to avoid quantization
+  extra[1,:,:] = ( numpy.percentile(bandData, 75, axis=(0,1), interpolation='linear')\
+                            - numpy.percentile(bandData, 25, axis=(0,1), interpolation='linear') )/1.34896 / numpy.sqrt(2.)
+  # effective read noise of the reference channel in DN rms
 
   amp33_hdu = fits.ImageHDU(extra.astype(numpy.float32))
   amp33_hdu.header['M_PINK'] = m_pink
