@@ -170,8 +170,8 @@ for i in range(ncblock_use):
         Smax = numpy.maximum(Smax, image_all[p_order+2,:,xmin:xmax] + float(pars['NEGATIVEPAD']))
 
     # clip
-    Smin = numpy.clip(Smin,0,None)
-    Smax = numpy.clip(Smax,None,65535)
+    Smin = numpy.clip(Smin,1,None)
+    Smax = numpy.clip(Smax,None,65534) # <-- update to avoid accepting 65535 as unsaturated
     # pad to avoid singularities
     Smin -= 0.5
     Smax += 0.5
