@@ -1,4 +1,8 @@
-.. image:: https://codecov.io/gh/Roman-HLIS-Cosmology-PIT/solid-waffle/graph/badge.svg?token=7fmH3pUXiX
+|badge1| |badge2|
+
+.. |badge1| image:: https://codecov.io/gh/Roman-HLIS-Cosmology-PIT/solid-waffle/graph/badge.svg
+
+.. |badge2| image:: https://github.com/Roman-HLIS-Cosmology-PIT/solid-waffle/actions/workflows/smoke-test.yml/badge.svg
 
 solid-waffle
 ============
