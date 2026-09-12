@@ -398,7 +398,9 @@ class Config:
             # reference time slice
             m = re.search(r"^TIMEREF:\s*(\d+)", line)
             if m:
-                self.bfepar.treset = basicpar.reset_frame = int(m.group(1))
+                self.bfepar.treset = basicpar.reset_frame = (
+                    float(m.group(1)) if "." in m.group(1) else int(m.group(1))
+                )
 
             # reference pixel subtraction
             m = re.search(r"^REF\s+OFF", line)
@@ -1403,7 +1405,7 @@ class Config:
             f"# Dimensions: {self.nx:3d}(x) x {self.ny:3d}(y) super-pixels,"
             f"{int(np.sum(self.is_good)):4d} good\n"
         )
-        thisOut += f"# Frame number corresponding to reset: {self.basicpar.reset_frame:d}\n"
+        thisOut += f"# Frame number corresponding to reset: {self.basicpar.reset_frame}\n"
         thisOut += f"# Reference pixel subtraction for linearity: {str(self.fullref):s}\n"
         thisOut += f"# Quantile for variance computation = {self.basicpar.g_ptile:9.6f}%\n"
         thisOut += f"# Clipping fraction epsilon = {self.basicpar.epsilon:9.7f}\n"
