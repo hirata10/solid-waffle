@@ -936,7 +936,7 @@ def gen_nl_cube(filelist, formatpars, timeslice, ngrid, Ib, usemode, swi, verbos
     temp_array = np.zeros((nfiles, ny, nx))
 
     # order of polynomial fit per pixel
-    my_order = 5
+    my_order = min(5, tmax - tmin - 1)
     if usemode == "abs":
         my_order = swi.p
 
