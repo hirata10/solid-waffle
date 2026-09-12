@@ -398,7 +398,9 @@ class Config:
             # reference time slice
             m = re.search(r"^TIMEREF:\s*(\d+)", line)
             if m:
-                self.bfepar.treset = basicpar.reset_frame = float(m.group(1)) if "." in m.group(1) else int(m.group(1))
+                self.bfepar.treset = basicpar.reset_frame = (
+                    float(m.group(1)) if "." in m.group(1) else int(m.group(1))
+                )
 
             # reference pixel subtraction
             m = re.search(r"^REF\s+OFF", line)
