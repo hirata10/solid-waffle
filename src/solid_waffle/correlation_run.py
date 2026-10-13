@@ -2404,6 +2404,9 @@ def run_ir_all(infile, tstart=1):
     with open(cf.outstem + "_hot.txt", "w") as f:
         f.write(s)
     cf.hotpix_plots()
+    s = cf.get_vtpe_summary()
+    if s != "":
+        print("VTPE summary written to", s)
 
 
 def run_vis_all(infile, run_ir_first=True):
