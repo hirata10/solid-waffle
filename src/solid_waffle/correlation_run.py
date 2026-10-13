@@ -1824,8 +1824,7 @@ class Config:
         )
         beta_gain = self.full_info[:, :, self.swi.beta] * self.full_info[:, :, self.swi.g]
         hotcube = pyirc.hotpix_ipc(
-            self.hotY, self.hotX, self.darkfiles,
-            self.formatpars, self.htsteps, [beta_gain, False], True
+            self.hotY, self.hotX, self.darkfiles, self.formatpars, self.htsteps, [beta_gain, False], True
         )
         pix_signal = hotcube[:, :, 0]
         t_slices = self.htsteps
