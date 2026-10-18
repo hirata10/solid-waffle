@@ -476,6 +476,12 @@ class Config:
                 self.tstart = int(m.group(1))
                 if not self.hotpix:
                     raise ValueError("HOTPIX_TSTART specified but HOTPIX not enabled.")
+            # get vtpe summary?
+            m = re.search(r"^VTPE", line)
+            if m:
+                self.vtpe = True
+                if not self.hotpix:
+                    raise ValueError("VTPE specified but HOTPIX not enabled.")
             # Mask regions by hand
             m = re.search(r"^MASK:\s*(\d+)\s+(\d+)", line)
             if m:
@@ -1798,18 +1804,10 @@ class Config:
         F.savefig(self.outstem + "_hotipc.pdf")
         plt.close(F)
 
-    def get_vtpe_summary(self, vtpe_name="vtpe_summary"):
+    def get_vtpe_summary(self):
         """
-        Get the summary of the VTPE (Vertical Trailing Pixel Effect), packaged as a fits file.
-
-        Parameters
-        ----------
-        vtpe_name : str, optional
-            The name of the VTPE summary file. Default is 'vtpe_summary.txt'.
-
-        Returns
-        -------
-        None
+        Gets the summary of the VTPE (Vertical Trailing Pixel Effect).
+        Packaged as a fits file.
 
         """
         if not self.vtpe:
@@ -1835,7 +1833,7 @@ class Config:
             [[self.hotX], [self.hotY], [t_slices], [pix_signal], [vtpe]],
             names=("hotpix_x", "hotpix_y", "t_slice", "signal", "vtpe"),
         )
-        t.write(vtpe_name + ".fits", overwrite=True)
+        t.write(self.outstem + "_vtpe.fits", overwrite=True)
 
     def compute_vis_quantities(self, ir_output=None, verbose=False):
         """
@@ -2372,7 +2370,7 @@ class Config:
         plt.close(F)
 
 
-def run_ir_all(infile, tstart=1):
+def run_ir_all(infile):
     """
     Runs the IR characterization.
 
@@ -2400,13 +2398,14 @@ def run_ir_all(infile, tstart=1):
     cf.method_23_plot()
     with open(cf.outstem + "_summary.txt", "w") as f:
         f.write(cf.text_output())
-    s = cf.hotpix_analysis(verbose=True, tstart=tstart)
+    s = cf.hotpix_analysis(verbose=True)
     with open(cf.outstem + "_hot.txt", "w") as f:
         f.write(s)
     cf.hotpix_plots()
-    s = cf.get_vtpe_summary()
-    if s != "":
-        print("VTPE summary written to", s)
+    if cf.vtpe:
+        s = cf.get_vtpe_summary()
+        if s != "":
+            print("VTPE summary written to", s)
 
 
 def run_vis_all(infile, run_ir_first=True):
