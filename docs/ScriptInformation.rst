@@ -283,7 +283,7 @@ In computing the sample number dependence of hot pixel IPC, uses the autocorrela
 HOTPIX_TSTART
 -------------
 
-For example, ``HOTPIX_TSTART: 2''.
+For example, ``HOTPIX_TSTART: 2``.
 
 If provided, uses the specified index as the starting time stamp for hotpix analysis.
 
