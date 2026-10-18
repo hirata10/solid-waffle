@@ -471,7 +471,7 @@ class Config:
             if m:
                 self.hotpix_slidemed = True
             # different starting time slice for hot pixel analysis?
-            m = re.search(r"^HOTPIX_TSTART\s+(\S+)", line)
+            m = re.search(r"^HOTPIX_TSTART:\s+(\S+)", line)
             if m:
                 self.tstart = int(m.group(1))
                 if not self.hotpix:
