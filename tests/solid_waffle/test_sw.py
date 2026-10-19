@@ -355,6 +355,29 @@ def test_run(tmp_path):
     assert -1 < c < 1
     assert 0.0005 < m < 0.0015
 
+    # LOGTSPACE
+    with open(temp_dir + "/analyze_cfg.txt", "w") as f:
+        f.write(analyze_cfg)
+        f.write("HOTPIX: 400 2400 0.1 0.08\n")
+        f.write("HOTPIX LOGTSPACE\n")
+    run_ir_all(temp_dir + "/analyze_cfg.txt")
+    hot = np.loadtxt(f"{temp_dir}/analysis_hot.txt")
+    (nh2, ncol) = np.shape(hot)
+    assert 0.2 < nh2 / nh < 0.4
+    assert ncol == 63
+    nrec = 0
+    for j in range(nh):
+        nrec += np.count_nonzero(np.logical_and(x[j] == hot[:, 0], y[j] == hot[:, 1]))
+    assert 9 * nh2 // 10 <= nrec <= nh2
+    sl = hot[0, 3::5]
+    sl *= 18.0 / sl[-1]
+    for k in range(7):
+        assert k + 0.8 < sl[k] < k + 1.2
+    assert 8.8 < sl[7] < 9.2
+    assert 10.8 < sl[8] < 11.2
+    assert 12.8 < sl[9] < 13.2
+    assert 14.8 < sl[10] < 15.2
+
     # FULLNL
     analyze_cfg = (
         "DETECTOR: Test_simulation\n"
