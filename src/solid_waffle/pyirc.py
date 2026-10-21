@@ -936,7 +936,7 @@ def gen_nl_cube(filelist, formatpars, timeslice, ngrid, Ib, usemode, swi, verbos
     temp_array = np.zeros((nfiles, ny, nx))
 
     # order of polynomial fit per pixel
-    my_order = 5
+    my_order = min(5, tmax - tmin - 1)
     if usemode == "abs":
         my_order = swi.p
 
@@ -981,11 +981,11 @@ def gen_nl_cube(filelist, formatpars, timeslice, ngrid, Ib, usemode, swi, verbos
     for iy in range(ny):
         for ix in range(nx):
             p = np.poly1d(
-                np.polyfit(np.asarray(range(tmin - tref, tmax + 1 - tref)), output_array[:, iy, ix], my_order)
+                np.polyfit(np.asarray(range(tmin, tmax + 1)) - tref, output_array[:, iy, ix], my_order)
             )
             q = np.poly1d.deriv(p)
-            fit_array[:, iy, ix] = p(range(tmin - tref, tmax + 1 - tref))
-            deriv_array[:, iy, ix] = q(range(tmin - tref, tmax + 1 - tref))
+            fit_array[:, iy, ix] = p(np.array(range(tmin, tmax + 1)) - tref)
+            deriv_array[:, iy, ix] = q(np.array(range(tmin, tmax + 1)) - tref)
             coefs_array[: p.order + 1, iy, ix] = p.c[::-1]
     if usemode == "dev":
         return output_array, fit_array, deriv_array
