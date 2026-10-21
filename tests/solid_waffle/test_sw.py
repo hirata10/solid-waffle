@@ -359,6 +359,6 @@ def test_run(tmp_path):
 
     # vtpe
     n_vtpe = 400
-    vtpe_table = Table.read(temp_dir + "_vtpe.fits")
+    vtpe_table = Table.read(temp_dir + "/analysis_vtpe.fits")
     n_vtpe2 = len(vtpe_table)
     assert 0.2 < n_vtpe2 / n_vtpe < 0.4
