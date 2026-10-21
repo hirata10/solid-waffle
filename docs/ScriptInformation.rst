@@ -280,6 +280,21 @@ You may turn on this feature by including ``HOTREF AUTOCORR``.
 
 In computing the sample number dependence of hot pixel IPC, uses the autocorrelation estimate of IPC as the 'reference' (for alpha_{this sample} - alpha_{reference}) instead of the last sample (default, in which case the last value of Delta alpha is trivially zero).
 
+HOTPIX_TSTART
+-------------
+
+For example, ``HOTPIX_TSTART: 2``.
+
+If provided, uses the specified index as the starting time stamp for hotpix analysis.
+
+VTPE
+----
+
+You may turn on this feature by including ``VTPE``.
+
+If provided, computes and returns a summary of the VTPE (Vertical Trailing Pixel Effect) for detected hot pixels as a FITS file.
+
+
 NARROWFIG
 ---------
 
