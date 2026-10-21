@@ -1308,10 +1308,10 @@ def gain_alphabetacorr(graw, CH, CV, signal, frac_dslope, times):
             / (1 + beta * I_ * (3 * (times[1] + times[3]) - 4 * times[0]))
         )
         if g < 1e-3:
-            print("Gain did not converge")
-            print("IN:", graw, CH, CV, signal, frac_dslope, times)
-            print("STATUS:", g, alphaH, alphaV, alpha, I_, beta)
-            raise RuntimeError("Gain did not converge")
+            warnings.warn("Gain did not converge")
+            # print("IN:", graw, CH, CV, signal, frac_dslope, times)
+            # print("STATUS:", g, alphaH, alphaV, alpha, I_, beta)
+            return []  # FAIL!
         temp = (1 - 4 * alpha - 4 * beta * I_ * times[3]) * 2 * I_ * (times[3] - times[0]) / g**2
         alphaH = CH / temp
         alphaV = CV / temp

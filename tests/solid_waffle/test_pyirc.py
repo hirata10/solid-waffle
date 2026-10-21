@@ -3,7 +3,13 @@
 
 import numpy as np
 import pytest
-from solid_waffle.pyirc import IndexDictionary, gain_alphacorr, pyIRC_percentile, slidemed_percentile
+from solid_waffle.pyirc import (
+    IndexDictionary,
+    gain_alphabetacorr,
+    gain_alphacorr,
+    pyIRC_percentile,
+    slidemed_percentile,
+)
 
 
 def test_indexerr():
@@ -48,3 +54,4 @@ def test_return_gain_alphacorr():
     """Test failure of gain_alpha_corr."""
 
     assert len(gain_alphacorr(1.0, 100.0, 100.0, 100.0)) == 0
+    assert len(gain_alphabetacorr(1.0e-6, 0.0, 0.0, 1.0e3, 0.0, [1, 2, 3, 4])) == 0
