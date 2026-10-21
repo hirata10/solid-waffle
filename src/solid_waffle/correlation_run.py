@@ -1807,7 +1807,7 @@ class Config:
     def get_vtpe_summary(self):
         """
         Gets the summary of the VTPE (Vertical Trailing Pixel Effect).
-        Packaged as a fits file.
+        Returned as a fits file.
 
         """
         if not self.vtpe:
@@ -1834,6 +1834,7 @@ class Config:
             names=("hotpix_x", "hotpix_y", "t_slice", "signal", "vtpe"),
         )
         t.write(self.outstem + "_vtpe.fits", overwrite=True)
+        return self.outstem + "_vtpe.fits"
 
     def compute_vis_quantities(self, ir_output=None, verbose=False):
         """
