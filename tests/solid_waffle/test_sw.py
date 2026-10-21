@@ -362,3 +362,60 @@ def test_run(tmp_path):
     vtpe_table = Table.read(temp_dir + "/analysis_vtpe.fits")
     n_vtpe2 = len(vtpe_table)
     assert 0.2 < n_vtpe2 / n_vtpe < 0.4
+
+    # LOGTSPACE
+    with open(temp_dir + "/analyze_cfg.txt", "w") as f:
+        f.write(analyze_cfg)
+        f.write("HOTPIX: 400 2400 0.1 0.08\n")
+        f.write("HOTPIX LOGTSPACE\n")
+    run_ir_all(temp_dir + "/analyze_cfg.txt")
+    hot = np.loadtxt(f"{temp_dir}/analysis_hot.txt")
+    (nh2, ncol) = np.shape(hot)
+    assert 0.2 < nh2 / nh < 0.4
+    assert ncol == 63
+    nrec = 0
+    for j in range(nh):
+        nrec += np.count_nonzero(np.logical_and(x[j] == hot[:, 0], y[j] == hot[:, 1]))
+    assert 9 * nh2 // 10 <= nrec <= nh2
+    sl = hot[0, 3::5]
+    sl *= 18.0 / sl[-1]
+    for k in range(7):
+        assert k + 0.8 < sl[k] < k + 1.2
+    assert 8.8 < sl[7] < 9.2
+    assert 10.8 < sl[8] < 11.2
+    assert 12.8 < sl[9] < 13.2
+    assert 14.8 < sl[10] < 15.2
+
+    # FULLNL
+    analyze_cfg = (
+        "DETECTOR: Test_simulation\n"
+        "LIGHT:\n"
+        f"    {temp_dir}/light_001.fits\n"
+        f"    {temp_dir}/light_002.fits\n"
+        f"    {temp_dir}/light_003.fits\n"
+        f"    {temp_dir}/light_004.fits\n"
+        "DARK:\n"
+        f"    {temp_dir}/dark_005.fits\n"
+        f"    {temp_dir}/dark_006.fits\n"
+        f"    {temp_dir}/dark_007.fits\n"
+        f"    {temp_dir}/dark_008.fits\n"
+        "FORMAT: 1001\n"
+        "CHAR: Advanced 1 3 3 bfe\n"
+        "NBIN: 4 4\n"
+        "TIME:    1 10 12 20\n"
+        "NLPOLY: 3 1 20\n"
+        "FULLNL: True True True\n"
+        f"OUTPUT: {temp_dir}/analysis\n"
+    )
+    with open(temp_dir + "/analyze_cfg.txt", "w") as f:
+        f.write(analyze_cfg)
+    run_ir_all(temp_dir + "/analyze_cfg.txt")
+
+    data = np.loadtxt(temp_dir + "/analysis_summary.txt")
+    d = np.mean(data, axis=0)
+    assert 1.49 < d[5] < 1.51
+    assert 0.0098 < d[6] < 0.0102
+    assert 0.0098 < d[7] < 0.0102
+    assert -0.001 < d[-3] < 0.001
+    assert -2.05 < d[-2] * 1.0e6 < -1.95
+    assert -0.1 < d[-1] * 1.0e10 < 0.1
