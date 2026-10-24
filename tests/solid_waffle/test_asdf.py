@@ -2,6 +2,7 @@ import os
 from contextlib import chdir
 
 import asdf
+import asdf_astropy
 import numpy as np
 import yaml
 from astropy.io import fits
@@ -138,6 +139,8 @@ def tflight(tmp_path, v):
                 "type": "PREDICTED",
             }
         if v == 2:
+            print(asdf.__version__)
+            print(asdf_astropy.__version__)
             meta["exposure"] |= {
                 "hga_move": False,
                 "engineering_quality": "OK",
