@@ -6,6 +6,66 @@ import asdf
 import numpy as np
 from astropy.io import fits
 
+# fields to copy into the FITS header (for Level 1 files)
+USEFIELDS_L1 = {
+    "ephemeris": {
+        "ephemeris_reference_frame": ("E_REF_FR", "Ephemeris Reference Frame"),
+        "spatial_x": ("E_SP_X", "X Spatial Coordinate of Roman (km)"),
+        "spatial_y": ("E_SP_Y", "Y Spatial Coordinate of Roman (km)"),
+        "spatial_z": ("E_SP_Z", "Z Spatial Coordinate of Roman (km)"),
+        "time": ("E_TIME", "UTC Time of Ephemeris Information (MJD)"),
+        "type": ("E_TYPE", "Ephemeris Type"),
+        "velocity_x": ("E_VEL_X", "X Component of Roman Velocity (km/s)"),
+        "velocity_y": ("E_VEL_Y", "Y Component of Roman Velocity (km/s)"),
+        "velocity_z": ("E_VEL_Z", "Z Component of Roman Velocity (km/s)"),
+    },
+    "exposure": {
+        "effective_exposure_time": ("EFF_EXPT", "Effective Exposure Time (s)"),
+        "end_time": ("T_END", "Exposure End Time (UTC)"),
+        "engineering_quality": ("QUALITY", "Engineering Data Quality"),
+        "exposure_time": ("T_EXP", "Exposure Time (s)"),
+        "hga_move": ("HGA_MOVE", "High Gain Antenna (HGA) Movement"),
+        "ma_table_id": ("MATB_ID", "Multi-Accumulation Table Identifier"),
+        "ma_table_name": ("MATB_NAM", "Name of the Multi-Accumulation Table"),
+        "ma_table_number": ("MATB_NMB", "Multi-Accumulation Table Identification Number"),
+        "nresultants": ("NRESLTNT", "Number of Resultants"),
+        "read_pattern": ("RDP", "Read Pattern"),
+        "start_time": ("T_START", "Exposure Start Time (UTC)"),
+        "truncated": ("TRUNC", "Truncated MA Table"),
+        "type": ("WFI_FLAT", "Exposure Type"),
+    },
+    "guide_star": {
+        "epoch": ("GS_EPOCH", "Guide Star Coordinates Epoch"),
+        "guide_mode": ("GS_MODE", "Guide Window Mode"),
+        "guide_star_id": ("GS_ID", "Guide Star Identifier"),
+        "guide_window_id": ("GS_ID", "Guide Window Identifier"),
+        "window_xstart": ("GS_XMIN", "Guide Window X Start Position (pixels)"),
+        "window_xstop": ("GS_XMAX", "Guide Window X Stop Position (pixels)"),
+        "window_ystart": ("GS_YMIN", "Guide Window Y Start Position (pixels)"),
+        "window_ystop": ("GS_YMAX", "Guide Window Y Start Position (pixels)"),
+    },
+    "instrument": {
+        "data_encoding_offset": ("DATAENC", "Data Encoding Offset"),
+        "detector": ("DETECTOR", "Detector"),
+        "name": ("INSTRUME", "Instrument Name"),
+        "optical_element": ("OPTELMNT", "Element Name"),
+    },
+    "program": {
+        "category": ("PRG_CAT", "Program Category"),
+        "investigator_name": ("PRG_PI", "Principal Investigator Name"),
+        "science_category": ("PRG_SCI", "Science Category"),
+        "subcategory": ("PRG_SUBC", "Program Subcategory"),
+        "title": ("PRG_TITL", "Proposal Title"),
+    },
+    "rcs": {
+        "active": ("RCS_ON", "Status of the Relative Calibration System (RCS)"),
+        "bank": ("RCS_BANK", "Light Emitting Diode (LED) Bank Selection"),
+        "counts": ("RCS_CTS", "Light Emitting Diode (LED) Flux (DN)"),
+        "electronics": ("RCS_ELEC", "Relative Calibration System (RCS) Electronics Side"),
+        "led": ("RCS_LED", "Light Emitting Diode (LED) Passband"),
+    },
+}
+
 
 def main(input_dir=None, output_dir=None, fmatch="*.asdf", format="wfi_tvac"):
     """
@@ -77,6 +137,24 @@ def main(input_dir=None, output_dir=None, fmatch="*.asdf", format="wfi_tvac"):
             h = fits.PrimaryHDU(alldata)
             h.header["TFRAME"] = f["roman"]["meta"]["exposure"]["frame_time"]
             h.header["TGROUP"] = f["roman"]["meta"]["exposure"]["frame_time"]
+
+            # extra headers
+            for metakey in USEFIELDS_L1:
+                if metakey in f["roman"]["meta"]:
+                    x = f["roman"]["meta"][metakey]
+                    for d in USEFIELDS_L1[metakey]:
+                        if d in x:
+                            val = x[d]
+                            if isinstance(val, list):
+                                for j in range(len(val)):
+                                    h.header[USEFIELDS_L1[metakey][d][0] + f"{j+1:04d}"] = (
+                                        str(val[j]),
+                                        USEFIELDS_L1[metakey][d][1] + f" {j+1:04d}",
+                                    )
+                            else:
+                                if not isinstance(val, (int, float, bool, str)):
+                                    val = str(val)
+                                h.header[USEFIELDS_L1[metakey][d][0]] = (val, USEFIELDS_L1[metakey][d][1])
 
             # metadata
             ca = list(str(asdf.util.load_yaml(str(fn))))
